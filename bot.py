@@ -34,27 +34,27 @@ bot = commands.Bot(
 	case_insensitive=True # Allow commands to be case insensitive
 )
 
-@bot.command()
-async def test(ctx, *args):
-	await ctx.send('Hello')
+#@bot.command()
+#async def test(ctx, *args):
+#	await ctx.send('Hello')
 
-@bot.command()
-async def channelID(ctx):
-	print(ctx.channel.id) # Prints the discord channel ID of the current channel in the console
+#@bot.command()
+#async def channelID(ctx):
+#	print(ctx.channel.id) # Prints the discord channel ID of the current channel in the console
 
-async def no_check(ctx):
-	return ctx.author.id == 1
-
-@bot.command()
-@commands.is_owner()
-##@commands.check(no_check)
-async def no(ctx):
-	await ctx.send("Pass")
-
-@no.error
-async def no_error(ctx,error):
-	if isinstance(error, commands.CheckFailure):
-		await ctx.send("Fail")
+#async def no_check(ctx):
+#	return ctx.author.id == 1
+#
+#@bot.command()
+#@commands.is_owner()
+###@commands.check(no_check)
+#async def no(ctx):
+#	await ctx.send("Pass")
+#
+#@no.error
+#async def no_error(ctx,error):
+#	if isinstance(error, commands.CheckFailure):
+#		await ctx.send("Fail")
 
 bot.load_extension("cogs.BotControl")
 bot.load_extension("cogs.Missions")
