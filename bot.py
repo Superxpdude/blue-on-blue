@@ -3,6 +3,7 @@ import json
 import requests
 import datetime
 import asyncio
+import configparser
 from discord.ext import commands
 #print(discord.__version__)  # check to make sure at least once you're on the right version!
 
@@ -16,33 +17,35 @@ gitlab_project_str = str(gitlab_project)
 gitlab_url = "https://gitlab.com"
 gitlab_url_api = gitlab_url + "/api/v4"
 
-client = commands.Bot(command_prefix="$$")
+# Define the prefix function
+def get_prefix(client, message):
+	# Set the prefixes
+	prefixes = ['$$']
+	
+	# if not message.guild:
+	#	#prefixes = ['$$']
+	
+	# Allow users to mention the bot instead of using a prefix
+	return commands.when_mentioned_or(*prefixes)(client, message)
 
-#client = discord.Client()  # starts the discord client.
+bot = commands.Bot(
+	command_prefix=get_prefix,
+	description="TMTM Bot",
+	case_insensitive=True #Allow commands to be case insensitive
+)
 
-@client.command()
+@bot.command()
 async def test(ctx, *args):
 	await ctx.send('Hello')
 
-@client.command()
-@commands.is_owner()
-async def logout(ctx):
-	await ctx.send("Goodbye")
-	await client.close()
-
-@logout.error
-async def logout_error(ctx,error):
-	if isinstance(error, commands.CheckFailure):
-		await ctx.send("Nothing to see here, move along comrade.")
-
-@client.command()
+@bot.command()
 async def channelID(ctx):
 	print(ctx.channel.id) # Prints the discord channel ID of the current channel in the console
 
 async def no_check(ctx):
 	return ctx.author.id == 1
 
-@client.command()
+@bot.command()
 @commands.is_owner()
 ##@commands.check(no_check)
 async def no(ctx):
@@ -53,14 +56,16 @@ async def no_error(ctx,error):
 	if isinstance(error, commands.CheckFailure):
 		await ctx.send("Fail")
 
-@client.event  # event decorator/wrapper. More on decorators here: https://pythonprogramming.net/decorators-intermediate-python-tutorial/
+bot.load_extension("cogs.BotControl")
+
+@bot.event  # event decorator/wrapper. More on decorators here: https://pythonprogramming.net/decorators-intermediate-python-tutorial/
 async def on_ready():  # method expected by client. This runs once when connected
-	print(f'We have logged in as {client.user}')  # notification of login.
+	print(f'We have logged in as {bot.user}')  # notification of login.
 	#await client.get_channel(556943548650487838).send("Channel target")
 	#print(discord.utils.get(message.server.channels, name="bot-test"))
 	#print(discord.utils.get(client.get_all_channels(), guild__name="Super's Notes",name="bot-test"))
 	#print(discord.utils.get(server.channels,name="bot-test"))
-	for server in client.guilds:
+	for server in bot.guilds:
 		if server.name == "Super's Notes":
 			break
 	
@@ -72,9 +77,9 @@ async def on_ready():  # method expected by client. This runs once when connecte
 	await channel.send("Connected")
 
 
-@client.event
+@bot.event
 async def on_message(message):  # event that happens per any message.
-	await client.process_commands(message) # This line needs to be here for commands to work
+	await bot.process_commands(message) # This line needs to be here for commands to work
 #	if {client.user} != {message.author}:
 #		# each message has a bunch of attributes. Here are a few.
 #		# check out more by print(dir(message)) for example.
@@ -127,4 +132,4 @@ async def on_message(message):  # event that happens per any message.
 #			await asyncio.sleep(10)
 
 #client.loop.create_task(git_background_task())
-client.run(token)  # recall my token was saved!
+bot.run(token, bot=True, reconnect=True)  # recall my token was saved!
