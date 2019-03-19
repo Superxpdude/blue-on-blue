@@ -29,9 +29,9 @@ def get_prefix(client, message):
 	return commands.when_mentioned_or(*prefixes)(client, message)
 
 bot = commands.Bot(
-	command_prefix=get_prefix,
-	description="TMTM Bot",
-	case_insensitive=True #Allow commands to be case insensitive
+	command_prefix=get_prefix, # Call the get_prefix function
+	description="TMTM Bot", # Sets the bot description for the help command
+	case_insensitive=True # Allow commands to be case insensitive
 )
 
 @bot.command()
@@ -57,6 +57,7 @@ async def no_error(ctx,error):
 		await ctx.send("Fail")
 
 bot.load_extension("cogs.BotControl")
+bot.load_extension("cogs.Missions")
 
 @bot.event  # event decorator/wrapper. More on decorators here: https://pythonprogramming.net/decorators-intermediate-python-tutorial/
 async def on_ready():  # method expected by client. This runs once when connected
