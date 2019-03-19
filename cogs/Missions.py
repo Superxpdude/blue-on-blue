@@ -30,15 +30,14 @@ class Missions(commands.Cog, name="Missions"):
 		# Embed settings
 		
 		for i in mission_sheet.get_all_values():
-			missionDate = datetime.date(datetime.strptime(i[0],"%m/%d/%y"))
 			if (
 				i[0] != "" and i[0] != "DATES" and i[1] != "" and 
-				missionDate > 
+				datetime.date(datetime.strptime(i[0],"%m/%d/%y")) > 
 				datetime.date(datetime.now() + timedelta(days=-1))
 			):
 				missionArr = i[1].split(" - ")
 				missionURL = "https://wiki.tmtm.gg/wiki/" + missionArr[0].replace(" ","_")
-				embed = discord.Embed(title=missionDate.strftime("%A") + ": " + i[0], color=0x2E86C1)
+				embed = discord.Embed(title=datetime.date(datetime.strptime(i[0],"%m/%d/%y")).strftime("%A") + ": " + i[0], color=0x2E86C1)
 				embed.add_field(name="Mission", value="[" + missionArr[0] + "](" + missionURL + ")", inline=True)
 				embed.add_field(name="Map", value=missionArr[1], inline=True)
 				embed.add_field(name="Author", value=i[2], inline=True)
