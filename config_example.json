@@ -1,0 +1,47 @@
+{
+	"BOT": {
+		"DESC": "",
+		"CMD_PREFIXES": [
+			"$$"
+		],
+		"TOKEN": "",
+		"COGS": [
+			"cogs.BotControl",
+			"cogs.Missions"
+		]
+	},
+	"SERVER": {
+		"IDS": [
+			1
+		],
+		"CHANNELS": {
+			"MOD": 1,
+			"CHECK_IN": 1,
+			"ACTIVITY": 1
+		},
+		"ROLES": {
+			"MEMBER": 1,
+			"ADMINS": [
+				1
+			],
+			"MISSION_MAKERS": [
+				1
+			],
+			"DEAD": 1
+		}
+	},
+	"GITLAB": {
+		"WEB_URL": "https://gitlab.com",
+		"API_URL": "https://gitlab.com/api/v4",
+		"API_TOKEN": "",
+		"PROJECTS": []
+	},
+	"MISSIONS": {
+		"SHEET": {
+			"URL": "",
+			"WORKSHEET": "",
+			"API_TOKEN_FILE": "google_api.json"
+		},
+		"WIKI": ""
+	}
+}
