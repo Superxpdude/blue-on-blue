@@ -12,7 +12,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 class Missions(commands.Cog, name="Missions"):
 	def __init__(self, bot):
 		self.bot = bot
-		self.git_task = self.bot.loop.create_task(self.git_background_task())
+		if len(config["GITLAB"]["PROJECTS"]) > 0:
+			self.git_task = self.bot.loop.create_task(self.git_background_task())
 
 	@commands.command(
 		name="ops",
@@ -56,25 +57,27 @@ class Missions(commands.Cog, name="Missions"):
 				gitlab_url_api = config["GITLAB"]["API_URL"]
 				gitlab_url = config["GITLAB"]["WEB_URL"]
 				gitlab_header = {'Private-Token': config["GITLAB"]["API_TOKEN"]}
-				gitlab_project = config["GITLAB"]["PROJECTS"][0]
-				gitlab_project_str = str(gitlab_project)
+				gitlab_projects = config["GITLAB"]["PROJECTS"]
+				
+				for gitlab_project in gitlab_projects:
+					gitlab_project_str = str(gitlab_project)
 
-				project_info_raw = requests.get(
-					gitlab_url_api + "/projects/" + gitlab_project_str, headers=gitlab_header
-				)
-				project_info = json.loads(project_info_raw.text)
+					project_info_raw = requests.get(
+						gitlab_url_api + "/projects/" + gitlab_project_str, headers=gitlab_header
+					)
+					project_info = json.loads(project_info_raw.text)
 
-				r = requests.get("%s/projects/%s/repository/commits/?since='%s'" % (gitlab_url_api, gitlab_project, iso_time), headers=gitlab_header)
-				r_dict = json.loads(r.text)
+					r = requests.get("%s/projects/%s/repository/commits/?since='%s'" % (gitlab_url_api, gitlab_project, iso_time), headers=gitlab_header)
+					r_dict = json.loads(r.text)
 
-				for i in r_dict:
-					embed_title = i['committer_name'] + " committed to " + project_info['path_with_namespace']
-					embed_desc = i['message']
-					embed_url = project_info['web_url'] + "/commit/" + i['id']
-					embed = discord.Embed(title=embed_title, description=embed_desc, color=0xfc6d26)
-					embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-rgb.png", url=gitlab_url)
-					embed.add_field(name=i['short_id'], value="[[Gitlab]](" + embed_url + ")", inline=False)
-					await channel.send(embed=embed)
+					for i in r_dict:
+						embed_title = i['committer_name'] + " committed to " + project_info['path_with_namespace']
+						embed_desc = i['message']
+						embed_url = project_info['web_url'] + "/commit/" + i['id']
+						embed = discord.Embed(title=embed_title, description=embed_desc, color=0xfc6d26)
+						embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-rgb.png", url=gitlab_url)
+						embed.add_field(name=i['short_id'], value="[[Gitlab]](" + embed_url + ")", inline=False)
+						await channel.send(embed=embed)
 
 				await asyncio.sleep(60)
 			except Exception as e:
