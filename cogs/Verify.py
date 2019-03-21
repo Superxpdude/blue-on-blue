@@ -11,15 +11,15 @@ import string
 
 # Checks the user's steam account to check if they placed the token in their steam profile.
 # returns true or false
-async def check_credentials(user):
+async def check_credentials(user, userid):
 	#steam_id64 = shortlist.loc[[user], 'steamProfile'].tolist()
 
 	#token = shortlist.loc[[user], 'token'].tolist()[0]
 	
 	db = TinyDB('db/verify.json') # Define the database
 	data = Query()
-	steam_id64 = db.get(data.discord_id == user)["steam_id"]
-	token = db.get(data.discord_id == user)["token"]
+	steam_id64 = db.get(data.discord_id == userid)["steam_id"]
+	token = db.get(data.discord_id == userid)["token"]
 	res = requests.get('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64))
 	user_data = res.json()
 	#print('checking steam profile...', user_data)
@@ -60,12 +60,12 @@ async def get_id64(url=""):
 		return None
 
 # Enters an unverified user into a .csv.
-async def enter_user(user, token, url):
+async def enter_user(user, userid, token, url):
 	#entry = pd.DataFrame([[user, url, token]], columns=['userName', 'steamProfile', 'token'])
 	#entry.to_csv('Administration/unverifiedusers.csv', mode='a', header=False, index=False)
 	db = TinyDB('db/verify.json') # Define the database
 	data = Query()
-	db.upsert({"discord_id": user, "steam_id": url, "token": token, "verified": False}, data.discord_id == user) 
+	db.upsert({"discord_id": userid, "discord_name": user, "steam_id": url, "token": token, "verified": False}, data.discord_id == userid) 
 
 
 # Assigns roles to a user.
@@ -111,6 +111,7 @@ class Verify(commands.Cog, name="Verify"):
 		db = TinyDB('db/verify.json') # Define the database
 		data = Query()
 		user = str(ctx.author)
+		userid = ctx.author.id
 		role = discord.utils.get(ctx.guild.roles, id=config["SERVER"]["ROLES"]["MEMBER"])
 		steam_id64 = await get_id64(steam_url)
 		if steam_id64 is None:
@@ -130,15 +131,15 @@ class Verify(commands.Cog, name="Verify"):
 			return
 		
 		# User already present in database
-		if db.contains(data.discord_id == user):
-			userdata = db.get(data.discord_id == user)
+		if db.contains(data.discord_id == userid):
+			userdata = db.get(data.discord_id == userid)
 			#if userdata["verified"]: # Check if the steam account is still in the steam group
 				#await bot.add_roles(ctx.author, role, reason="User verified by bot")
 			#elif await check_credentials(self, ctx, user):
-			if await check_credentials(user):
+			if await check_credentials(user, userid):
 				#await bot.add_roles(ctx.author, role, reason="User verified by bot")
 				await assign_role(self, ctx, role)
-				db.upsert({"discord_id": user, "verified": True}, data.discord_id == user) 
+				db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid) 
 			else:
 				await ctx.send("Sorry the token does not match what is on your profile.")
 			return 0
@@ -156,7 +157,7 @@ class Verify(commands.Cog, name="Verify"):
 						   "```" + \
 						   user_token + \
 						   "```"
-			await enter_user(user, user_token, steam_id64)
+			await enter_user(user, userid, user_token, steam_id64)
 
 			await ctx.send(good_response)
 			try:
