@@ -57,6 +57,7 @@ class Pings(commands.Cog, name="Pings"):
 			return
 		db = TinyDB('db/pings.json') # Define the database
 		tag = tag.lower() # String searching is case-sensitive
+		tag = tag.split("\n")[0]
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
 		if tag in pings: # Pull info from a tag if it exists
