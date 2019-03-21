@@ -56,9 +56,9 @@ class Pings(commands.Cog, name="Pings"):
 			await ctx.send(san)
 			return
 		db = TinyDB('db/pings.json') # Define the database
+		tag = tag.lower() # String searching is case-sensitive
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
-		tag = tag.lower() # String searching is case-sensitive
 		if tag in pings: # Pull info from a tag if it exists
 			ping = db.table(tag)
 			message = "Pinging '%s': " % (tag)
@@ -80,15 +80,14 @@ class Pings(commands.Cog, name="Pings"):
 		
 		If you're not in the list, it will add you to the list.
 		If you are in the list, it will remove you from the list."""
-		print(tag.count("\\u"))
 		san = sanitize(tag)
 		if san is not None:
 			await ctx.send(san)
 			return
 		db = TinyDB('db/pings.json') # Define the database
+		tag = tag.lower() # String searching is case-sensitive
 		ping = db.table(tag) # Grab the table for the ping
 		data = Query() # Define query
-		tag = tag.lower() # String searching is case-sensitive
 		if ping.contains(data.mention == ctx.author.mention): # User in ping list
 			ping.remove(data.mention == ctx.author.mention) # Remove the user from the list
 			if len(ping) == 0: # If no users are in the list, remove the list
@@ -108,9 +107,9 @@ class Pings(commands.Cog, name="Pings"):
 		When called with a tag, it will list all users subscribed to that tag.
 		NOTE: Usernames are stored when added to the list, and may no longer be accurate."""
 		db = TinyDB('db/pings.json') # Define the database
+		tag = tag.lower() # String searching is case-sensitive
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
-		tag = tag.lower() # String searching is case-sensitive
 		if tag in pings: # Pull info from a tag if it exists
 			ping = db.table(tag)
 			message = "Tag '%s' mentions the following users: \n```" % (tag)
@@ -154,10 +153,10 @@ class Pings(commands.Cog, name="Pings"):
 		Can only be used by authorized users.
 		This action cannot be undone."""
 		# Purge does not get filtered, we need to make sure it always works.
+		tag = tag.lower() # String searching is case-sensitive
 		db = TinyDB('db/pings.json') # Define the database
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
-		tag = tag.lower() # String searching is case-sensitive
 		if tag in pings:
 			db.purge_table(tag)
 			await ctx.send("Tag '%s' has been permanently removed by %s." % (tag, ctx.author.name))

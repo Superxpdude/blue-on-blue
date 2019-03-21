@@ -8,7 +8,6 @@ class BotControl(commands.Cog, name="Bot Control"):
 	
 	# Function that checks if a user can use ping control functions
 	async def check_bot_control(ctx):
-		roles = ctx.author.roles
 		authors = [134830326789832704,96018174163570688]
 		if (
 			ctx.author.id in authors
