@@ -1,12 +1,26 @@
 import discord
 from discord.ext import commands
+from settings import config
 
 class BotControl(commands.Cog, name="Bot Control"):
 	def __init__(self, bot):
 		self.bot = bot
+	
+	# Function that checks if a user can use ping control functions
+	async def check_bot_control(ctx):
+		roles = ctx.author.roles
+		authors = [134830326789832704,96018174163570688]
+		if (
+			config["SERVER"]["ROLES"]["ADMIN"] in roles or
+			config["SERVER"]["ROLES"]["MODERATOR"] in roles or
+			ctx.author.id in authors
+		):
+			return True
+		else:
+			return False
 
 	@commands.command(brief='This kills the bot')
-	@commands.is_owner()
+	@commands.check(check_bot_control)
 	async def logout(self, ctx):
 		await ctx.send("Goodbye")
 		await self.bot.close()
@@ -17,7 +31,7 @@ class BotControl(commands.Cog, name="Bot Control"):
 			await ctx.send("Nothing to see here, move along comrade.")
 	
 	@commands.command(name='cog_load', hidden=True)
-	@commands.is_owner()
+	@commands.check(check_bot_control)
 	async def cog_load(self, ctx, *, cog: str):
 		"""Command which Loads a Module.
 		Remember to use dot path. e.g: cogs.owner"""
@@ -30,7 +44,7 @@ class BotControl(commands.Cog, name="Bot Control"):
 			await ctx.send('**`SUCCESS`**')
 	
 	@commands.command(name='cog_unload', hidden=True)
-	@commands.is_owner()
+	@commands.check(check_bot_control)
 	async def cog_unload(self, ctx, *, cog: str):
 		"""Command which Unloads a Module.
 		Remember to use dot path. e.g: cogs.owner"""
@@ -46,7 +60,7 @@ class BotControl(commands.Cog, name="Bot Control"):
 			await ctx.send("You cannot unload the bot control module!")
 	
 	@commands.command(name='cog_reload', hidden=True)
-	@commands.is_owner()
+	@commands.check(check_bot_control)
 	async def cog_reload(self, ctx, *, cog: str):
 		"""Command which Reloads a Module.
 		Remember to use dot path. e.g: cogs.owner"""

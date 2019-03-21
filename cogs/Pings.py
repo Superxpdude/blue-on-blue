@@ -3,21 +3,62 @@ from settings import config
 from discord.ext import commands
 from tinydb import TinyDB, Query
 
+# Function to check if any invalid character patters are in a string.
+def sanitize(text):
+	if text == "":
+		return "You need to specify a valid ping!"
+	elif text.count("<@") > 0:
+		return "You can't use mentions in a ping!"
+	elif len(text) > 20:
+		return "Pings must be 20 characters or less!"
+	elif text.count(":") > 1:
+		return "You can't use emotes in a ping!"
+	elif check_ascii(text):
+		return "You can't use non-ASCII characters in a ping!"
+	else:
+		return None
+
+def check_ascii(text):
+	try:
+		text.encode("ascii")
+	except UnicodeEncodeError: # Non-ascii characters present
+		True
+	else:
+		False
+
 class Pings(commands.Cog, name="Pings"):
 	"""Ping users by tag."""
 	
 	def __init__(self, bot):
 		self.bot = bot
 	
+	# Function that checks if a user can use ping control functions
+	async def check_ping_control(ctx):
+		roles = ctx.author.roles
+		authors = [134830326789832704,96018174163570688]
+		if (
+			config["SERVER"]["ROLES"]["ADMIN"] in roles or
+			config["SERVER"]["ROLES"]["MODERATOR"] in roles or
+			ctx.author.id in authors
+		):
+			return True
+		else:
+			return False
+	
 	@commands.command(
 		name="ping"
 	)
 	@commands.guild_only()
-	async def ping(self, ctx, *, tag: str=None):
+	async def ping(self, ctx, *, tag: str=""):
 		"""Pings all users associated with a specific tag."""
+		san = sanitize(tag)
+		if san is not None:
+			await ctx.send(san)
+			return
 		db = TinyDB('db/pings.json') # Define the database
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
+		tag = tag.lower() # String searching is case-sensitive
 		if tag in pings: # Pull info from a tag if it exists
 			ping = db.table(tag)
 			message = "Pinging '%s': " % (tag)
@@ -34,14 +75,20 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pingme"
 	)
-	async def pingme(self, ctx, *, tag: str=None):
+	async def pingme(self, ctx, *, tag: str=""):
 		"""Adds or removes you from a ping list.
 		
 		If you're not in the list, it will add you to the list.
 		If you are in the list, it will remove you from the list."""
+		print(tag.count("\\u"))
+		san = sanitize(tag)
+		if san is not None:
+			await ctx.send(san)
+			return
 		db = TinyDB('db/pings.json') # Define the database
 		ping = db.table(tag) # Grab the table for the ping
 		data = Query() # Define query
+		tag = tag.lower() # String searching is case-sensitive
 		if ping.contains(data.mention == ctx.author.mention): # User in ping list
 			ping.remove(data.mention == ctx.author.mention) # Remove the user from the list
 			if len(ping) == 0: # If no users are in the list, remove the list
@@ -54,7 +101,7 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pinglist"
 	)
-	async def pinglist(self, ctx, *, tag: str=None):
+	async def pinglist(self, ctx, *, tag: str=""):
 		"""Lists information about pings.
 		
 		When called with no tag, it will list all active tags.
@@ -63,18 +110,27 @@ class Pings(commands.Cog, name="Pings"):
 		db = TinyDB('db/pings.json') # Define the database
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
+		tag = tag.lower() # String searching is case-sensitive
 		if tag in pings: # Pull info from a tag if it exists
 			ping = db.table(tag)
 			message = "Tag '%s' mentions the following users: \n```" % (tag)
+			list = []
 			for u in ping.all(): # Grab all users associated with a tag
-				message += u['name']
+				list += [u['name']]
+			list = sorted(list, key=str.lower) # Sort list alphabetically
+			for u in list:
+				message += u
 				message += ", "
 			message = message[:-2] # Remove the last two characters of a message
 			message += "```"
-		elif tag is None: # If no tag present, return all tags
+		elif tag == "": # If no tag present, return all tags
 			if len(pings)>0: 
 				message = "Tag list: \n```"
-				for p in pings:
+				list = []
+				for p in pings: # Grab all pings
+					list += [p]
+				list = sorted(list, key=str.lower) # Sort list alphabetically
+				for p in list:
 					message += p
 					message += ", "
 				message = message[:-2]
@@ -86,6 +142,57 @@ class Pings(commands.Cog, name="Pings"):
 		
 		# Send the message to the channel
 		await ctx.send(message)
+	
+	@commands.command(
+		name="pingpurge"
+	)
+	@commands.check(check_ping_control)
+	async def pingpurge(self, ctx, *, tag: str=""):
+		"""Destroys a ping list.
+		
+		Removes a ping list, regardless of how many users are in it.
+		Can only be used by authorized users.
+		This action cannot be undone."""
+		# Purge does not get filtered, we need to make sure it always works.
+		db = TinyDB('db/pings.json') # Define the database
+		pings = db.tables() # Grab all tables
+		pings.remove('_default') # Remove the default table
+		tag = tag.lower() # String searching is case-sensitive
+		if tag in pings:
+			db.purge_table(tag)
+			await ctx.send("Tag '%s' has been permanently removed by %s." % (tag, ctx.author.name))
+		else:
+			await ctx.send("This tag does not exist.")
+
+	@pingpurge.error
+	async def pingpurge_error(self,ctx,error):
+		if isinstance(error, commands.CheckFailure):
+			await ctx.send("You are not authorized to use that command.")
+			
+#	@commands.group()
+#	@commands.check(check_ping_control)
+#	async def pingmod(self, ctx):
+#		"""Ping moderator functions.
+#		
+#		Subcommands are used to modify the ping module.
+#		These commands can only be used by authorized users."""
+#		if ctx.invoked_subcommand is None:
+#			await ctx.send("Invalid pingmod command passed.")
+#	
+#	@pingmod.command()
+#	async def create(self, ctx, *, tag: str=""):
+#		"""Creates a ping list.
+#		
+#		Creates a ping list and allows users to assign themselves to it.
+#		Can only be used by authorized users."""
+#		san = sanitize(tag)
+#		if san is not None:
+#			ctx.send(san)
+#			return
+#		db = TinyDB('db/pings.json') # Define the database
+#		#ping = db.table(tag) # Grab the table for the ping
+#		data = Query() # Define query
+#		tag = tag.lower() # String searching is case-sensitive
 
 def setup(bot):
 	bot.add_cog(Pings(bot))

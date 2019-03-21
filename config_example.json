@@ -16,13 +16,12 @@
 		"GROUP": 103582791437418110
 	},
 	"SERVER": {
-		"IDS": [
-			1
-		],
+		"ID": 1,
 		"CHANNELS": {
 			"MOD": 1,
 			"CHECK_IN": 1,
-			"ACTIVITY": 1
+			"ACTIVITY": 1,
+			"BOT": 1
 		},
 		"ROLES": {
 			"MEMBER": 1,

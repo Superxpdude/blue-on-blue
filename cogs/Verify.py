@@ -105,7 +105,9 @@ class Verify(commands.Cog, name="Verify"):
 	)
 	#async def verify_user(steam_url, message, client):
 	async def verify_user(self, ctx, *, steam_url: str=""):
-		"""Verifies a user as part of the group."""
+		"""Verifies a user as part of the group.
+		
+		Requires a full steam profile URL for authentication."""
 		#shortlist = pd.read_csv('Administration/unverifiedusers.csv', index_col='userName')
 		#print(ctx.author.id)
 		db = TinyDB('db/verify.json') # Define the database
@@ -113,14 +115,40 @@ class Verify(commands.Cog, name="Verify"):
 		user = str(ctx.author)
 		userid = ctx.author.id
 		role = discord.utils.get(ctx.guild.roles, id=config["SERVER"]["ROLES"]["MEMBER"])
-		steam_id64 = await get_id64(steam_url)
-		if steam_id64 is None:
-			await ctx.send("Invalid URL sent, please give me a proper URL.")
-			return 0
-
+		
+		# Check for the member role
 		if role in ctx.author.roles:
 			await ctx.send("You already have the Member role! >:(")
 			return 0
+			
+		# Check if a Steam URL is present
+		if steam_url == "":
+			if db.contains(data.discord_id == userid):
+				steam_id64 = db.get(data.discord_id == userid)['steam_id']
+				await ctx.send("Checking your profile now.")
+				if await check_group(steam_id64): # Check if the user is in the steam group
+					if (
+						db.get(data.discord_id == userid)['verified'] or
+						await check_credentials(user, userid)
+					):
+						await assign_role(self, ctx, role)
+						return 0
+					else:
+						await ctx.send("Sorry the token does not match what is on your profile.\n"
+						"Use " + ctx.prefix + "verify with your steam URL if you need a new token.")
+						return 0
+				else:
+					await ctx.send("Sorry, you're not a part of this arma group. You're free to apply "
+									"by sending Anvil an email. musicalanvil@gmail.com.")
+					return 0	
+			else:
+				await ctx.send("I can't verify you without your steam profile!")
+				return 0
+		
+		steam_id64 = await get_id64(steam_url)
+		if steam_id64 is None:
+			await ctx.send("Invalid URL sent, please give me a proper URL.")
+			return 0		
 
 		await ctx.send("Checking to see if you're in the TMTM steam group...")
 		if await check_group(steam_id64):
@@ -131,18 +159,18 @@ class Verify(commands.Cog, name="Verify"):
 			return
 		
 		# User already present in database
-		if db.contains(data.discord_id == userid):
-			userdata = db.get(data.discord_id == userid)
-			#if userdata["verified"]: # Check if the steam account is still in the steam group
-				#await bot.add_roles(ctx.author, role, reason="User verified by bot")
-			#elif await check_credentials(self, ctx, user):
-			if await check_credentials(user, userid):
-				#await bot.add_roles(ctx.author, role, reason="User verified by bot")
-				await assign_role(self, ctx, role)
-				db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid) 
-			else:
-				await ctx.send("Sorry the token does not match what is on your profile.")
-			return 0
+#		if db.contains(data.discord_id == userid):
+#			userdata = db.get(data.discord_id == userid)
+#			#if userdata["verified"]: # Check if the steam account is still in the steam group
+#				#await bot.add_roles(ctx.author, role, reason="User verified by bot")
+#			#elif await check_credentials(self, ctx, user):
+#			if await check_credentials(user, userid):
+#				#await bot.add_roles(ctx.author, role, reason="User verified by bot")
+#				await assign_role(self, ctx, role)
+#				db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid) 
+#			else:
+#				await ctx.send("Sorry the token does not match what is on your profile.")
+#			return 0
 
 
 		url = 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64)
@@ -167,7 +195,7 @@ class Verify(commands.Cog, name="Verify"):
 				await ctx.send(error_instructions)
 		elif res.status_code == 400:
 			error_message = "Sorry " + user + ", that wasn't a valid steam profile provided, please provide a link" \
-													 "similar to this: http://steamcommunity.com/profiles/76561197960287930"
+							"similar to this: http://steamcommunity.com/profiles/76561197960287930"
 			await ctx.send(error_message)
 		elif res.status_code == 401:
 			await ctx.send("Something's wrong, please ping an admin for a role")
@@ -184,6 +212,16 @@ class Verify(commands.Cog, name="Verify"):
 		elif res.status_code == 500:
 			await ctx.send("Steam's having some issues, please ping an admin for a role.")
 			#await bot.send_message('362288299978784768', "Error 503, Steam's having some problems.")
+	
+	@commands.Cog.listener()
+	async def on_member_join(self,member):
+		if member.guild.id == config["SERVER"]["ID"]:
+			channel = self.bot.get_channel(config["SERVER"]["CHANNELS"]["CHECK_IN"])
+			prefix = config["BOT"]["CMD_PREFIXES"][0]
+			channel.send("Welcome to TMTM " + member.mention + ", To gain access "
+						"to the server, please type %sverify <link-to-your-steam-profile>. "
+						"If you are not in TMTM at the moment, "
+						"please go through the regular application process to join." % (prefix))
 
 def setup(bot):
 	bot.add_cog(Verify(bot))
