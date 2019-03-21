@@ -11,8 +11,6 @@ class BotControl(commands.Cog, name="Bot Control"):
 		roles = ctx.author.roles
 		authors = [134830326789832704,96018174163570688]
 		if (
-			config["SERVER"]["ROLES"]["ADMIN"] in roles or
-			config["SERVER"]["ROLES"]["MODERATOR"] in roles or
 			ctx.author.id in authors
 		):
 			return True
