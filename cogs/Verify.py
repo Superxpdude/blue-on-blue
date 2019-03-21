@@ -22,7 +22,7 @@ async def check_credentials(user):
 	token = db.get(data.discord_id == user)["token"]
 	res = requests.get('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64))
 	user_data = res.json()
-	print('checking steam profile...', user_data)
+	#print('checking steam profile...', user_data)
 	realname = user_data['response']['players'][0]['realname']
 
 	if token in realname:
@@ -36,9 +36,9 @@ async def check_group(steam_id):
 	a = req.content
 	type(a)
 	root = etree.fromstring(a)
-	print(root)
-	print("Checking for steam id", steam_id)
-	print(list(root[6]))
+	#print(root)
+	#print("Checking for steam id", steam_id)
+	#print(list(root[6]))
 	for child in root[6]:
 		if child.text == steam_id:
 			return True
@@ -46,7 +46,7 @@ async def check_group(steam_id):
 
 # Convert a Steam profile URL to a Steam64ID
 async def get_id64(url=""):
-	print(url)
+	#print(url)
 	if '/profiles/' in url:
 		return url.split('profiles/', 1)[-1].replace("/", "")
 	elif '/id/' in url:
@@ -54,7 +54,7 @@ async def get_id64(url=""):
 		if rURL.endswith('/'):
 			rURL = rURL[:-1]
 		req = requests.get(rURL)
-		print('converting URL to to 64 bit steam id...')
+		#print('converting URL to to 64 bit steam id...')
 		return req.json()['response']['steamid']
 	else:
 		return None
@@ -107,6 +107,7 @@ class Verify(commands.Cog, name="Verify"):
 	async def verify_user(self, ctx, *, steam_url: str=""):
 		"""Verifies a user as part of the group."""
 		#shortlist = pd.read_csv('Administration/unverifiedusers.csv', index_col='userName')
+		#print(ctx.author.id)
 		db = TinyDB('db/verify.json') # Define the database
 		data = Query()
 		user = str(ctx.author)
@@ -145,7 +146,7 @@ class Verify(commands.Cog, name="Verify"):
 
 		url = 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64)
 		res = requests.get(url)
-		print(res.json())
+		#print(res.json())
 
 		if res.status_code == 200:
 			user_token = "".join(random.sample(string.ascii_letters, 10))
