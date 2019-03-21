@@ -51,13 +51,13 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.guild_only()
 	async def ping(self, ctx, *, tag: str=""):
 		"""Pings all users associated with a specific tag."""
+		tag = tag.split("\n")[0]
 		san = sanitize(tag)
 		if san is not None:
 			await ctx.send(san)
 			return
 		db = TinyDB('db/pings.json') # Define the database
 		tag = tag.lower() # String searching is case-sensitive
-		tag = tag.split("\n")[0]
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
 		if tag in pings: # Pull info from a tag if it exists
