@@ -12,6 +12,7 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="ping"
 	)
+	@commands.guild_only()
 	async def ping(self, ctx, *, tag: str=None):
 		"""Pings all users associated with a specific tag."""
 		db = TinyDB('db/pings.json') # Define the database
@@ -25,7 +26,7 @@ class Pings(commands.Cog, name="Pings"):
 				message += " "
 			message = message[:-1] # Remove the last character of the message
 		else: # If the tag doesn't exist, inform the user
-			message = "This tag does not exist. Try %spinglist for a list of active pings." % (config["BOT"]["CMD_PREFIXES"][0])
+			message = "This tag does not exist. Try %spinglist for a list of active pings." % (ctx.prefix)
 		
 		# Send the message to the channel
 		await ctx.send(message)
@@ -81,7 +82,7 @@ class Pings(commands.Cog, name="Pings"):
 			else:
 				message = "There are currently no pings defined."
 		else: # If the tag doesn't exist, inform the user
-			message = "This tag does not exist. Try %spinglist for a list of active pings." % (config["BOT"]["CMD_PREFIXES"][0])
+			message = "This tag does not exist. Try %spinglist for a list of active pings." % (ctx.prefix)
 		
 		# Send the message to the channel
 		await ctx.send(message)

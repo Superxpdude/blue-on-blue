@@ -11,6 +11,10 @@
 			"cogs.Pings"
 		]
 	},
+	"STEAM": {
+		"API_TOKEN": "A97B5B06212704B8753B57F11A3632D3",
+		"GROUP": 103582791437418110
+	},
 	"SERVER": {
 		"IDS": [
 			1
@@ -22,9 +26,8 @@
 		},
 		"ROLES": {
 			"MEMBER": 1,
-			"ADMINS": [
-				1
-			],
+			"ADMIN": 1,
+			"MODERATOR": 1,
 			"MISSION_MAKERS": [
 				1
 			],
