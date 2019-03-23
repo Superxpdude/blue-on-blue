@@ -7,13 +7,15 @@
 		"TOKEN": "",
 		"COGS": [
 			"cogs.BotControl",
+			"cogs.ChatFilter",
 			"cogs.Missions",
-			"cogs.Pings"
+			"cogs.Pings",
+			"cogs.Verify"
 		]
 	},
 	"STEAM": {
-		"API_TOKEN": "A97B5B06212704B8753B57F11A3632D3",
-		"GROUP": 103582791437418110
+		"API_TOKEN": "",
+		"GROUP": 1
 	},
 	"SERVER": {
 		"ID": 1,
@@ -36,6 +38,13 @@
 	"GITLAB": {
 		"WEB_URL": "https://gitlab.com",
 		"API_URL": "https://gitlab.com/api/v4",
+		"API_TOKEN": "",
+		"PROJECTS": []
+	},
+	"GITHUB": {
+		"WEB_URL": "https://github.com",
+		"API_URL": "https://api.github.com",
+		"API_USER": "",
 		"API_TOKEN": "",
 		"PROJECTS": []
 	},

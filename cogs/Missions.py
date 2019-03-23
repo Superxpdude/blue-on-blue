@@ -12,7 +12,10 @@ from oauth2client.service_account import ServiceAccountCredentials
 class Missions(commands.Cog, name="Missions"):
 	def __init__(self, bot):
 		self.bot = bot
-		if len(config["GITLAB"]["PROJECTS"]) > 0:
+		if (
+			len(config["GITLAB"]["PROJECTS"]) > 0 or
+			len(config["GITHUB"]["PROJECTS"]) > 0
+		):
 			self.git_task = self.bot.loop.create_task(self.git_background_task())
 
 	@commands.command(
@@ -49,7 +52,12 @@ class Missions(commands.Cog, name="Missions"):
 		await self.bot.wait_until_ready()
 		while not self.bot.is_closed():
 			try:
-				time = datetime.utcnow().replace(microsecond=0) - timedelta(minutes=1) #minutes=5
+				try:
+					old_time
+				except NameError:
+					oldtm = datetime.utcnow().replace(microsecond=0) - timedelta(minutes=1)
+					old_time = oldtm.isoformat() + ".000Z"
+				time = datetime.utcnow().replace(microsecond=0)
 				iso_time = time.isoformat() + ".000Z"
 				
 				channel = self.bot.get_channel(config["SERVER"]["CHANNELS"]["ACTIVITY"])
@@ -59,6 +67,12 @@ class Missions(commands.Cog, name="Missions"):
 				gitlab_header = {'Private-Token': config["GITLAB"]["API_TOKEN"]}
 				gitlab_projects = config["GITLAB"]["PROJECTS"]
 				
+				github_url_api = config["GITHUB"]["API_URL"]
+				github_url = config["GITHUB"]["WEB_URL"]
+				github_projects = config["GITHUB"]["PROJECTS"]
+				github_user = config["GITHUB"]["API_USER"]
+				github_token = config["GITHUB"]["API_TOKEN"]
+				
 				for gitlab_project in gitlab_projects:
 					gitlab_project_str = str(gitlab_project)
 
@@ -67,7 +81,7 @@ class Missions(commands.Cog, name="Missions"):
 					)
 					project_info = json.loads(project_info_raw.text)
 
-					r = requests.get("%s/projects/%s/repository/commits/?since='%s'" % (gitlab_url_api, gitlab_project, iso_time), headers=gitlab_header)
+					r = requests.get("%s/projects/%s/repository/commits/?since='%s'&until='%s'" % (gitlab_url_api, gitlab_project, old_time, iso_time), headers=gitlab_header)
 					r_dict = json.loads(r.text)
 
 					for i in r_dict:
@@ -78,11 +92,32 @@ class Missions(commands.Cog, name="Missions"):
 						embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-rgb.png", url=gitlab_url)
 						embed.add_field(name=i['short_id'], value="[[Gitlab]](" + embed_url + ")", inline=False)
 						await channel.send(embed=embed)
+				
+				for github_project in github_projects:
+					project_info_raw = requests.get(
+						github_url_api + "/repos/" + github_project, auth=(github_user,github_token)
+					)
+					project_info = json.loads(project_info_raw.text)
+					
+					r = requests.get("%s/repos/%s/commits?since='%s'&until='%s'" % (github_url_api, github_project, old_time, iso_time), auth=(github_user,github_token))
+					r_dict = json.loads(r.text)
+					
+					for i in r_dict:
+						embed_title = i['commit']['author']['name'] + " committed to " + project_info['full_name']
+						embed_desc = i['commit']['message']
+						embed_url = i['html_url']
+						embed = discord.Embed(title=embed_title, description=embed_desc, color=0x4078c0)
+						embed.set_author(name="Github", icon_url="http://files.superxp.ca/github-icon-light.png", url=github_url)
+						embed.add_field(name=i['sha'][:7], value="[[Github]](" + embed_url + ")", inline=False)
+						await channel.send(embed=embed)
+				
+				# Mark the current time as the old time
+				old_time = iso_time
 
 				await asyncio.sleep(60)
 			except Exception as e:
 				print(str(e))
-				await asyncio.sleep(600)
+				await asyncio.sleep(60)
 
 def setup(bot):
 	bot.add_cog(Missions(bot))
