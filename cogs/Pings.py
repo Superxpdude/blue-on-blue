@@ -106,6 +106,7 @@ class Pings(commands.Cog, name="Pings"):
 		
 		When called with no tag, it will list all active tags.
 		When called with a tag, it will list all users subscribed to that tag.
+		When called with a mention to yourself, it will list all pings that you are currently subscribed to.
 		NOTE: Usernames are stored when added to the list, and may no longer be accurate."""
 		db = TinyDB('db/pings.json') # Define the database
 		data = Query() # Define query
