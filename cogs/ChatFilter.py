@@ -28,9 +28,12 @@ async def profanity_check(self,message):
 		timestamp = str(message.edited_at)
 	else:
 		timestamp = str(message.created_at)
-	bad_message = bad_user, channel, caught_phrase, timestamp
+	#bad_message = bad_user, channel, caught_phrase, timestamp
+	bad_embed = discord.Embed(title = channel, description = caught_phrase, color=0xff0000)
+	bad_embed.set_author(name=bad_user, icon_url=message.author.avatar_url)
+	bad_embed.set_footer(text=timestamp)
 	await message.delete()
-	await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MOD"]).send(bad_message)
+	await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MOD"]).send(embed=bad_embed)
 	
 
 class ChatFilter(commands.Cog, name="Chat Filter"):
