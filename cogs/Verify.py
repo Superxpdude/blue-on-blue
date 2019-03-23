@@ -23,8 +23,10 @@ async def check_credentials(user, userid):
 	res = requests.get('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64))
 	user_data = res.json()
 	#print('checking steam profile...', user_data)
-	realname = user_data['response']['players'][0]['realname']
-
+	try:
+		realname = user_data['response']['players'][0]['realname']
+	except KeyError:
+		realname = ""
 	if token in realname:
 		return True
 	else:
@@ -131,6 +133,7 @@ class Verify(commands.Cog, name="Verify"):
 						db.get(data.discord_id == userid)['verified'] or
 						await check_credentials(user, userid)
 					):
+						db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid)
 						await assign_role(self, ctx, role)
 						return 0
 					else:
