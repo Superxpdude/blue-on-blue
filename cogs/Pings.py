@@ -108,6 +108,7 @@ class Pings(commands.Cog, name="Pings"):
 		When called with a tag, it will list all users subscribed to that tag.
 		NOTE: Usernames are stored when added to the list, and may no longer be accurate."""
 		db = TinyDB('db/pings.json') # Define the database
+		data = Query() # Define query
 		tag = tag.lower() # String searching is case-sensitive
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
@@ -123,6 +124,25 @@ class Pings(commands.Cog, name="Pings"):
 				message += ", "
 			message = message[:-2] # Remove the last two characters of a message
 			message += "```"
+		elif "<@" in tag: # If the tag is a mention
+			if tag == ctx.author.mention:
+				list = []
+				for p in pings:	# Iterate through all valid pings
+					t = db.table(p)
+					if t.contains(data.mention == ctx.author.mention):
+						list += [p]
+				list = sorted(list, key=str.lower) # Sort list alphabetically
+				if len(list)>0:
+					message = "%s, you are currently subscribed to the following pings: \n```" % (ctx.author.mention)
+					for p in list:
+						message += p
+						message += ", "
+					message = message[:-2]
+					message += "```"
+				else:
+					message = "%s, you are not currently subscribed to any pings." % (ctx.author.mention)
+			else:
+				message = "You can't check a ping list for another user!"
 		elif tag == "": # If no tag present, return all tags
 			if len(pings)>0: 
 				message = "Tag list: \n```"
