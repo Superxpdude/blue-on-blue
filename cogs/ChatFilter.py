@@ -15,6 +15,8 @@ def update_list():
 
 def checkphrase(message):
 	phrase = message.content.lower()
+	if phrase[2:][:9] == "cf remove": # Don't trigger if someone is using the remove command
+		return 0
 	processed_word = phrase # TODO: Add whitelist functionality
 	if any(banned_words in processed_word.replace(" ","") for banned_words in blacklist):
 		return 1
