@@ -17,6 +17,11 @@ class Missions(commands.Cog, name="Missions"):
 			len(config["GITHUB"]["PROJECTS"]) > 0
 		):
 			self.git_task = self.bot.loop.create_task(self.git_background_task())
+			#print(self.git_task)
+			print(self)
+	
+	def cog_unload(self):
+		self.git_task.cancel()
 
 	@commands.command(
 		name="ops",
@@ -49,7 +54,9 @@ class Missions(commands.Cog, name="Missions"):
 	
 	
 	async def git_background_task(self):
+		print("GIT TASK: Start Task")
 		await self.bot.wait_until_ready()
+		print("GIT TASK: Bot Ready")
 		while not self.bot.is_closed():
 			try:
 				try:
@@ -115,6 +122,8 @@ class Missions(commands.Cog, name="Missions"):
 				old_time = iso_time
 
 				await asyncio.sleep(60)
+			except asyncio.CancelledError:
+				return result
 			except Exception as e:
 				print(str(e))
 				await asyncio.sleep(60)
