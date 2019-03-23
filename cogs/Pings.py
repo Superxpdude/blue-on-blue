@@ -50,7 +50,9 @@ class Pings(commands.Cog, name="Pings"):
 	)
 	@commands.guild_only()
 	async def ping(self, ctx, *, tag: str=""):
-		"""Pings all users associated with a specific tag."""
+		"""Pings all users associated with a specific tag.
+		
+		Any text on a new line will be ignored. You can use this to send a message along with a ping."""
 		tag = tag.split("\n")[0]
 		san = sanitize(tag)
 		if san is not None:
@@ -72,6 +74,11 @@ class Pings(commands.Cog, name="Pings"):
 		
 		# Send the message to the channel
 		await ctx.send(message)
+	
+	@ping.error
+	async def ping_error(self,ctx,error):
+		if isinstance(error, commands.NoPrivateMessage):
+			await ctx.send("This command cannot be used in private messages!")
 	
 	@commands.command(
 		name="pingme"
