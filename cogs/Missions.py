@@ -7,6 +7,7 @@ import gspread
 import asyncio
 import json
 import requests
+import os
 from oauth2client.service_account import ServiceAccountCredentials
 
 class Missions(commands.Cog, name="Missions"):
@@ -17,8 +18,6 @@ class Missions(commands.Cog, name="Missions"):
 			len(config["GITHUB"]["PROJECTS"]) > 0
 		):
 			self.git_task = self.bot.loop.create_task(self.git_background_task())
-			#print(self.git_task)
-			print(self)
 	
 	def cog_unload(self):
 		self.git_task.cancel()
@@ -51,12 +50,35 @@ class Missions(commands.Cog, name="Missions"):
 				embed.add_field(name="Author", value=i[2], inline=True)
 				await ctx.send(embed=embed)
 	
-	
+	@commands.command(
+		name="op_audit",
+		aliases=['audit']
+	)
+	#@commands.has_any_role(config["SERVER"]["ROLES"]["MEMBER"])
+	async def op_audit(self,ctx, *, text: str=""):
+		"""Submits a mission for auditing.
+		
+		Missions must be attached to the message, and must be submitted in .pbo format.
+		Any text present in the command will be forwarded to the authors as a note."""
+		if len(ctx.message.attachments) <= 0:
+			await ctx.send("You have to attach your mission in order to submit it.")
+			return
+		for a in ctx.message.attachments:
+			if a.filename[-4:] != ".pbo":
+				await ctx.send("You can only submit missions in .pbo format.")
+				return
+			reply = "Mission submitted for audit by %s." % (ctx.author.mention)
+			if text != "":
+				reply += " Notes from the author below \n```"
+				reply += text
+				reply += "```"
+			file = os.path.join(os.getcwd(),"temp",a.filename)
+			await a.save(file)
+			await ctx.send(reply, file=discord.File(file))
+			os.remove(file)
 	
 	async def git_background_task(self):
-		print("GIT TASK: Start Task")
 		await self.bot.wait_until_ready()
-		print("GIT TASK: Bot Ready")
 		while not self.bot.is_closed():
 			try:
 				try:

@@ -23,7 +23,8 @@
 			"MOD": 1,
 			"CHECK_IN": 1,
 			"ACTIVITY": 1,
-			"BOT": 1
+			"BOT": 1,
+			"MISSION_AUDIT": 1
 		},
 		"ROLES": {
 			"MEMBER": 1,
