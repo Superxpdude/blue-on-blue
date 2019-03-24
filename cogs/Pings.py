@@ -133,7 +133,15 @@ class Pings(commands.Cog, name="Pings"):
 			message = message[:-2] # Remove the last two characters of a message
 			message += "```"
 		elif "<@" in tag: # If the tag is a mention
-			if tag == ctx.author.mention:
+			if tag.startswith("<@!"):
+				t = tag[3:][:-1]
+			else:
+				t = tag[2:][:-1]
+			if ctx.author.mention.startswith("<@!"):
+				m = ctx.author.mention[3:][:-1]
+			else:
+				m = ctx.author.mention[2:][:-1]
+			if t == m:
 				list = []
 				for p in pings:	# Iterate through all valid pings
 					t = db.table(p)
