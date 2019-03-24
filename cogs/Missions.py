@@ -59,7 +59,7 @@ class Missions(commands.Cog, name="Missions"):
 		"""Submits a mission for auditing.
 		
 		Missions must be attached to the message, and must be submitted in .pbo format.
-		Any text present in the command will be forwarded to the authors as a note."""
+		Any text present in the command will be forwarded to the auditors as a note."""
 		# TODO: Write filters to ensure that missions follow the correct file naming format
 		if len(ctx.message.attachments) <= 0:
 			await ctx.send("You have to attach your mission in order to submit it.")
