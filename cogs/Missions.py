@@ -60,6 +60,7 @@ class Missions(commands.Cog, name="Missions"):
 		
 		Missions must be attached to the message, and must be submitted in .pbo format.
 		Any text present in the command will be forwarded to the authors as a note."""
+		# TODO: Write filters to ensure that missions follow the correct file naming format
 		if len(ctx.message.attachments) <= 0:
 			await ctx.send("You have to attach your mission in order to submit it.")
 			return
@@ -74,7 +75,7 @@ class Missions(commands.Cog, name="Missions"):
 				reply += "```"
 			file = os.path.join(os.getcwd(),"temp",a.filename)
 			await a.save(file)
-			await ctx.send(reply, file=discord.File(file))
+			await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send(reply, file=discord.File(file))
 			os.remove(file)
 	
 	async def git_background_task(self):
