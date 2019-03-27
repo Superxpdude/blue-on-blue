@@ -68,6 +68,7 @@ class Missions(commands.Cog, name="Missions"):
 			if a.filename[-4:] != ".pbo":
 				await ctx.send("You can only submit missions in .pbo format.")
 				return
+			await ctx.send("%s, your mission has been submitted for auditing." % (ctx.author.mention))
 			reply = "Mission submitted for audit by %s." % (ctx.author.mention)
 			if text != "":
 				reply += " Notes from the author below \n```"
