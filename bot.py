@@ -60,4 +60,34 @@ async def on_ready():  # method expected by client. This runs once when connecte
 async def on_message(message):  # Event that triggers on each message
 	await bot.process_commands(message) # This line needs to be here for commands to work
 
+# Error handling event
+@bot.event
+async def on_command_error(ctx,error):
+	"""The event triggered when an error is raised while invoking a command.
+	ctx   : Context
+	error : Exception"""
+	
+	# This prevents any commands with local handlers being handled here in on_command_error.
+	if hasattr(ctx.command, "on_error"):
+		return
+	
+	ignored = (commands.UserInputError)
+	
+	# Allows us to check for original exception raised and sent to CommandInvokeError
+	# If nothing is found. We keep the exception passed to on_command_error.
+	# Code taken from here: https://gist.github.com/EvieePy/7822af90858ef65012ea500bcecf1612
+	error = getattr(error,"original",error)
+	
+	# Stop here if the error is in the ignored list
+	if isinstance(error,ignored):
+		return
+	
+	elif isinstance(error, commands.CommandNotFound):
+		return await ctx.send("%s, you have typed an invalid command. You can use %shelp to view the command list." % (ctx.author.mention, ctx.prefix))
+	
+	# If we don't have a handler for that error type, execute the default error code.
+	else:
+		print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+		traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
+
 bot.run(bot_token, bot=True, reconnect=True) # Run the bot
