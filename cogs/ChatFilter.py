@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from settings import config
 from tinydb import TinyDB, Query
+import blueonblue
 
 # Function to update the blacklist
 def update_list():
@@ -62,7 +63,8 @@ class ChatFilter(commands.Cog, name="Chat Filter"):
 			return False
 	
 	@commands.group()
-	@commands.check(check_cf)
+	#@commands.check(check_cf)
+	@commands.check(blueonblue.check_group_mods)
 	async def cf(self, ctx):
 		"""Chat filter control.
 		

@@ -7,28 +7,29 @@ from settings import config
 #import configparser
 import sys, traceback
 from discord.ext import commands
+from blueonblue.bot import bot
 
 # Grab our bot token from the config file
 bot_token = config["BOT"]["TOKEN"]
 
-# Define the prefix function
-def get_prefix(client, message):
-	# Set the prefixes
-	prefixes = config["BOT"]["CMD_PREFIXES"]
-	
-	# Uncomment to allow for different prefixes in PMs
-	# if not message.guild:
-	#	#prefixes = ['$$']
-	
-	# Allow users to mention the bot instead of using a prefix
-	return commands.when_mentioned_or(*prefixes)(client, message)
-
-# Define the bot
-bot = commands.Bot(
-	command_prefix=get_prefix, # Call the get_prefix function
-	description=config["BOT"]["DESC"], # Sets the bot description for the help command
-	case_insensitive=True # Allow commands to be case insensitive
-)
+## Define the prefix function
+#def get_prefix(client, message):
+#	# Set the prefixes
+#	prefixes = config["BOT"]["CMD_PREFIXES"]
+#	
+#	# Uncomment to allow for different prefixes in PMs
+#	# if not message.guild:
+#	#	#prefixes = ['$$']
+#	
+#	# Allow users to mention the bot instead of using a prefix
+#	return commands.when_mentioned_or(*prefixes)(client, message)
+#
+## Define the bot
+#bot = commands.Bot(
+#	command_prefix=get_prefix, # Call the get_prefix function
+#	description=config["BOT"]["DESC"], # Sets the bot description for the help command
+#	case_insensitive=True # Allow commands to be case insensitive
+#)
 
 initial_extensions = config["BOT"]["COGS"]
 # Here we load our extensions(cogs) listed above in [initial_extensions].

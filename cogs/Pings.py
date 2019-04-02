@@ -2,6 +2,7 @@ import discord
 from settings import config
 from discord.ext import commands
 from tinydb import TinyDB, Query
+import blueonblue
 
 # Function to check if any invalid character patters are in a string.
 def sanitize(text):
@@ -182,7 +183,8 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pingpurge"
 	)
-	@commands.check(check_ping_control)
+	#@commands.check(check_ping_control)
+	@commands.check(blueonblue.check_group_mods)
 	async def pingpurge(self, ctx, *, tag: str=""):
 		"""Destroys a ping list.
 		
