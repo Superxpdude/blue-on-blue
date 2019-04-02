@@ -8,6 +8,7 @@ from settings import config
 import sys, traceback
 from discord.ext import commands
 from blueonblue.bot import bot
+import blueonblue
 
 # Grab our bot token from the config file
 bot_token = config["BOT"]["TOKEN"]
@@ -85,9 +86,12 @@ async def on_command_error(ctx,error):
 	elif isinstance(error, commands.CommandNotFound):
 		return await ctx.send("%s, you have typed an invalid command. You can use %shelp to view the command list." % (ctx.author.mention, ctx.prefix))
 	
+	elif isinstance(error, blueonblue.UserUnauthorized):
+		await ctx.send("%s, you are not authorized to use that command." % (ctx.author.mention))
+	
 	# If we don't have a handler for that error type, execute the default error code.
 	else:
 		print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
-		traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
+		traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 bot.run(bot_token, bot=True, reconnect=True) # Run the bot

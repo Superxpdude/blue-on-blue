@@ -1,6 +1,12 @@
 import discord
+from discord.ext import commands
 from settings import config
 from blueonblue.bot import bot
+
+# Errors
+class UserUnauthorized(commands.CheckFailure):
+	# User does not have permissions to use that command
+	pass
 
 # Checks if a user is part of the moderator or admin groups
 def check_group_mods(ctx):
@@ -14,7 +20,7 @@ def check_group_mods(ctx):
 	guildMember = guild.get_member(userid) # Get the member object from the guild
 	
 	if guildMember is None: # If the member doesn't exist, return false
-		return False
+		raise UserUnauthorized
 	
 	# Now that we have confirmed that the user is in the guild, check their roles
 	roles = guildMember.roles
@@ -27,4 +33,4 @@ def check_group_mods(ctx):
 	):
 		return True
 	else:
-		return False
+		raise UserUnauthorized

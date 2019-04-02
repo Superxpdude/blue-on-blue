@@ -73,10 +73,10 @@ class ChatFilter(commands.Cog, name="Chat Filter"):
 		if ctx.invoked_subcommand is None:
 			await ctx.send("Invalid cf command passed.")
 	
-	@cf.error
-	async def cf_error(self,ctx,error):
-		if isinstance(error, commands.CheckFailure):
-			await ctx.send("You are not authorized to use that command.")
+	#@cf.error
+	#async def cf_error(self,ctx,error):
+	#	if isinstance(error, commands.CheckFailure):
+	#		await ctx.send("You are not authorized to use that command.")
 	
 	@cf.command()
 	async def add(self, ctx, *, word: str=None):

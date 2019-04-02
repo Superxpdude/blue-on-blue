@@ -202,10 +202,10 @@ class Pings(commands.Cog, name="Pings"):
 		else:
 			await ctx.send("This tag does not exist.")
 
-	@pingpurge.error
-	async def pingpurge_error(self,ctx,error):
-		if isinstance(error, commands.CheckFailure):
-			await ctx.send("You are not authorized to use that command.")
+	#@pingpurge.error
+	#async def pingpurge_error(self,ctx,error):
+	#	if isinstance(error, commands.CheckFailure):
+	#		await ctx.send("You are not authorized to use that command.")
 			
 #	@commands.group()
 #	@commands.check(check_ping_control)
