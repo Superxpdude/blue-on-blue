@@ -221,7 +221,7 @@ class Verify(commands.Cog, name="Verify"):
 		if member.guild.id == config["SERVER"]["ID"]:
 			channel = self.bot.get_channel(config["SERVER"]["CHANNELS"]["CHECK_IN"])
 			prefix = config["BOT"]["CMD_PREFIXES"][0]
-			channel.send("Welcome to TMTM " + member.mention + ", To gain access "
+			await channel.send("Welcome to TMTM " + member.mention + ", To gain access "
 						"to the server, please type %sverify <link-to-your-steam-profile>. "
 						"If you are not in TMTM at the moment, "
 						"please go through the regular application process to join." % (prefix))
