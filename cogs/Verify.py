@@ -40,9 +40,9 @@ async def check_group(steam_id):
 	a = req.content
 	type(a)
 	root = etree.fromstring(a)
-	#print(root)
-	#print("Checking for steam id", steam_id)
-	#print(list(root[6]))
+	# print(root)
+	# print("Checking for steam id", steam_id)
+	# print(list(root[6]))
 	for child in root[6]:
 		if child.text == steam_id:
 			return True
@@ -55,14 +55,17 @@ async def get_id64(url=""):
 	if '/profiles/' in url:
 		return url.split('profiles/', 1)[-1].replace("/", "")
 	elif '/id/' in url:
+
+		# TODO: Get rid of final '/' character when sending in vanity URL's
 		rURL = 'https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key=' + config["STEAM"]["API_TOKEN"] + '&vanityurl=' + url.split('id/', 1)[-1]
 		if rURL.endswith('/'):
 			rURL = rURL[:-1]
 		req = requests.get(rURL)
-		# print('converting URL to to 64 bit steam id...')
+
 		return req.json()['response']['steamid']
 	else:
 		return None
+
 
 # Enters an unverified user into a .csv.
 async def enter_user(user, userid, token, url):
@@ -82,6 +85,7 @@ async def assign_role(self, ctx, role):
 		await ctx.send("I lack permissions to assign that role, go bother an admin please")
 	
 	return 0
+
 
 class Verify(commands.Cog, name="Verify"):
 	"""Verify that users are part of the steam group."""
@@ -165,18 +169,18 @@ class Verify(commands.Cog, name="Verify"):
 			return
 		
 		# User already present in database
-#		if db.contains(data.discord_id == userid):
-#			userdata = db.get(data.discord_id == userid)
-#			#if userdata["verified"]: # Check if the steam account is still in the steam group
-#				#await bot.add_roles(ctx.author, role, reason="User verified by bot")
-#			#elif await check_credentials(self, ctx, user):
-#			if await check_credentials(user, userid):
-#				#await bot.add_roles(ctx.author, role, reason="User verified by bot")
-#				await assign_role(self, ctx, role)
-#				db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid) 
-#			else:
-#				await ctx.send("Sorry the token does not match what is on your profile.")
-#			return 0
+		# if db.contains(data.discord_id == userid):
+		# 	userdata = db.get(data.discord_id == userid)
+		# if userdata["verified"]: # Check if the steam account is still in the steam group
+		# 	await bot.add_roles(ctx.author, role, reason="User verified by bot")
+		# elif await check_credentials(self, ctx, user):
+		# 	if await check_credentials(user, userid):
+		# 	await bot.add_roles(ctx.author, role, reason="User verified by bot")
+		# 	await assign_role(self, ctx, role)
+		# 	db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid)
+		# else:
+		# 	await ctx.send("Sorry the token does not match what is on your profile.")
+		# return 0
 
 
 		url = 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64)
