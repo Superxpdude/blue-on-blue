@@ -191,11 +191,16 @@ class Verify(commands.Cog, name="Verify"):
 			await enter_user(user, userid, user_token, steam_id64)
 
 			await ctx.send(good_response)
-			try:
-				await ctx.author.send(instructions)
-			except message.HTTPException:
-				error_instructions = "Sorry " + ctx.author.mention + " , I couldn't DM you so here are your instructions here instead."
-				await ctx.send(error_instructions)
+
+			# TODO: Fix this try/catch block later to properly catch an HTTP Exception
+			# try:
+			await ctx.author.send(instructions)
+
+
+
+			# except message.HTTPException:
+			# 	error_instructions = "Sorry " + ctx.author.mention + " , I couldn't DM you so here are your instructions here instead."
+			# 	await ctx.send(error_instructions)
 		elif res.status_code == 400:
 			error_message = "Sorry " + user + ", that wasn't a valid steam profile provided, please provide a link" \
 							"similar to this: http://steamcommunity.com/profiles/76561197960287930"
@@ -228,3 +233,5 @@ class Verify(commands.Cog, name="Verify"):
 
 def setup(bot):
 	bot.add_cog(Verify(bot))
+
+async def throw_error(ctx, code):
