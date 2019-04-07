@@ -9,12 +9,13 @@ from lxml import etree
 from lxml.etree import fromstring
 import string
 
+
 # Checks the user's steam account to check if they placed the token in their steam profile.
 # returns true or false
 async def check_credentials(user, userid):
-	#steam_id64 = shortlist.loc[[user], 'steamProfile'].tolist()
+	# steam_id64 = shortlist.loc[[user], 'steamProfile'].tolist()
 
-	#token = shortlist.loc[[user], 'token'].tolist()[0]
+	# token = shortlist.loc[[user], 'token'].tolist()[0]
 	
 	db = TinyDB('db/verify.json') # Define the database
 	data = Query()
@@ -22,7 +23,7 @@ async def check_credentials(user, userid):
 	token = db.get(data.discord_id == userid)["token"]
 	res = requests.get('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64))
 	user_data = res.json()
-	#print('checking steam profile...', user_data)
+	# print('checking steam profile...', user_data)
 	try:
 		realname = user_data['response']['players'][0]['realname']
 	except KeyError:
@@ -31,6 +32,7 @@ async def check_credentials(user, userid):
 		return True
 	else:
 		return False
+
 
 # Checks if a user is in a steam group
 async def check_group(steam_id):
@@ -46,9 +48,10 @@ async def check_group(steam_id):
 			return True
 	return False
 
+
 # Convert a Steam profile URL to a Steam64ID
 async def get_id64(url=""):
-	#print(url)
+	# print(url)
 	if '/profiles/' in url:
 		return url.split('profiles/', 1)[-1].replace("/", "")
 	elif '/id/' in url:
@@ -56,15 +59,15 @@ async def get_id64(url=""):
 		if rURL.endswith('/'):
 			rURL = rURL[:-1]
 		req = requests.get(rURL)
-		#print('converting URL to to 64 bit steam id...')
+		# print('converting URL to to 64 bit steam id...')
 		return req.json()['response']['steamid']
 	else:
 		return None
 
 # Enters an unverified user into a .csv.
 async def enter_user(user, userid, token, url):
-	#entry = pd.DataFrame([[user, url, token]], columns=['userName', 'steamProfile', 'token'])
-	#entry.to_csv('Administration/unverifiedusers.csv', mode='a', header=False, index=False)
+	# entry = pd.DataFrame([[user, url, token]], columns=['userName', 'steamProfile', 'token'])
+	# entry.to_csv('Administration/unverifiedusers.csv', mode='a', header=False, index=False)
 	db = TinyDB('db/verify.json') # Define the database
 	data = Query()
 	db.upsert({"discord_id": userid, "discord_name": user, "steam_id": url, "token": token, "verified": False}, data.discord_id == userid) 
@@ -105,13 +108,13 @@ class Verify(commands.Cog, name="Verify"):
 	@commands.bot_has_permissions(
 		manage_roles=True
 	)
-	#async def verify_user(steam_url, message, client):
+	# async def verify_user(steam_url, message, client):
 	async def verify_user(self, ctx, *, steam_url: str=""):
 		"""Verifies a user as part of the group.
 		
 		Requires a full steam profile URL for authentication."""
-		#shortlist = pd.read_csv('Administration/unverifiedusers.csv', index_col='userName')
-		#print(ctx.author.id)
+		# shortlist = pd.read_csv('Administration/unverifiedusers.csv', index_col='userName')
+		# print(ctx.author.id)
 		db = TinyDB('db/verify.json') # Define the database
 		data = Query()
 		user = str(ctx.author)
@@ -196,30 +199,12 @@ class Verify(commands.Cog, name="Verify"):
 			# try:
 			await ctx.author.send(instructions)
 
-
-
 			# except message.HTTPException:
-			# 	error_instructions = "Sorry " + ctx.author.mention + " , I couldn't DM you so here are your instructions here instead."
+			# 	error_instructions = "Sorry " + ctx.author.mention + " ,
+		# 			I couldn't DM you so here are your instructions here instead."
 			# 	await ctx.send(error_instructions)
-		elif res.status_code == 400:
-			error_message = "Sorry " + user + ", that wasn't a valid steam profile provided, please provide a link" \
-							"similar to this: http://steamcommunity.com/profiles/76561197960287930"
-			await ctx.send(error_message)
-		elif res.status_code == 401:
-			await ctx.send("Something's wrong, please ping an admin for a role")
-			#await self.bot.send_message('362288299978784768', "Error 403, I access denied to steam")
-		elif res.status_code == 402:
-			await ctx.send("Something's wrong, please ping an admin for a role")
-			#await self.bot.send_message('362288299978784768', "Error 403, I access denied to steam")
-		elif res.status_code == 429:
-			await ctx.send("I've pissed off gabe newell, please ping an admin for a role")
-			#await bot.send_message('362288299978784768', "error 429, too many requests")
-		elif res.status_code == 500:
-			await ctx.send("Steam's having some issues, please ping an admin for a role.")
-			#await bot.send_message('362288299978784768', "Error 500, Steam's having some problems.")
-		elif res.status_code == 500:
-			await ctx.send("Steam's having some issues, please ping an admin for a role.")
-			#await bot.send_message('362288299978784768', "Error 503, Steam's having some problems.")
+		else:
+			throw_error(res, ctx)
 	
 	@commands.Cog.listener()
 	async def on_member_join(self,member):
@@ -234,4 +219,24 @@ class Verify(commands.Cog, name="Verify"):
 def setup(bot):
 	bot.add_cog(Verify(bot))
 
-async def throw_error(ctx, code):
+async def throw_error(res, ctx):
+	if res.status_code == 400:
+		error_message = "Sorry, that wasn't a valid steam profile provided, please provide a link" \
+									  "similar to this: http://steamcommunity.com/profiles/76561197960287930"
+		await ctx.send(error_message)
+
+	elif res.status_code == 401:
+		await ctx.send("Something's wrong, please ping an admin for a role")
+	# await self.bot.send_message('362288299978784768', "Error 403, I access denied to steam")
+	elif res.status_code == 402:
+		await ctx.send("Something's wrong, please ping an admin for a role")
+	# await self.bot.send_message('362288299978784768', "Error 403, I access denied to steam")
+	elif res.status_code == 429:
+		await ctx.send("I've pissed off gabe newell, please ping an admin for a role")
+	# await bot.send_message('362288299978784768', "error 429, too many requests")
+	elif res.status_code == 500:
+		await ctx.send("Steam's having some issues, please ping an admin for a role.")
+	# await bot.send_message('362288299978784768', "Error 500, Steam's having some problems.")
+	elif res.status_code == 500:
+		await ctx.send("Steam's having some issues, please ping an admin for a role.")
+	# await bot.send_message('362288299978784768', "Error 503, Steam's having some problems.")
