@@ -130,9 +130,6 @@ class ChatFilter(commands.Cog, name="Chat Filter"):
 	@whitelist.command(name="add")
 	async def whitelist_add(self, ctx, *, word: str=None):
 		"""Adds a word to the chat filter whitelist."""
-		print(self)
-		print(ctx)
-		print(word)
 		await _cf_add(self, ctx, "whitelist", word)
 	
 	@whitelist.command(name="remove")
@@ -143,8 +140,6 @@ class ChatFilter(commands.Cog, name="Chat Filter"):
 	@whitelist.command(name="list")
 	async def whitelist_list(self, ctx):
 		"""Lists all words currently present on the whitelist."""
-		print(self)
-		print(ctx)
 		await _cf_list(self, ctx, "whitelist")
 	
 	@cf.group()
