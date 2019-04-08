@@ -41,7 +41,7 @@ async def _cf_add(self,ctx,ls,word):
 
 async def _cf_remove(self,ctx,ls,word):
 	if str is None:
-		ctx.send("Invalid word.")
+		await ctx.send("Invalid word.")
 		return 0
 	db = TinyDB('db/chatfilter.json', indent=4) # Define the database
 	table = db.table(ls) # Grab the blacklist table
@@ -121,47 +121,52 @@ class ChatFilter(commands.Cog, name="Chat Filter"):
 		if ctx.invoked_subcommand is None:
 			await ctx.send("Invalid cf command passed.")
 	
-	@cf.command()
+	@cf.group()
 	async def whitelist(self, ctx):
 		"""Chat filter whitelist."""
 		if ctx.invoked_subcommand is None:
 			await ctx.send("Invalid cf command passed.")
 	
-	@whitelist.command()
-	async def add(self, ctx, *, word: str=None):
+	@whitelist.command(name="add")
+	async def whitelist_add(self, ctx, *, word: str=None):
 		"""Adds a word to the chat filter whitelist."""
+		print(self)
+		print(ctx)
+		print(word)
 		await _cf_add(self, ctx, "whitelist", word)
 	
-	@whitelist.command()
-	async def add(self, ctx, *, word: str=None):
+	@whitelist.command(name="remove")
+	async def whitelist_remove(self, ctx, *, word: str=None):
 		"""Removes a word from the chat filter whitelist."""
 		await _cf_remove(self, ctx, "whitelist", word)
 	
-	@whitelist.command()
-	async def list(self, ctx):
+	@whitelist.command(name="list")
+	async def whitelist_list(self, ctx):
 		"""Lists all words currently present on the whitelist."""
-		await _cf_list(self, ctx, "whitelist", word)
+		print(self)
+		print(ctx)
+		await _cf_list(self, ctx, "whitelist")
 	
-	@cf.command()
+	@cf.group()
 	async def blacklist(self, ctx):
 		"""Chat filter blacklist."""
 		if ctx.invoked_subcommand is None:
 			await ctx.send("Invalid cf command passed.")
 	
-	@blacklist.command()
-	async def add(self, ctx, *, word: str=None):
+	@blacklist.command(name="add")
+	async def blacklist_add(self, ctx, *, word: str=None):
 		"""Adds a word to the chat filter blacklist."""
 		await _cf_add(self, ctx, "blacklist", word)
 	
-	@blacklist.command()
-	async def remove(self, ctx, *, word: str=None):
+	@blacklist.command(name="remove")
+	async def blacklist_remove(self, ctx, *, word: str=None):
 		"""Removes a word from the chat filter blacklist."""
 		await _cf_remove(self, ctx, "blacklist", word)
 	
-	@blacklist.command()
-	async def list(self, ctx):
+	@blacklist.command(name="list")
+	async def blacklist_list(self, ctx, *, word: str=None):
 		"""Lists all words currently present on the blacklist."""
-		await _cf_list(self, ctx, "blacklist", word)
+		await _cf_list(self, ctx, "blacklist")
 	
 	@commands.Cog.listener()
 	async def on_message(self,message):
