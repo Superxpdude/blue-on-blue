@@ -27,9 +27,9 @@ class BotControl(commands.Cog, name="Bot Control"):
 		if isinstance(error, commands.CheckFailure):
 			await ctx.send("Nothing to see here, move along comrade.")
 	
-	@commands.command(name='cog_load', hidden=True)
+	@commands.command(name='cogload', hidden=True)
 	@commands.check(check_bot_control)
-	async def cog_load(self, ctx, *, cog: str):
+	async def cogload(self, ctx, *, cog: str):
 		"""Command which Loads a Module.
 		Remember to use dot path. e.g: cogs.owner"""
 	
@@ -40,9 +40,9 @@ class BotControl(commands.Cog, name="Bot Control"):
 		else:
 			await ctx.send('**`SUCCESS`**')
 	
-	@commands.command(name='cog_unload', hidden=True)
+	@commands.command(name='cogunload', hidden=True)
 	@commands.check(check_bot_control)
-	async def cog_unload(self, ctx, *, cog: str):
+	async def cogunload(self, ctx, *, cog: str):
 		"""Command which Unloads a Module.
 		Remember to use dot path. e.g: cogs.owner"""
 		
@@ -56,16 +56,15 @@ class BotControl(commands.Cog, name="Bot Control"):
 		else:
 			await ctx.send("You cannot unload the bot control module!")
 	
-	@commands.command(name='cog_reload', hidden=True)
+	@commands.command(name='cogreload', hidden=True)
 	@commands.check(check_bot_control)
-	async def cog_reload(self, ctx, *, cog: str):
+	async def cogreload(self, ctx, *, cog: str):
 		"""Command which Reloads a Module.
 		Remember to use dot path. e.g: cogs.owner"""
 		
 		if cog != "cogs.BotControl":
 			try:
-				self.bot.unload_extension(cog)
-				self.bot.load_extension(cog)
+				self.bot.reload_extension(cog)
 			except Exception as e:
 				await ctx.send(f'**`ERROR:`** {type(e).__name__} - {e}')
 			else:
