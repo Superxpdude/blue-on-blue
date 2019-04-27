@@ -101,10 +101,10 @@ class Pings(commands.Cog, name="Pings"):
 			ping.remove(data.mention == ctx.author.mention) # Remove the user from the list
 			if len(ping) == 0: # If no users are in the list, remove the list
 				db.purge_table(tag)
-			await ctx.send("You have been removed from ping: %s" % (tag))
+			await ctx.send("%s You have been removed from ping: %s" % (ctx.author.mention,tag))
 		else: # User not in ping list
-			ping.insert({'name': ctx.author.name, 'mention': ctx.author.mention})
-			await ctx.send("You have been added to ping: %s" % (tag))
+			ping.insert({'name': ctx.author.name, 'mention': ctx.author.mention, 'user_id': ctx.author.id})
+			await ctx.send("%s You have been added to ping: %s" % (ctx.author.mention,tag))
 	
 	@commands.command(
 		name="pinglist"
