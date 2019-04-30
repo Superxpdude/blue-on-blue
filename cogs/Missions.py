@@ -46,7 +46,10 @@ class Missions(commands.Cog, name="Missions"):
 				missionURL = config["MISSIONS"]["WIKI"] + missionArr[0].replace(" ","_")
 				embed = discord.Embed(title=datetime.date(datetime.strptime(i[0],"%m/%d/%y")).strftime("%A") + ": " + i[0], color=0x2E86C1)
 				embed.add_field(name="Mission", value="[" + missionArr[0] + "](" + missionURL + ")", inline=True)
-				embed.add_field(name="Map", value=missionArr[1], inline=True)
+				if len(missionArr) > 1:
+					embed.add_field(name="Map", value=missionArr[1], inline=True)
+				else:
+					embed.add_field(name="Map", value="None", inline=True)
 				embed.add_field(name="Author", value=i[2], inline=True)
 				await ctx.send(embed=embed)
 	
