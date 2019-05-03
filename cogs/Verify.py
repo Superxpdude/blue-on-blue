@@ -130,7 +130,78 @@ class Verify(commands.Cog, name="Verify"):
 			await ctx.send("You already have the Member role! >:(")
 			return 0
 
-		# Check if a Steam URL is present
+		if db.contains(data.discord_id == userid):
+			await ctx.send("You're already in our systems but I'll DM you your token and instructions once more")
+
+
+
+		# User already present in database
+		# if db.contains(data.discord_id == userid):
+		# 	userdata = db.get(data.discord_id == userid)
+		# if userdata["verified"]: # Check if the steam account is still in the steam group
+		# 	await bot.add_roles(ctx.author, role, reason="User verified by bot")
+		# elif await check_credentials(self, ctx, user):
+		# 	if await check_credentials(user, userid):
+		# 	await bot.add_roles(ctx.author, role, reason="User verified by bot")
+		# 	await assign_role(self, ctx, role)
+		# 	db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid)
+		# else:
+		# 	await ctx.send("Sorry the token does not match what is on your profile.")
+		# return 0
+		steam_id64 = await get_id64(steam_url)
+		if steam_id64 is None:
+			await ctx.send("Invalid URL sent, please give me a proper URL.")
+			return 0
+
+		await ctx.send("Checking to see if you're in the TMTM steam group...")
+		if await check_group(steam_id64):
+			await ctx.send("Check successful")
+		else:
+			await ctx.send("Sorry, you're not a part of this arma group. You're free to apply "
+							"by sending Anvil an email. musicalanvil@gmail.com.")
+			return
+
+		url = 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64)
+		res = requests.get(url)
+
+		if res.status_code == 200:
+			user_token = "".join(random.sample(string.ascii_letters, 10))
+			good_response = "Link checks out, I'll DM what you need to do from here."
+			instructions = "Put this token into the 'real name' section of your steam profile, come back to the " \
+						   "check in section of the discord and type in " + ctx.prefix + "verify once more. \n" \
+						   "```" + \
+						   user_token + \
+						   "```"
+			await enter_user(user, userid, user_token, steam_id64)
+
+			await ctx.send(good_response)
+
+			# TODO: Fix this try/catch block later to properly catch an HTTP Exception
+			# try:
+			await ctx.author.send(instructions)
+
+			# except message.HTTPException:
+			# 	error_instructions = "Sorry " + ctx.author.mention + " ,
+		# 			I couldn't DM you so here are your instructions here instead."
+			# 	await ctx.send(error_instructions)
+		else:
+			await throw_error(res, ctx)
+
+	@commands.command(
+		name="checkin"
+	)
+	async def check_in(self, ctx, *, steam_url: str=""):
+		"""Verifies a user as part of the group.
+
+		Requires a full steam profile URL for authentication."""
+		# shortlist = pd.read_csv('Administration/unverifiedusers.csv', index_col='userName')
+		# print(ctx.author.id)
+		db = TinyDB('db/verify.json')  # Define the database
+		data = Query()
+		user = str(ctx.author)
+		userid = ctx.author.id
+		role = discord.utils.get(ctx.guild.roles, id=config["SERVER"]["ROLES"]["MEMBER"])
+
 		if steam_url == "":
 			if db.contains(data.discord_id == userid):
 				steam_id64 = db.get(data.discord_id == userid)['steam_id']
@@ -154,85 +225,6 @@ class Verify(commands.Cog, name="Verify"):
 			else:
 				await ctx.send("I can't verify you without your steam profile!")
 				return 0
-
-		steam_id64 = await get_id64(steam_url)
-		if steam_id64 is None:
-			await ctx.send("Invalid URL sent, please give me a proper URL.")
-			return 0
-
-		await ctx.send("Checking to see if you're in the TMTM steam group...")
-		if await check_group(steam_id64):
-			await ctx.send("Check successful")
-		else:
-			await ctx.send("Sorry, you're not a part of this arma group. You're free to apply "
-							"by sending Anvil an email. musicalanvil@gmail.com.")
-			return
-
-		# User already present in database
-		# if db.contains(data.discord_id == userid):
-		# 	userdata = db.get(data.discord_id == userid)
-		# if userdata["verified"]: # Check if the steam account is still in the steam group
-		# 	await bot.add_roles(ctx.author, role, reason="User verified by bot")
-		# elif await check_credentials(self, ctx, user):
-		# 	if await check_credentials(user, userid):
-		# 	await bot.add_roles(ctx.author, role, reason="User verified by bot")
-		# 	await assign_role(self, ctx, role)
-		# 	db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid)
-		# else:
-		# 	await ctx.send("Sorry the token does not match what is on your profile.")
-		# return 0
-
-
-		url = 'http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=' + config["STEAM"]["API_TOKEN"] + '&steamids=' + str(steam_id64)
-		res = requests.get(url)
-		#print(res.json())
-
-		if res.status_code == 200:
-			user_token = "".join(random.sample(string.ascii_letters, 10))
-			good_response = "Link checks out, I'll DM what you need to do from here."
-			instructions = "Put this token into the 'real name' section of your steam profile, come back to the " \
-						   "check in section of the discord and type in " + ctx.prefix + "verify once more. \n" \
-						   "```" + \
-						   user_token + \
-						   "```"
-			await enter_user(user, userid, user_token, steam_id64)
-
-			await ctx.send(good_response)
-
-			# TODO: Fix this try/catch block later to properly catch an HTTP Exception
-			# try:
-			await ctx.author.send(instructions)
-
-			# except message.HTTPException:
-			# 	error_instructions = "Sorry " + ctx.author.mention + " ,
-		# 			I couldn't DM you so here are your instructions here instead."
-			# 	await ctx.send(error_instructions)
-		else:
-			throw_error(res, ctx)
-
-	@commands.command(
-		name="checkin"
-	)
-	async def check_in(self, ctx, *, steam_url: str=""):
-		"""Verifies a user as part of the group.
-
-		Requires a full steam profile URL for authentication."""
-		# shortlist = pd.read_csv('Administration/unverifiedusers.csv', index_col='userName')
-		# print(ctx.author.id)
-		db = TinyDB('db/verify.json')  # Define the database
-		data = Query()
-		user = str(ctx.author)
-		userid = ctx.author.id
-		role = discord.utils.get(ctx.guild.roles, id=config["SERVER"]["ROLES"]["MEMBER"])
-
-		if db.get(data.discord_id == userid)['verified'] or await check_credentials(user, userid):
-			db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid)
-			await assign_role(self, ctx, role)
-			return 0
-		else:
-			await ctx.send("Sorry the token does not match what is on your profile.\n"
-							"Use " + ctx.prefix + "verify with your steam URL if you need a new token.")
-			return 0
 
 	@commands.Cog.listener()
 	async def on_member_join(self,member):
