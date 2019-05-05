@@ -149,6 +149,7 @@ class Verify(commands.Cog, name="Verify"):
 		# 	await ctx.send("Sorry the token does not match what is on your profile.")
 		# return 0
 		steam_id64 = await get_id64(steam_url)
+
 		if steam_id64 is None:
 			await ctx.send("Invalid URL sent, please give me a proper URL.")
 			return 0
@@ -168,7 +169,7 @@ class Verify(commands.Cog, name="Verify"):
 			user_token = "".join(random.sample(string.ascii_letters, 10))
 			good_response = "Link checks out, I'll DM what you need to do from here."
 			instructions = "Put this token into the 'real name' section of your steam profile, come back to the " \
-						   "check in section of the discord and type in " + ctx.prefix + "verify once more. \n" \
+						   "check in section of the discord and type in " + ctx.prefix + "checkin \n" \
 						   "```" + \
 						   user_token + \
 						   "```"
@@ -202,29 +203,22 @@ class Verify(commands.Cog, name="Verify"):
 		userid = ctx.author.id
 		role = discord.utils.get(ctx.guild.roles, id=config["SERVER"]["ROLES"]["MEMBER"])
 
-		if steam_url == "":
-			if db.contains(data.discord_id == userid):
-				steam_id64 = db.get(data.discord_id == userid)['steam_id']
-				await ctx.send("Checking your profile now.")
-				if await check_group(steam_id64): # Check if the user is in the steam group
-					if (
-						db.get(data.discord_id == userid)['verified'] or
-						await check_credentials(user, userid)
-					):
-						db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid)
-						await assign_role(self, ctx, role)
-						return 0
-					else:
-						await ctx.send("Sorry the token does not match what is on your profile.\n"
-						"Use " + ctx.prefix + "verify with your steam URL if you need a new token.")
-						return 0
-				else:
-					await ctx.send("Sorry, you're not a part of this arma group. You're free to apply "
-									"by sending Anvil an email. musicalanvil@gmail.com.")
-					return 0
-			else:
-				await ctx.send("I can't verify you without your steam profile!")
+		if db.contains(data.discord_id == userid):
+			await ctx.send("Checking your profile now.")
+			if (
+				db.get(data.discord_id == userid)['verified'] or
+				await check_credentials(user, userid)
+			):
+				db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid)
+				await assign_role(self, ctx, role)
 				return 0
+			else:
+				await ctx.send("Sorry the token does not match what is on your profile.\n"
+				"Use " + ctx.prefix + "verify with your steam URL if you need a new token.")
+				return 0
+		else:
+			await ctx.send("I haven't even sent you a token yet!, please type in " + ctx.prefix + "verify for a token.")
+
 
 	@commands.Cog.listener()
 	async def on_member_join(self,member):
@@ -246,17 +240,17 @@ async def throw_error(res, ctx):
 		await ctx.send(error_message)
 
 	elif res.status_code == 401:
-		await ctx.send("Something's wrong, please ping an admin for a role")
+		await ctx.send("Something's wrong, please ping an admin for a role. Error 401")
 	# await self.bot.send_message('362288299978784768', "Error 403, I access denied to steam")
 	elif res.status_code == 402:
-		await ctx.send("Something's wrong, please ping an admin for a role")
+		await ctx.send("Something's wrong, please ping an admin for a role. Error 402")
 	# await self.bot.send_message('362288299978784768', "Error 403, I access denied to steam")
 	elif res.status_code == 429:
-		await ctx.send("I've pissed off gabe newell, please ping an admin for a role")
+		await ctx.send("I've pissed off gabe newell, please ping an admin for a role. Error 429")
 	# await bot.send_message('362288299978784768', "error 429, too many requests")
 	elif res.status_code == 500:
-		await ctx.send("Steam's having some issues, please ping an admin for a role.")
+		await ctx.send("Steam's having some issues, please ping an admin for a role. Error 500")
 	# await bot.send_message('362288299978784768', "Error 500, Steam's having some problems.")
 	elif res.status_code == 500:
-		await ctx.send("Steam's having some issues, please ping an admin for a role.")
+		await ctx.send("Steam's having some issues, please ping an admin for a role. Error 500")
 	# await bot.send_message('362288299978784768', "Error 503, Steam's having some problems.")
