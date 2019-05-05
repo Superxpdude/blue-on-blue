@@ -34,6 +34,7 @@ class Missions(commands.Cog, name="Missions"):
 		client = gspread.authorize(creds)
 		doc = client.open_by_url(config["MISSIONS"]["SHEET"]["URL"])
 		mission_sheet = doc.worksheet("Current Month")
+		no_missions = True
 		# Embed settings
 		
 		for i in mission_sheet.get_all_values():
@@ -42,6 +43,7 @@ class Missions(commands.Cog, name="Missions"):
 				datetime.date(datetime.strptime(i[0],"%m/%d/%y")) > 
 				datetime.date(datetime.now() + timedelta(days=-1))
 			):
+				no_missions = False
 				missionArr = i[1].split(" - ")
 				missionURL = config["MISSIONS"]["WIKI"] + missionArr[0].replace(" ","_")
 				embed = discord.Embed(title=datetime.date(datetime.strptime(i[0],"%m/%d/%y")).strftime("%A") + ": " + i[0], color=0x2E86C1)
@@ -52,6 +54,9 @@ class Missions(commands.Cog, name="Missions"):
 					embed.add_field(name="Map", value="None", inline=True)
 				embed.add_field(name="Author", value=i[2], inline=True)
 				await ctx.send(embed=embed)
+		
+		if no_missions:
+			await ctx.send("There aren't any missions scheduled right now. Why don't you schedule one?")
 	
 	@commands.command(
 		name="op_audit",
