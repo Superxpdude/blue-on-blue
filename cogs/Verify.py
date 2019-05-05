@@ -83,7 +83,6 @@ async def assign_role(self, ctx, role):
 		await ctx.send("Welcome " + ctx.author.mention + ", your role has been assigned.")
 	except discord.Forbidden:
 		await ctx.send("I lack permissions to assign that role, go bother an admin please")
-	
 	return 0
 
 
@@ -100,12 +99,10 @@ class Verify(commands.Cog, name="Verify"):
 	# Define some variables
 	STEAM_API_KEY = config["STEAM"]["API_TOKEN"]
 	STEAM_GROUP_ID = config["STEAM"]["GROUP"]
-	
 	MEMBER_ROLE = config["SERVER"]["ROLES"]["MEMBER"]
 	
 	# This whole process will ask users to enter a command for their steam profiles, upon successful request, the user
 	# is stored into a .csv with a token which the bot will check if the user entered their token on their steam accounts
-	# TODO: maybe look into implementing an actual database, but idc.
 	@commands.command(
 		name="verify"
 	)
@@ -191,6 +188,9 @@ class Verify(commands.Cog, name="Verify"):
 	@commands.command(
 		name="checkin"
 	)
+	@commands.bot_has_permissions(
+		manage_roles=True
+	)
 	async def check_in(self, ctx, *, steam_url: str=""):
 		"""Verifies a user as part of the group.
 
@@ -205,10 +205,8 @@ class Verify(commands.Cog, name="Verify"):
 
 		if db.contains(data.discord_id == userid):
 			await ctx.send("Checking your profile now.")
-			if (
-				db.get(data.discord_id == userid)['verified'] or
-				await check_credentials(user, userid)
-			):
+
+			if db.get(data.discord_id == userid)['verified'] or await check_credentials(user, userid):
 				db.upsert({"discord_id": userid, "verified": True}, data.discord_id == userid)
 				await assign_role(self, ctx, role)
 				return 0
@@ -218,7 +216,6 @@ class Verify(commands.Cog, name="Verify"):
 				return 0
 		else:
 			await ctx.send("I haven't even sent you a token yet!, please type in " + ctx.prefix + "verify for a token.")
-
 
 	@commands.Cog.listener()
 	async def on_member_join(self,member):
