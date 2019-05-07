@@ -59,7 +59,7 @@ class Pings(commands.Cog, name="Pings"):
 		if san is not None:
 			await ctx.send(san)
 			return
-		db = TinyDB('db/pings.json') # Define the database
+		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		tag = tag.lower() # String searching is case-sensitive
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
@@ -67,7 +67,11 @@ class Pings(commands.Cog, name="Pings"):
 			ping = db.table(tag)
 			message = "Pinging '%s': " % (tag)
 			for u in ping.all(): # Grab all users associated with a tag
-				message += u['mention']
+				if "user_id" in u.keys():
+					usr = self.bot.get_user(u["user_id"])
+					message += usr.mention
+				else:
+					message += u['mention']
 				message += " "
 			message = message[:-1] # Remove the last character of the message
 		else: # If the tag doesn't exist, inform the user
@@ -93,11 +97,16 @@ class Pings(commands.Cog, name="Pings"):
 		if san is not None:
 			await ctx.send(san)
 			return
-		db = TinyDB('db/pings.json') # Define the database
+		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		tag = tag.lower() # String searching is case-sensitive
 		ping = db.table(tag) # Grab the table for the ping
 		data = Query() # Define query
-		if ping.contains(data.mention == ctx.author.mention): # User in ping list
+		if ping.contains(data.user_id == ctx.author.id): # User in ping list
+			ping.remove(data.user_id == ctx.author.id) # Remove the user from the list
+			if len(ping) == 0: # If no users are in the list, remove the list
+				db.purge_table(tag)
+			await ctx.send("%s You have been removed from ping: %s" % (ctx.author.mention,tag))
+		elif ping.contains(data.mention == ctx.author.mention): # User in ping list
 			ping.remove(data.mention == ctx.author.mention) # Remove the user from the list
 			if len(ping) == 0: # If no users are in the list, remove the list
 				db.purge_table(tag)
@@ -116,7 +125,7 @@ class Pings(commands.Cog, name="Pings"):
 		When called with a tag, it will list all users subscribed to that tag.
 		When called with a mention to yourself, it will list all pings that you are currently subscribed to.
 		NOTE: Usernames are stored when added to the list, and may no longer be accurate."""
-		db = TinyDB('db/pings.json') # Define the database
+		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		data = Query() # Define query
 		tag = tag.lower() # String searching is case-sensitive
 		pings = db.tables() # Grab all tables
@@ -193,7 +202,7 @@ class Pings(commands.Cog, name="Pings"):
 		This action cannot be undone."""
 		# Purge does not get filtered, we need to make sure it always works.
 		tag = tag.lower() # String searching is case-sensitive
-		db = TinyDB('db/pings.json') # Define the database
+		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		pings = db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
 		if tag in pings:
