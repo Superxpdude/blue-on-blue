@@ -155,7 +155,9 @@ class Pings(commands.Cog, name="Pings"):
 				list = []
 				for p in pings:	# Iterate through all valid pings
 					t = db.table(p)
-					if t.contains(data.mention == ctx.author.mention):
+					if t.contains(data.user_id == ctx.author.id):
+						list += [p]
+					elif t.contains(data.mention == ctx.author.mention):
 						list += [p]
 				list = sorted(list, key=str.lower) # Sort list alphabetically
 				if len(list)>0:
