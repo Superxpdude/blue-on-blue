@@ -10,6 +10,7 @@
 			"cogs.ChatFilter",
 			"cogs.Missions",
 			"cogs.Pings",
+			"cogs.Punish",
 			"cogs.Verify"
 		]
 	},
@@ -33,6 +34,7 @@
 			"MISSION_MAKERS": [
 				1
 			],
+			"PUNISH": 1,
 			"DEAD": 1
 		}
 	},
