@@ -69,10 +69,12 @@ class Pings(commands.Cog, name="Pings"):
 			for u in ping.all(): # Grab all users associated with a tag
 				if "user_id" in u.keys():
 					usr = self.bot.get_user(u["user_id"])
-					message += usr.mention
+					if usr is not None:
+						message += usr.mention
+						message += " "
 				else:
 					message += u['mention']
-				message += " "
+					message += " "
 			message = message[:-1] # Remove the last character of the message
 		else: # If the tag doesn't exist, inform the user
 			message = "This tag does not exist. Try %spinglist for a list of active pings." % (ctx.prefix)
