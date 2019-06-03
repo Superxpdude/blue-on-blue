@@ -86,6 +86,9 @@ async def on_command_error(ctx,error):
 	elif isinstance(error, commands.CommandNotFound):
 		return await ctx.send("%s, you have typed an invalid command. You can use %shelp to view the command list." % (ctx.author.mention, ctx.prefix))
 	
+	elif isinstance(error, commands.NoPrivateMessage):
+		await ctx.send("This command cannot be used in private messages!")
+	
 	elif isinstance(error, blueonblue.UserUnauthorized):
 		await ctx.send("%s, you are not authorized to use that command." % (ctx.author.mention))
 	

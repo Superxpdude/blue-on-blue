@@ -80,11 +80,6 @@ class Pings(commands.Cog, name="Pings"):
 		# Send the message to the channel
 		await ctx.send(message)
 	
-	@ping.error
-	async def ping_error(self,ctx,error):
-		if isinstance(error, commands.NoPrivateMessage):
-			await ctx.send("This command cannot be used in private messages!")
-	
 	@commands.command(
 		name="pingme"
 	)
