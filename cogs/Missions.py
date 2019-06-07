@@ -33,7 +33,7 @@ class Missions(commands.Cog, name="Missions"):
 		creds = ServiceAccountCredentials.from_json_keyfile_name(config["MISSIONS"]["SHEET"]["API_TOKEN_FILE"], scope)
 		client = gspread.authorize(creds)
 		doc = client.open_by_url(config["MISSIONS"]["SHEET"]["URL"])
-		mission_sheet = doc.worksheet("Current Month")
+		mission_sheet = doc.worksheet(config["MISSIONS"]["SHEET"]["WORKSHEET"])
 		no_missions = True
 		# Embed settings
 		
@@ -86,6 +86,61 @@ class Missions(commands.Cog, name="Missions"):
 			await a.save(file)
 			await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send(reply, file=discord.File(file))
 			os.remove(file)
+	
+	@commands.command(
+		name="op_schedule",
+		brief="Schedules a mission to be played",
+		aliases=["mission_schedule","schedule"]
+	)
+	async def op_schedule(self,ctx, date, *, text: str=""):
+		"""Missions must be present in the audit list, and must be spelled *EXACTLY* as they are in the audit list (spaces and other special characters included).
+		Dates must be provided in ISO 8601 date format (YYYY-MM-DD)."""
+		
+		# Google docs info
+		scope = ['https://spreadsheets.google.com/feeds']
+		creds = ServiceAccountCredentials.from_json_keyfile_name(config["MISSIONS"]["SHEET"]["API_TOKEN_FILE"], scope)
+		client = gspread.authorize(creds)
+		mission_doc = client.open_by_url(config["MISSIONS"]["SHEET"]["URL"])
+		mission_sheet = mission_doc.worksheet(config["MISSIONS"]["SHEET"]["WORKSHEET"])
+		audit_doc = client.open_by_url(config["MISSIONS"]["AUDIT_SHEET"]["URL"])
+		audit_sheet = audit_doc.worksheet(config["MISSIONS"]["AUDIT_SHEET"]["WORKSHEET"])
+		
+		#Verify that the date is valid
+		try:
+			datetime.strptime(date,"%Y-%m-%d")
+		except:
+			await ctx.send("%s Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)" % (ctx.author.mention))
+			return 0
+		
+		#Grab the mission info from the audit sheet
+		try:
+			audit_cell = audit_sheet.find(text)
+		except:
+			audit_cell = None
+		
+		if audit_cell is not None:
+			audit_row = audit_sheet.row_values(audit_cell.row)
+		else:
+			await ctx.send("%s, I could not find that mission on the audit list." % (ctx.author.mention))
+			return 0
+		
+		try:
+			datecell = mission_sheet.find(date) #Find the cell with the matching date
+		except gspread.exceptions.CellNotFound:
+			datecell = None
+		
+		if datecell is not None:
+			#Date already exists in a cell.
+			if mission_sheet.cell(datecell.row,2).value == '':
+				#Insert the mission info into the sheet
+				mission_sheet.update_cell(datecell.row,2,audit_row[0])
+				mission_sheet.update_cell(datecell.row,3,audit_row[1])
+				await ctx.send("%s, the mission '%s' has been successfully scheduled for %s." % (ctx.author.mention,audit_row[0],date))
+			else:
+				await ctx.send("%s, a mission has already been scheduled for that date." % (ctx.author.mention))
+		else:
+			#Date does not exist in a cell
+			await ctx.send("%s, that date has not yet been added to the mission schedule. Please be patient." % (ctx.author.mention))
 	
 	@tasks.loop(minutes=1, reconnect=True)
 	async def git_task(self):
