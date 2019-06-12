@@ -8,6 +8,7 @@ import json
 import requests
 import os
 from oauth2client.service_account import ServiceAccountCredentials
+import blueonblue
 
 class Missions(commands.Cog, name="Missions"):
 	def __init__(self, bot):
@@ -104,6 +105,11 @@ class Missions(commands.Cog, name="Missions"):
 			datevar = datetime.strptime(date,"%Y-%m-%d")
 		except:
 			await ctx.send("%s Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)" % (ctx.author.mention))
+			return 0
+		
+		# Check to ensure that the mission is not being scheduled too far in advance
+		if (datevar - datetime.now()) > timedelta(365):
+			await ctx.send("%s, you cannot schedule missions more than one year in advance!" % (ctx.author.mention))
 			return 0
 		
 		# Google docs info
@@ -212,6 +218,66 @@ class Missions(commands.Cog, name="Missions"):
 			mission_sheet.insert_row([datestr,audit_row[0] + " - " + audit_row[1],audit_row[2]],idx + dtFound)
 			await ctx.send("%s, the mission '%s' has been successfully scheduled for %s." % (ctx.author.mention,audit_row[0],date))
 			
+	@commands.command(
+		name="schedule_cancel",
+		brief="Removes a mission from the schedule",
+		aliases=["mission_schedule_cancel","op_schedule_cancel"]
+	)
+	@commands.check(blueonblue.check_group_mods)
+	async def op_schedule_cancel(self,ctx, date):
+		"""The date must be provided in the ISO 8601 date format (YYYY-MM-DD)."""
+		
+		#Verify that the date is valid
+		try:
+			datevar = datetime.strptime(date,"%Y-%m-%d")
+		except:
+			await ctx.send("%s Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)" % (ctx.author.mention))
+			return 0
+		
+		# Google docs info
+		scope = ['https://spreadsheets.google.com/feeds']
+		creds = ServiceAccountCredentials.from_json_keyfile_name(config["MISSIONS"]["SHEET"]["API_TOKEN_FILE"], scope)
+		client = gspread.authorize(creds)
+		mission_doc = client.open_by_url(config["MISSIONS"]["SHEET"]["URL"])
+		mission_sheet = mission_doc.worksheet(config["MISSIONS"]["SHEET"]["WORKSHEET"])
+		
+		# Convert the date from ISO 8601 to MM/DD/YY for compatibility with the existing doc
+		datestr = datevar.strftime("%m/%d/%y")
+		
+		# Check if the date exists in the schedule doc
+		try:
+			datecell = mission_sheet.find(datestr) #Find the cell with the matching date
+		except gspread.exceptions.CellNotFound:
+			# If we can't find the date, exit and let the user know.
+			datecell = None
+			await ctx.send("%s I could not find a mission scheduled for %s." % (ctx.author.mention,date))
+			return 0
+		
+		# Check to make sure a mission is scheduled for that date
+		if mission_sheet.cell(datecell.row,2).value == "":
+			# If not, let the user know.
+			await ctx.send("%s I could not find a mission scheduled for %s." % (ctx.author.mention,date))
+			return 0
+		
+		# Now that we know the date exists, we have to remove it.
+		# We're going to grab the mission name so that we can let the user know.
+		old_name = mission_sheet.cell(datecell.row,2).value.split(" - ")[0]
+		
+		# If there are blank cells before AND after the date, it's probably a far future date.
+		if (
+			mission_sheet.cell(datecell.row - 1, 1).value == "" and
+			mission_sheet.cell(datecell.row + 1, 1).value == ""
+		):
+			# If it's a far future date, delete the row entirely
+			mission_sheet.delete_row(datecell.row)
+		else:
+			# If it's in the current month, clear the mission, author, and notes cells
+			mission_sheet.update_cell(datecell.row,2,"")
+			mission_sheet.update_cell(datecell.row,3,"")
+			mission_sheet.update_cell(datecell.row,4,"")
+		
+		# Let the user know that we have cleared the mission schedule
+		await ctx.send("%s, '%s' has been removed as the scheduled mission for %s." % (ctx.author.mention,old_name,date))
 	
 	@tasks.loop(minutes=1, reconnect=True)
 	async def git_task(self):
