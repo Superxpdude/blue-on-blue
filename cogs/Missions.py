@@ -33,7 +33,7 @@ class Missions(commands.Cog, name="Missions"):
 		creds = ServiceAccountCredentials.from_json_keyfile_name(config["MISSIONS"]["SHEET"]["API_TOKEN_FILE"], scope)
 		client = gspread.authorize(creds)
 		doc = client.open_by_url(config["MISSIONS"]["SHEET"]["URL"])
-		mission_sheet = doc.worksheet("Current Month")
+		mission_sheet = doc.worksheet(config["MISSIONS"]["SHEET"]["WORKSHEET"])
 		no_missions = True
 		# Embed settings
 		
@@ -86,6 +86,132 @@ class Missions(commands.Cog, name="Missions"):
 			await a.save(file)
 			await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send(reply, file=discord.File(file))
 			os.remove(file)
+	
+	@commands.command(
+		name="op_schedule",
+		brief="Schedules a mission to be played",
+		aliases=["mission_schedule","schedule"]
+	)
+	async def op_schedule(self,ctx, date, *, text: str=""):
+		"""Missions must be present in the audit list, and must be spelled *EXACTLY* as they are in the audit list (spaces and other special characters included).
+		Dates must be provided in ISO 8601 date format (YYYY-MM-DD)."""
+		
+		# Audit sheet row format:
+		# ["Mission Name", "Author", "Version", "Auditor", "Audit Date", "Expiry Date", "Modpack version", "CRC32 Hash"]
+		
+		#Verify that the date is valid
+		try:
+			datevar = datetime.strptime(date,"%Y-%m-%d")
+		except:
+			await ctx.send("%s Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)" % (ctx.author.mention))
+			return 0
+		
+		# Google docs info
+		scope = ['https://spreadsheets.google.com/feeds']
+		creds = ServiceAccountCredentials.from_json_keyfile_name(config["MISSIONS"]["SHEET"]["API_TOKEN_FILE"], scope)
+		client = gspread.authorize(creds)
+		mission_doc = client.open_by_url(config["MISSIONS"]["SHEET"]["URL"])
+		mission_sheet = mission_doc.worksheet(config["MISSIONS"]["SHEET"]["WORKSHEET"])
+		
+		# The audit list is stored on a wiki
+		# The values here need to be moved to a config file at some point
+		#audit_doc = client.open_by_url(config["MISSIONS"]["AUDIT_SHEET"]["URL"])
+		#audit_sheet = audit_doc.worksheet(config["MISSIONS"]["AUDIT_SHEET"]["WORKSHEET"])
+		r_url = "https://wiki.tmtm.gg/api.php"
+		r_params = {
+			"action": "parse",
+			"page": "Audited Mission List",
+			"prop": "wikitext",
+			"section": 1,
+			"format": "json"
+		}
+		
+		# Grab the text from the wiki
+		r_res = requests.Session().get(url=r_url, params=r_params)
+		r_data = r_res.json()
+		r_txt = r_data["parse"]["wikitext"]["*"] # Grab the text from the result
+		r_lines = r_txt.split("\n") # Split text by newline
+		
+		# Iterate through the result to generate a list of lists containing the table
+		r_entries = [] # Define our empty list first
+		for l in r_lines:
+			if not l.startswith("{{"): # We only care about lines that start with {{
+				continue
+			# Remove the leading and trailing curly braces
+			l = l.replace("{","")
+			l = l.replace("}","")
+			l = l.split("|") # Split the line using pipes
+			del l[0] # Delete the first value, this is the template name on the wiki
+			r_entries.append(l)
+		
+		# Now that we have our list, find the row that contains the mission in question
+		for audit_row in r_entries:
+			if audit_row[0].lower() == text.lower():
+				break
+			audit_row = None
+		
+		# If we did not find a matching row, return an error
+		if audit_row is None:
+			await ctx.send("%s, I could not find that mission on the audit list." % (ctx.author.mention))
+			return 0
+			
+		# Put a placeholder if the map name is missing
+		if audit_row[1] == "":
+			audit_row[1] = "TBD"
+		
+		#Grab the mission info from the audit sheet
+		#try:
+		#	audit_cell = audit_sheet.find(text)
+		#except:
+		#	audit_cell = None
+		
+		#if audit_cell is not None:
+		#	audit_row = audit_sheet.row_values(audit_cell.row)
+		#else:
+		#	await ctx.send("%s, I could not find that mission on the audit list." % (ctx.author.mention))
+		#	return 0
+			
+		#Convert the date from ISO 8601 to MM/DD/YY for compatibility with the existing doc
+		datestr = datevar.strftime("%m/%d/%y")
+		
+		try:
+			datecell = mission_sheet.find(datestr) #Find the cell with the matching date
+		except gspread.exceptions.CellNotFound:
+			datecell = None
+		
+		if datecell is not None:
+			#Date already exists in a cell.
+			if mission_sheet.cell(datecell.row,2).value == '':
+				#Insert the mission info into the sheet
+				mission_sheet.update_cell(datecell.row,2,audit_row[0] + " - " + audit_row[1])
+				mission_sheet.update_cell(datecell.row,3,audit_row[2])
+				await ctx.send("%s, the mission '%s' has been successfully scheduled for %s." % (ctx.author.mention,audit_row[0],date))
+			else:
+				await ctx.send("%s, a mission has already been scheduled for that date." % (ctx.author.mention))
+		else:
+			#Date does not exist in a cell
+			#await ctx.send("%s, that date has not yet been added to the mission schedule. Please be patient." % (ctx.author.mention))
+			
+			#Iterate through all available rows, find a cell that has a date that exceeds the provided date
+			colDates = mission_sheet.col_values(1)
+			dtFound = 3 #If we do not find a date, add this number to the row to insert
+			
+			for idx,val in enumerate(colDates,start=1):
+				try:
+					dt = datetime.strptime(val, "%m/%d/%y")
+				except:
+					continue #If we can't make a date value, skip the cell and continue
+				
+				#Check to see if the date we found exceeds the scheduled date
+				if dt > datevar:
+					dtFound = 0
+					break
+			
+			# Insert a new row with the mission info.
+			# If we did not find a date that exceeds ours, we add a row at the bottom of the sheet
+			mission_sheet.insert_row([datestr,audit_row[0] + " - " + audit_row[1],audit_row[2]],idx + dtFound)
+			await ctx.send("%s, the mission '%s' has been successfully scheduled for %s." % (ctx.author.mention,audit_row[0],date))
+			
 	
 	@tasks.loop(minutes=1, reconnect=True)
 	async def git_task(self):
