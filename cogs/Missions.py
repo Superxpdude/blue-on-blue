@@ -146,7 +146,7 @@ class Missions(commands.Cog, name="Missions"):
 		
 		# Now that we have our list, find the row that contains the mission in question
 		for audit_row in r_entries:
-			if audit_row[0] == text:
+			if audit_row[0].lower() == text.lower():
 				break
 			audit_row = None
 		
@@ -154,6 +154,10 @@ class Missions(commands.Cog, name="Missions"):
 		if audit_row is None:
 			await ctx.send("%s, I could not find that mission on the audit list." % (ctx.author.mention))
 			return 0
+			
+		# Put a placeholder if the map name is missing
+		if audit_row[1] == "":
+			audit_row[1] = "TBD"
 		
 		#Grab the mission info from the audit sheet
 		#try:
