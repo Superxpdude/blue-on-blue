@@ -31,8 +31,6 @@ def punish_split_input(self,ctx,args):
 	else:
 		usr = None
 		tm_str = None
-	print(usr)
-	print(tm_str)
 	ret = [usr,tm_str]
 	return ret
 
