@@ -46,7 +46,7 @@ class Punish(commands.Cog, name="Punish"):
 	
 	@commands.command(
 		name="punish",
-		aliases=['jail', 'gitmo']
+		aliases=['jail', 'gitmo'],
 		usage='$$punish user duration'
 	)
 	@commands.check(blueonblue.check_group_mods)
