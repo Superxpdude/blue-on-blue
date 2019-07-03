@@ -178,7 +178,19 @@ class Missions(commands.Cog, name="Missions"):
 		#	return 0
 			
 		#Convert the date from ISO 8601 to MM/DD/YY for compatibility with the existing doc
-		datestr = datevar.strftime("%m/%d/%y")
+		#datestr = datevar.strftime("%m/%d/%y")
+		datestr = datevar.strftime("%Y-%m-%d")
+		
+		# Find the specific columns that we need on the sheet
+		# Google sheets refer to the first cell as cell 1, so we need to add one to our indexes
+		# TODO: Update this to handle errors properly
+		col_date = mission_sheet.row_values(1).index("Date") + 1
+		col_mission = mission_sheet.row_values(1).index("Mission") + 1
+		col_map = mission_sheet.row_values(1).index("Map") + 1
+		col_author = mission_sheet.row_values(1).index("Author(s)") + 1
+		col_medical = mission_sheet.row_values(1).index("Medical") + 1
+		col_contact = mission_sheet.row_values(1).index("Contact DLC") + 1
+		col_notes = mission_sheet.row_values(1).index("Notes") + 1
 		
 		try:
 			datecell = mission_sheet.find(datestr) #Find the cell with the matching date
@@ -187,36 +199,43 @@ class Missions(commands.Cog, name="Missions"):
 		
 		if datecell is not None:
 			#Date already exists in a cell.
-			if mission_sheet.cell(datecell.row,2).value == '':
+			if mission_sheet.cell(datecell.row,col_mission).value == '':
 				#Insert the mission info into the sheet
-				mission_sheet.update_cell(datecell.row,2,audit_row[0] + " - " + audit_row[1])
-				mission_sheet.update_cell(datecell.row,3,audit_row[2])
+				mission_sheet.update_cell(datecell.row,col_mission,audit_row[0])
+				mission_sheet.update_cell(datecell.row,col_map,audit_row[1])
+				mission_sheet.update_cell(datecell.row,col_author,audit_row[2])
+				mission_sheet.update_cell(datecell.row,col_medical,"Basic")
+				if audit_row[1] == "Livonia":
+					mission_sheet.update_cell(datecell.row,col_contact,True)
+				else:
+					mission_sheet.update_cell(datecell.row,col_contact,False)
 				await ctx.send("%s, the mission '%s' has been successfully scheduled for %s." % (ctx.author.mention,audit_row[0],date))
 			else:
 				await ctx.send("%s, a mission has already been scheduled for that date." % (ctx.author.mention))
 		else:
+			await ctx.send("%s, missions can not be scheduled that far in advance at this time. Please contact the mission master if you need to schedule a mission that far in advance." % (ctx.author.mention))
 			#Date does not exist in a cell
 			#await ctx.send("%s, that date has not yet been added to the mission schedule. Please be patient." % (ctx.author.mention))
 			
 			#Iterate through all available rows, find a cell that has a date that exceeds the provided date
-			colDates = mission_sheet.col_values(1)
-			dtFound = 3 #If we do not find a date, add this number to the row to insert
+			#colDates = mission_sheet.col_values(1)
+			#dtFound = 3 #If we do not find a date, add this number to the row to insert
 			
-			for idx,val in enumerate(colDates,start=1):
-				try:
-					dt = datetime.strptime(val, "%m/%d/%y")
-				except:
-					continue #If we can't make a date value, skip the cell and continue
-				
-				#Check to see if the date we found exceeds the scheduled date
-				if dt > datevar:
-					dtFound = 0
-					break
+			#for idx,val in enumerate(colDates,start=1):
+			#	try:
+			#		dt = datetime.strptime(val, "%m/%d/%y")
+			#	except:
+			#		continue #If we can't make a date value, skip the cell and continue
+			#	
+			#	#Check to see if the date we found exceeds the scheduled date
+			#	if dt > datevar:
+			#		dtFound = 0
+			#		break
 			
 			# Insert a new row with the mission info.
 			# If we did not find a date that exceeds ours, we add a row at the bottom of the sheet
-			mission_sheet.insert_row([datestr,audit_row[0] + " - " + audit_row[1],audit_row[2]],idx + dtFound)
-			await ctx.send("%s, the mission '%s' has been successfully scheduled for %s." % (ctx.author.mention,audit_row[0],date))
+			#mission_sheet.insert_row([datestr,audit_row[0] + " - " + audit_row[1],audit_row[2]],idx + dtFound)
+			#await ctx.send("%s, the mission '%s' has been successfully scheduled for %s." % (ctx.author.mention,audit_row[0],date))
 			
 	@commands.command(
 		name="schedule_cancel",
@@ -242,7 +261,7 @@ class Missions(commands.Cog, name="Missions"):
 		mission_sheet = mission_doc.worksheet(config["MISSIONS"]["SHEET"]["WORKSHEET"])
 		
 		# Convert the date from ISO 8601 to MM/DD/YY for compatibility with the existing doc
-		datestr = datevar.strftime("%m/%d/%y")
+		datestr = datevar.strftime("%Y-%m-%d")
 		
 		# Check if the date exists in the schedule doc
 		try:
@@ -253,28 +272,42 @@ class Missions(commands.Cog, name="Missions"):
 			await ctx.send("%s I could not find a mission scheduled for %s." % (ctx.author.mention,date))
 			return 0
 		
+		# Find the specific columns that we need on the sheet
+		# Google sheets refer to the first cell as cell 1, so we need to add one to our indexes
+		# TODO: Update this to handle errors properly
+		col_date = mission_sheet.row_values(1).index("Date") + 1
+		col_mission = mission_sheet.row_values(1).index("Mission") + 1
+		col_map = mission_sheet.row_values(1).index("Map") + 1
+		col_author = mission_sheet.row_values(1).index("Author(s)") + 1
+		col_medical = mission_sheet.row_values(1).index("Medical") + 1
+		col_contact = mission_sheet.row_values(1).index("Contact DLC") + 1
+		col_notes = mission_sheet.row_values(1).index("Notes") + 1
+		
 		# Check to make sure a mission is scheduled for that date
-		if mission_sheet.cell(datecell.row,2).value == "":
+		if mission_sheet.cell(datecell.row,col_mission).value == "":
 			# If not, let the user know.
 			await ctx.send("%s I could not find a mission scheduled for %s." % (ctx.author.mention,date))
 			return 0
 		
 		# Now that we know the date exists, we have to remove it.
 		# We're going to grab the mission name so that we can let the user know.
-		old_name = mission_sheet.cell(datecell.row,2).value.split(" - ")[0]
+		old_name = mission_sheet.cell(datecell.row,col_mission)
 		
 		# If there are blank cells before AND after the date, it's probably a far future date.
 		if (
-			mission_sheet.cell(datecell.row - 1, 1).value == "" and
-			mission_sheet.cell(datecell.row + 1, 1).value == ""
+			mission_sheet.cell(datecell.row - 1, col_date).value == "" and
+			mission_sheet.cell(datecell.row + 1, col_date).value == ""
 		):
 			# If it's a far future date, delete the row entirely
 			mission_sheet.delete_row(datecell.row)
 		else:
 			# If it's in the current month, clear the mission, author, and notes cells
-			mission_sheet.update_cell(datecell.row,2,"")
-			mission_sheet.update_cell(datecell.row,3,"")
-			mission_sheet.update_cell(datecell.row,4,"")
+			mission_sheet.update_cell(datecell.row,col_mission,"")
+			mission_sheet.update_cell(datecell.row,col_map,"")
+			mission_sheet.update_cell(datecell.row,col_author,"")
+			mission_sheet.update_cell(datecell.row,col_medical,"")
+			mission_sheet.update_cell(datecell.row,col_contact,False)
+			mission_sheet.update_cell(datecell.row,col_notes,"")
 		
 		# Let the user know that we have cleared the mission schedule
 		await ctx.send("%s, '%s' has been removed as the scheduled mission for %s." % (ctx.author.mention,old_name,date))
