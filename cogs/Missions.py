@@ -291,7 +291,7 @@ class Missions(commands.Cog, name="Missions"):
 		
 		# Now that we know the date exists, we have to remove it.
 		# We're going to grab the mission name so that we can let the user know.
-		old_name = mission_sheet.cell(datecell.row,col_mission)
+		old_name = mission_sheet.cell(datecell.row,col_mission).value
 		
 		# If there are blank cells before AND after the date, it's probably a far future date.
 		if (
