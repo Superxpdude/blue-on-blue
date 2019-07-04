@@ -56,22 +56,23 @@ class Missions(commands.Cog, name="Missions"):
 				datevar = datetime.strptime(i[0],"%Y-%m-%d")
 			except:
 				datevar = None
-			if (
-				i[0] != "" and i[0] is not None and i[2] != "" and 
-				datetime.date(datevar) > 
-				datetime.date(datetime.now() + timedelta(days=-1))
-			):
-				no_missions = False
-				missionArr = [i[2],i[3]]
-				missionURL = config["MISSIONS"]["WIKI"] + missionArr[0].replace(" ","_")
-				embed = discord.Embed(title=datetime.date(datetime.strptime(i[0],"%m/%d/%y")).strftime("%A") + ": " + i[0], color=0x2E86C1)
-				embed.add_field(name="Mission", value="[" + missionArr[0] + "](" + missionURL + ")", inline=True)
-				if len(missionArr) > 1:
-					embed.add_field(name="Map", value=missionArr[1], inline=True)
-				else:
-					embed.add_field(name="Map", value="None", inline=True)
-				embed.add_field(name="Author", value=i[4], inline=True)
-				await ctx.send(embed=embed)
+			if datevar is not None:
+				if (
+					i[2] != "" and 
+					datetime.date(datevar) > 
+					datetime.date(datetime.now() + timedelta(days=-1))
+				):
+					no_missions = False
+					missionArr = [i[2],i[3]]
+					missionURL = config["MISSIONS"]["WIKI"] + missionArr[0].replace(" ","_")
+					embed = discord.Embed(title=datetime.date(datetime.strptime(i[0],"%Y-%m-%d")).strftime("%A") + ": " + i[0], color=0x2E86C1)
+					embed.add_field(name="Mission", value="[" + missionArr[0] + "](" + missionURL + ")", inline=True)
+					if len(missionArr) > 1:
+						embed.add_field(name="Map", value=missionArr[1], inline=True)
+					else:
+						embed.add_field(name="Map", value="None", inline=True)
+					embed.add_field(name="Author", value=i[4], inline=True)
+					await ctx.send(embed=embed)
 		
 		if no_missions:
 			await ctx.send("There aren't any missions scheduled right now. Why don't you schedule one?")
