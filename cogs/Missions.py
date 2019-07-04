@@ -38,14 +38,25 @@ class Missions(commands.Cog, name="Missions"):
 		no_missions = True
 		# Embed settings
 		
+		# Find the specific columns that we need on the sheet
+		# Google sheets refer to the first cell as cell 1, so we need to add one to our indexes
+		# TODO: Update this to handle errors properly
+		col_date = mission_sheet.row_values(1).index("Date") + 1
+		col_mission = mission_sheet.row_values(1).index("Mission") + 1
+		col_map = mission_sheet.row_values(1).index("Map") + 1
+		col_author = mission_sheet.row_values(1).index("Author(s)") + 1
+		col_medical = mission_sheet.row_values(1).index("Medical") + 1
+		col_contact = mission_sheet.row_values(1).index("Contact DLC") + 1
+		col_notes = mission_sheet.row_values(1).index("Notes") + 1
+		
 		for i in mission_sheet.get_all_values():
 			if (
-				i[0] != "" and i[0] != "DATES" and i[1] != "" and 
-				datetime.date(datetime.strptime(i[0],"%m/%d/%y")) > 
+				i[0] != "" and i[0] != "DATES" and i[2] != "" and 
+				datetime.date(datetime.strptime(i[0],"%Y-%m-%d")) > 
 				datetime.date(datetime.now() + timedelta(days=-1))
 			):
 				no_missions = False
-				missionArr = i[1].split(" - ")
+				missionArr = [i[2],i[3]]
 				missionURL = config["MISSIONS"]["WIKI"] + missionArr[0].replace(" ","_")
 				embed = discord.Embed(title=datetime.date(datetime.strptime(i[0],"%m/%d/%y")).strftime("%A") + ": " + i[0], color=0x2E86C1)
 				embed.add_field(name="Mission", value="[" + missionArr[0] + "](" + missionURL + ")", inline=True)
@@ -53,7 +64,7 @@ class Missions(commands.Cog, name="Missions"):
 					embed.add_field(name="Map", value=missionArr[1], inline=True)
 				else:
 					embed.add_field(name="Map", value="None", inline=True)
-				embed.add_field(name="Author", value=i[2], inline=True)
+				embed.add_field(name="Author", value=i[4], inline=True)
 				await ctx.send(embed=embed)
 		
 		if no_missions:
