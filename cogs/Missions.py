@@ -51,7 +51,7 @@ class Missions(commands.Cog, name="Missions"):
 		
 		for i in mission_sheet.get_all_values():
 			if (
-				i[0] != "" and i[0] != "DATES" and i[2] != "" and 
+				i[0] != "" and i[0] != "DATE" and i[2] != "" and 
 				datetime.date(datetime.strptime(i[0],"%Y-%m-%d")) > 
 				datetime.date(datetime.now() + timedelta(days=-1))
 			):
