@@ -49,10 +49,16 @@ class Missions(commands.Cog, name="Missions"):
 		col_contact = mission_sheet.row_values(1).index("Contact DLC") + 1
 		col_notes = mission_sheet.row_values(1).index("Notes") + 1
 		
+		
+		
 		for i in mission_sheet.get_all_values():
+			try:
+				datevar = datetime.strptime(i[0],"%Y-%m-%d")
+			except:
+				datevar = None
 			if (
-				i[0] != "" and i[0] != "DATE" and i[2] != "" and 
-				datetime.date(datetime.strptime(i[0],"%Y-%m-%d")) > 
+				i[0] != "" and i[0] is not None and i[2] != "" and 
+				datetime.date(datevar) > 
 				datetime.date(datetime.now() + timedelta(days=-1))
 			):
 				no_missions = False
