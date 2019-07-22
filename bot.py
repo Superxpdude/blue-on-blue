@@ -83,6 +83,11 @@ async def on_command_error(ctx,error):
 	if isinstance(error,ignored):
 		return
 	
+	elif isinstance(error, blueonblue.BotChannelOnly):
+		g = bot.get_guild(config["SERVER"]["ID"])
+		tc = g.get_channel(config["SERVER"]["CHANNELS"]["BOT"])
+		await ctx.send("%s, the command %s%s can only be used in the %s channel." % (ctx.author.mention, ctx.prefix, ctx.command, tc.mention))
+	
 	elif isinstance(error, commands.CommandNotFound):
 		return await ctx.send("%s, you have typed an invalid command. You can use %shelp to view the command list." % (ctx.author.mention, ctx.prefix))
 	

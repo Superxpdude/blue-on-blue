@@ -34,3 +34,22 @@ def check_group_mods(ctx):
 		return True
 	else:
 		raise UserUnauthorized
+
+class BotChannelOnly(commands.CheckFailure):
+	# This command can only be executed in the bot commands channel
+	pass
+
+# Checks if a command was used in a bot commands channel
+def check_bot_channel_only(ctx):
+	# Check if the command was used in the bot commands channel
+	# Make sure that the command can also be used in a private message.
+	
+	# If no guild specified, allow the command
+	if ctx.guild is None:
+		return True
+	
+	botchannel = config["SERVER"]["CHANNELS"]["BOT"]
+	if ctx.channel.id == botchannel:
+		return True
+	else:
+		raise BotChannelOnly

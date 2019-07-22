@@ -85,6 +85,7 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pingme"
 	)
+	@commands.check(blueonblue.check_bot_channel_only)
 	async def pingme(self, ctx, *, tag: str=""):
 		"""Adds or removes you from a ping list.
 		
@@ -115,6 +116,7 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pinglist"
 	)
+	@commands.check(blueonblue.check_bot_channel_only)
 	async def pinglist(self, ctx, *, tag: str=""):
 		"""Lists information about pings.
 		
@@ -191,7 +193,6 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pingpurge"
 	)
-	#@commands.check(check_ping_control)
 	@commands.check(blueonblue.check_group_mods)
 	async def pingpurge(self, ctx, *, tag: str=""):
 		"""Destroys a ping list.

@@ -111,6 +111,8 @@ class Missions(commands.Cog, name="Missions"):
 		brief="Schedules a mission to be played",
 		aliases=["mission_schedule","schedule"]
 	)
+	@commands.check(blueonblue.check_bot_channel_only)
+	@commands.guild_only()
 	async def op_schedule(self,ctx, date, *, text: str=""):
 		"""Missions must be present in the audit list, and must be spelled *EXACTLY* as they are in the audit list (spaces and other special characters included).
 		Dates must be provided in ISO 8601 date format (YYYY-MM-DD)."""
