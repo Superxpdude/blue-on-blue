@@ -26,7 +26,7 @@ class Missions(commands.Cog, name="Missions"):
 	@commands.command(
 		name="ops",
 		brief="Grabs a list of upcoming missions",
-		aliases=['missions']
+		aliases=['missions','op']
 	)
 	async def missions(self, ctx):
 		# Google docs info
@@ -49,8 +49,6 @@ class Missions(commands.Cog, name="Missions"):
 		col_contact = mission_sheet.row_values(1).index("Contact DLC") + 1
 		col_notes = mission_sheet.row_values(1).index("Notes") + 1
 		
-		
-		
 		for i in mission_sheet.get_all_values():
 			try:
 				datevar = datetime.strptime(i[0],"%Y-%m-%d")
@@ -65,7 +63,31 @@ class Missions(commands.Cog, name="Missions"):
 					no_missions = False
 					missionArr = [i[2],i[3]]
 					missionURL = config["MISSIONS"]["WIKI"] + missionArr[0].replace(" ","_")
-					embed = discord.Embed(title=datetime.date(datetime.strptime(i[0],"%Y-%m-%d")).strftime("%A") + ": " + i[0], color=0x2E86C1)
+					if i[col_contact - 1] == "TRUE":
+						missionContact = True
+					else:
+						missionContact = False
+					if i[col_medical - 1] == "Advanced":
+						missionAdvMed = True
+					else:
+						missionAdvMed = False
+					missionTitle = datetime.date(datetime.strptime(i[0],"%Y-%m-%d")).strftime("%A") + ": " + i[0]
+					
+					# Set the embed colour
+					if missionContact == True:
+						missionColour = 0x00BB00 # Green to represent Contact DLC missions
+					elif missionAdvMed == True:
+						missionColour = 0xDF0000 # Red to represent Advanced medical missions
+					else:
+						missionColour = 0x2E86C1 # Start with the default blue
+					
+					# Append notes to the embed title
+					if missionContact == True:
+						missionTitle += ", Contact DLC"
+					if missionAdvMed == True:
+						missionTitle += ", Advanced Medical"
+					
+					embed = discord.Embed(title=missionTitle, color=missionColour)
 					embed.add_field(name="Mission", value="[" + missionArr[0] + "](" + missionURL + ")", inline=True)
 					if len(missionArr) > 1:
 						embed.add_field(name="Map", value=missionArr[1], inline=True)
@@ -103,7 +125,15 @@ class Missions(commands.Cog, name="Missions"):
 				reply += "```"
 			file = os.path.join(os.getcwd(),"temp",a.filename)
 			await a.save(file)
-			await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send(reply, file=discord.File(file))
+			mess = await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send(reply, file=discord.File(file))
+			try: 
+				await mess.pin()
+			except discord.Forbidden:
+				await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send("I do not have permissions to pin this audit.")
+			except discord.NotFound:
+				await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send("I ran into an issue pinning an audit message.")
+			except discord.HTTPException:
+				await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send("Pinning the audit message failed. The pin list might be full!")
 			os.remove(file)
 	
 	@commands.command(
