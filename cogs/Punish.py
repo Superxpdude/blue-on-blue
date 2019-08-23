@@ -8,31 +8,46 @@ import blueonblue
 import asyncio
 
 def punish_split_input(self,ctx,args):
+	"""Splits the input into the user section, and the time section."""
+	
+	if args.startswith('"'): # Search for the user by name
+		args = args.split('" ',1) # Split the input to get the two strings	
+	else: # Grab the user from a mention string or userID
+		args = args.split(' ',1) # Split the input
+	if len(args) < 2: # If we have less than two inputs, mark the time as empty
+		args = [args[0],""]
+	usr = punish_find_user(self,ctx,args[0]) # Find the user
+	tm_str = args[1] # Grab the time string
+	ret = [usr,tm_str]
+	return ret
+	
+def punish_find_user(self,ctx,usr_str):
 	"""Finds a discord user using either a mention string, or by searching in the current server."""
 	
 	gld = self.bot.get_guild(config["SERVER"]["ID"])
-	if args.startswith('"'): #Search for the user
-		args = args[1:].split('" ',1) #Split the input to get the variables
-		if len(args) < 2: # If we have less than two inputs, mark the time as empty
-			args = [args[0],""]
-		usr = gld.get_member_named(args[0]) # Search for the user using their name
-		tm_str = args[1]
-	elif args.startswith("<@"): # Grab the user from a mention string
-		args = args.split(' ',1) # Split the input
-		if len(args) < 2: # If we have less than two inputs, mark the time as empty
-			args = [args[0],""]
+	usr = None
+	if usr_str.startswith('"'): # Search for the user if it starts with a quotation mark
+		usr_str = usr_str.replace('"',"") # Remove all quotation marks
+		usr = gld.get_member_named(usr_str) # Search for the user by their name
+	else: # Grab the user from a mention string or userID
 		# This is a bit hacky, but we need to make sure we're only working with a userID
-		args[0] = args[0].replace("<","")
-		args[0] = args[0].replace("@","")
-		args[0] = args[0].replace("!","")
-		args[0] = args[0].replace(">","")
-		usr = gld.get_member(int(args[0])) # Grab the user from the ID
-		tm_str = args[1]
-	else:
-		usr = None
-		tm_str = None
-	ret = [usr,tm_str]
-	return ret
+		usr_str = usr_str.replace("<","")
+		usr_str = usr_str.replace("@","")
+		usr_str = usr_str.replace("!","")
+		usr_str = usr_str.replace(">","")
+		
+		try: # Try to convert the userID to an int
+			usr_int = int(usr_str)
+		except:
+			usr_int = 1 # If we can't convert it to an int, return None
+		
+		print("Searching for user %s" % (usr_int))
+			
+		try: # Try to find the user
+			usr = gld.get_member(usr_int) # Grab the user from the ID
+		except:
+			usr = None
+	return usr
 
 class Punish(commands.Cog, name="Punish"):
 	def __init__(self, bot):
@@ -54,6 +69,7 @@ class Punish(commands.Cog, name="Punish"):
 		Sends a user to the shadow realm for a specified period of time.
 		Requires a mention, or the exact name of the user being punished wrapped in double-quotes.
 		Accepts times using a number, and a letter to determine the unit.
+		Only accepts time units up to a week. Months and years do not work.
 		ex. 'punish userID 1d 12h' would punish the user for 1.5 days.
 		ex. 'punish "Memer" 1w' would punish a user named 'Memer' for 1 week."""
 		
@@ -111,18 +127,47 @@ class Punish(commands.Cog, name="Punish"):
 				rls_tm = tm + tmdelta
 				rls_text = rls_tm.isoformat() # TinyDB can't store the time format, we need to convert so string
 				
-				tbl.insert({'name': usr.name, 'displayname': usr.display_name, 'user_id': usr.id, 'release': rls_text})
+				tbl.upsert({'name': usr.name, 'displayname': usr.display_name, 'user_id': usr.id, 'release': rls_text}, data.user_id == usr.id)
 				
 				punish_reason = "User punished by '%s' for '%s'." % (ctx.author.display_name,tm_readable)
 				await usr.remove_roles(role_member, reason=punish_reason)
 				await usr.add_roles(role_punish, reason=punish_reason)
 				await channel_mod.send("User '%s' has been punished by '%s' for '%s'." % (usr.display_name,ctx.author.display_name,tm_readable))
-		
+	
 	@commands.command(
-		name="release",
+		name="punishlist"
 	)
 	@commands.check(blueonblue.check_group_mods)
-	async def release(self, ctx, usr_str):
+	async def punishlist(self, ctx):
+		"""Displays a list of punished users
+		
+		Displays a full list of all users currently punished by the bot."""
+		
+		db = TinyDB('db/punish.json', sort_keys=True, indent=4) # Define the database
+		tbl = db.table('punish')
+		data = Query() # Define query
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
+		embed = discord.Embed(title = "Punished Users", color=0xff0000) # Make our embed
+		for i in tbl.all():
+			rls_text = i['release']
+			rls_tm = datetime.fromisoformat(rls_text) # Convert the time string to a time value
+			usr_id = i['user_id']
+			usr = gld.get_member(i['user_id']) # Get the user by their ID
+			usr_name = usr.display_name # Get the user's display name
+			tmdelta = rls_tm - datetime.utcnow() # Find the time delta from now until user release
+			tmdelta = tmdelta - timedelta(microseconds=tmdelta.microseconds) # Remove microseconds
+			if tmdelta > timedelta(microseconds=0):
+				tmdelta_str = str(tmdelta)
+			else:
+				tmdelta_str = "Imminent"
+			embed.add_field(name=usr_name,value=tmdelta_str,inline=False) # Add the field to the embed
+		await ctx.send(embed=embed) # Send the embed
+	
+	@commands.command(
+		name="release"
+	)
+	@commands.check(blueonblue.check_group_mods)
+	async def release(self, ctx, *, usr_str):
 		"""Releases a user from punishment
 		
 		Use this command with a userID or user mention to immediately release a user from the shadow realm."""
@@ -139,14 +184,9 @@ class Punish(commands.Cog, name="Punish"):
 		channel_mod = self.bot.get_channel(config["SERVER"]["CHANNELS"]["MOD"])
 		if gld is None:
 			return 0
-			
-		# This is a bit hacky, but we need to make sure we're only working with a userID
-		usr_str = usr_str.replace("<","")
-		usr_str = usr_str.replace("@","")
-		usr_str = usr_str.replace("!","")
-		usr_str = usr_str.replace(">","")
-		usr_id = int(usr_str)
-		usr = gld.get_member(usr_id)
+		
+		usr = punish_find_user(self,ctx,usr_str) # Find the user
+		usr_id = usr.id
 		
 		if tbl.contains(data.user_id == usr_id):
 			await usr.remove_roles(role_punish, reason="Punishment removed by '%s'." % (ctx.author.display_name))
