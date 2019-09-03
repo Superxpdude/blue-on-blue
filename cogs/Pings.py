@@ -124,6 +124,8 @@ class Pings(commands.Cog, name="Pings"):
 		When called with a tag, it will list all users subscribed to that tag.
 		When called with a mention to yourself, it will list all pings that you are currently subscribed to.
 		NOTE: Usernames are stored when added to the list, and may no longer be accurate."""
+		
+		gld = self.bot.get_guild(config["SERVER"]["ID"]) # Grab the server object
 		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		data = Query() # Define query
 		tag = tag.lower() # String searching is case-sensitive
@@ -134,7 +136,13 @@ class Pings(commands.Cog, name="Pings"):
 			message = "Tag '%s' mentions the following users: \n```" % (tag)
 			list = []
 			for u in ping.all(): # Grab all users associated with a tag
-				list += [u['name']]
+				usr = None # Define usr as none
+				if "user_id" in u.keys(): # Check to see if we can find the user
+					usr = gld.get_member(u["user_id"])
+				if usr is not None: # If we found the user, grab their current name
+					list += [usr.display_name]
+				else: # If we can't find the user, or if user_id is not defined, use the stored name
+					list += [u['name']]
 			list = sorted(list, key=str.lower) # Sort list alphabetically
 			for u in list:
 				message += u

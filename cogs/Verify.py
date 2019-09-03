@@ -17,7 +17,7 @@ async def check_credentials(user, userid):
 
 	# token = shortlist.loc[[user], 'token'].tolist()[0]
 	
-	db = TinyDB('db/verify.json') # Define the database
+	db = TinyDB('db/verify.json', sort_keys=True, indent=4) # Define the database
 	data = Query()
 	steam_id64 = db.get(data.discord_id == userid)["steam_id"]
 	token = db.get(data.discord_id == userid)["token"]
@@ -71,7 +71,7 @@ async def get_id64(url=""):
 async def enter_user(user, userid, token, url):
 	# entry = pd.DataFrame([[user, url, token]], columns=['userName', 'steamProfile', 'token'])
 	# entry.to_csv('Administration/unverifiedusers.csv', mode='a', header=False, index=False)
-	db = TinyDB('db/verify.json') # Define the database
+	db = TinyDB('db/verify.json', sort_keys=True, indent=4) # Define the database
 	data = Query()
 	db.upsert({"discord_id": userid, "discord_name": user, "steam_id": url, "token": token, "verified": False}, data.discord_id == userid) 
 
@@ -116,7 +116,7 @@ class Verify(commands.Cog, name="Verify"):
 		Requires a full steam profile URL for authentication."""
 		# shortlist = pd.read_csv('Administration/unverifiedusers.csv', index_col='userName')
 		# print(ctx.author.id)
-		db = TinyDB('db/verify.json') # Define the database
+		db = TinyDB('db/verify.json', sort_keys=True, indent=4) # Define the database
 		data = Query()
 		user = str(ctx.author)
 		userid = ctx.author.id
@@ -197,7 +197,7 @@ class Verify(commands.Cog, name="Verify"):
 		Requires a full steam profile URL for authentication."""
 		# shortlist = pd.read_csv('Administration/unverifiedusers.csv', index_col='userName')
 		# print(ctx.author.id)
-		db = TinyDB('db/verify.json')  # Define the database
+		db = TinyDB('db/verify.json', sort_keys=True, indent=4)  # Define the database
 		data = Query()
 		user = str(ctx.author)
 		userid = ctx.author.id
