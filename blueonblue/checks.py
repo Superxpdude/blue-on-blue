@@ -53,3 +53,22 @@ def check_bot_channel_only(ctx):
 		return True
 	else:
 		raise BotChannelOnly
+
+class CheckinChannelOnly(commands.CheckFailure):
+	# This command can only be executed in the check in channel
+	pass
+
+# Checks if a command was used in the check in channel
+def check_checkin_channel_only(ctx):
+	# Check if the command was used in the check in channel
+	# Make sure that the command can also be used in a private message.
+	
+	# If no guild specified, allow the command
+	if ctx.guild is None:
+		return True
+	
+	channel = config["SERVER"]["CHANNELS"]["CHECK_IN"]
+	if ctx.channel.id == channel:
+		return True
+	else:
+		raise CheckinChannelOnly

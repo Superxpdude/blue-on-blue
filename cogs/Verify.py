@@ -8,6 +8,7 @@ from tinydb import TinyDB, Query
 from lxml import etree
 from lxml.etree import fromstring
 import string
+import blueonblue
 
 
 # Checks the user's steam account to check if they placed the token in their steam profile.
@@ -109,6 +110,7 @@ class Verify(commands.Cog, name="Verify"):
 	@commands.bot_has_permissions(
 		manage_roles=True
 	)
+	@commands.check(blueonblue.check_checkin_channel_only)
 	# async def verify_user(steam_url, message, client):
 	async def verify_user(self, ctx, *, steam_url: str=""):
 		"""Verifies a user as part of the group.
@@ -191,6 +193,7 @@ class Verify(commands.Cog, name="Verify"):
 	@commands.bot_has_permissions(
 		manage_roles=True
 	)
+	@commands.check(blueonblue.check_checkin_channel_only)
 	async def check_in(self, ctx, *, steam_url: str=""):
 		"""Verifies a user as part of the group.
 
