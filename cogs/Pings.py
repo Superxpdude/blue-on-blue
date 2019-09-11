@@ -1,8 +1,8 @@
 import discord
-from settings import config
+from blueonblue.config import config
+import blueonblue.checks
 from discord.ext import commands
 from tinydb import TinyDB, Query
-import blueonblue
 
 # Function to check if any invalid character patters are in a string.
 def sanitize(text):
@@ -85,7 +85,7 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pingme"
 	)
-	@commands.check(blueonblue.check_bot_channel_only)
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	async def pingme(self, ctx, *, tag: str=""):
 		"""Adds or removes you from a ping list.
 		
@@ -116,7 +116,7 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pinglist"
 	)
-	@commands.check(blueonblue.check_bot_channel_only)
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	async def pinglist(self, ctx, *, tag: str=""):
 		"""Lists information about pings.
 		
@@ -201,7 +201,7 @@ class Pings(commands.Cog, name="Pings"):
 	@commands.command(
 		name="pingpurge"
 	)
-	@commands.check(blueonblue.check_group_mods)
+	@commands.check(blueonblue.checks.check_group_mods)
 	async def pingpurge(self, ctx, *, tag: str=""):
 		"""Destroys a ping list.
 		
