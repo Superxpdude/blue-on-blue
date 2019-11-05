@@ -6,3 +6,5 @@ Any code specific to a single command/cog should be placed within that cog.
 """
 
 from .checks import *
+from .config import config
+from .events import *

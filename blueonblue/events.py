@@ -6,14 +6,18 @@ from datetime import datetime
 from discord.ext import commands
 from blueonblue.config import config
 import blueonblue.checks
-import traceback
+import sys, traceback
+import logging
+log = logging.getLogger("blueonblue")
+
+__all__ = ["init_events"]
 
 def init_events(bot):
 
 	@bot.event
 	async def on_connect():
 		if bot._uptime is None:
-			print("Connected to Discord.")
+			log.info("Connected to Discord.")
 	
 	# On ready. Runs when bot is ready.
 	@bot.event
@@ -22,25 +26,31 @@ def init_events(bot):
 			return
 			
 		bot._uptime = datetime.utcnow()
-		initial_extensions = config["BOT"]["COGS"] # Initial cogs to load
+		initial_extensions = ["BotControl"] + config["BOT"]["COGS"] # Initial cogs to load
 		
 		# Try to load extensions
-		print("Loading extensions...")
+		log.info("Loading extensions...")
 		for ext in initial_extensions:
 			try:
 				bot.load_extension("cogs." + ext)
 			except Exception as e:
-				print(f'Failed to load extension: {ext}.')
+				log.exception(f'Failed to load extension: {ext}.')
 			else:
-				print(f'Loaded extension: {ext}.')
-		print("Extensions loaded.")
+				log.info(f'Loaded extension: {ext}.')
+		log.info("Extensions loaded.")
 		
-		print("Connected to servers: {}".format(bot.guilds))
-		print("Blue on blue ready.")
+		bot._guild = bot.get_guild(config["SERVER"]["ID"]) # Grab the server object
+		
+		log.info("Connected to servers: {}".format(bot.guilds))
+		log.info("Blue on blue ready.")
 	
 	@bot.event
 	async def on_message(message):
 		await bot.process_commands(message) # This needs to be here for commands to work
+		
+	@bot.event
+	async def on_command_completion(ctx):
+		log.debug(f"Command {ctx.command} invoked by {ctx.author.name}")
 	
 	@bot.event
 	async def on_command_error(ctx, error, error_force=False):
@@ -82,8 +92,9 @@ def init_events(bot):
 			await ctx.send("Error in command '{}'. Please check the logs for details.".format(
 				ctx.command.qualified_name
 			))
-			print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
-			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+			#print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+			#traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+			log.exception('Ignoring exception in command {}:'.format(ctx.command))
 			
 		elif isinstance(error, commands.NoPrivateMessage):
 			await ctx.send("That command cannot be used in private messages.")
@@ -103,15 +114,13 @@ def init_events(bot):
 			else:
 				message = "{usr}, the command '{cmd}' cannot be used in this channel.".format(usr=ctx.author.mention,cmd=ctx.command.qualified_name)
 			
-			for c in chs:
-				message += c
-				message += ", "
-			if len(chs)>0:
-				message = message[:-2]
+			# Add the channel identifiers to the string
+			message += ", ".join(chs)
 			
 			await ctx.send(message)
 		
 		# If we don't have a handler for that error type, execute default error code.
 		else:
-			print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+			#print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+			log.exception('Ignoring exception in command {}:'.format(ctx.command))
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)

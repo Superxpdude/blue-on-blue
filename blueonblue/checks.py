@@ -1,9 +1,9 @@
 # Blue on blue command checks
 import discord
 from discord.ext import commands
-
 from blueonblue.config import config
-from blueonblue.bot import bot
+import logging
+log = logging.getLogger("blueonblue")
 
 class UserUnauthorized(commands.CheckFailure):
 	# User does not have permissions to use that command
@@ -16,7 +16,7 @@ def check_group_mods(ctx):
 	# We can't use ctx.guild here since that breaks this if you call it in a private message
 	# Time for an alternative method
 	# Other parts of the bot need to be rewritten for this to work
-	guild = bot.get_guild(config["SERVER"]["ID"]) # Get the guild object
+	guild = ctx.bot.get_guild(config["SERVER"]["ID"]) # Get the guild object
 	userid = ctx.author.id # Get the user ID
 	guildMember = guild.get_member(userid) # Get the member object from the guild
 	
@@ -84,6 +84,5 @@ def in_any_channel(*items):
 		
 		# If the channel was invalid, raise the error
 		raise ChannelUnauthorized(items)
-			
-	
+		
 	return commands.check(predicate)
