@@ -38,7 +38,6 @@ class Pings(commands.Cog, name="Pings"):
 		self.db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		
 		# The database stores the following info:
-		# mention: Mention string for the user. No longer needed
 		# name: User name when added to the list
 		# user_id: Discord user ID
 	
@@ -64,8 +63,8 @@ class Pings(commands.Cog, name="Pings"):
 				usr = self.bot._guild.get_member(u["user_id"]) # Get the user object
 				if usr is not None: # If we can't find the user (i.e. not in the server), remove them
 					users.append(usr.mention)
-				else:
-					ping.remove(doc_ids=[u.doc_id])
+#				else:
+#					ping.remove(doc_ids=[u.doc_id])
 			message = ("Pinging '%s': " % (tag)) + " ".join(users) # Create the ping message
 		else: # If the tag doesn't exist, inform the user
 			message = "This tag does not exist. Try %spinglist for a list of active pings." % (ctx.prefix)
@@ -135,8 +134,8 @@ class Pings(commands.Cog, name="Pings"):
 				usr = gld.get_member(u["user_id"])
 				if usr is not None: # If we found the user, grab their current name
 					ls.append(usr.display_name)
-				else: # If we could not find the user (i.e. no longer in the server), remove them from the list
-					ping.remove(doc_ids=[u.doc_id])
+#				else: # If we could not find the user (i.e. no longer in the server), remove them from the list
+#					ping.remove(doc_ids=[u.doc_id])
 			ls = sorted(ls, key=str.lower) # Sort list alphabetically
 			message = "Tag '%s' mentions the following users: \n```" % (tag) + ", ".join(ls) + "```"
 		elif len(tag)>0: # Search for pings
@@ -176,4 +175,8 @@ class Pings(commands.Cog, name="Pings"):
 			await ctx.send("This tag does not exist.")
 
 def setup(bot):
+	#usercog = bot.get_cog("Users")
+	#if usercog is None:
+	#	print("The user cog must be loaded first!")
+	#	raise RuntimeError("User cog not found")
 	bot.add_cog(Pings(bot))
