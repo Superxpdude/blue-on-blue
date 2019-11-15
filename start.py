@@ -40,13 +40,19 @@ if not args.start:
 		else:
 			input("Invalid option. Press ENTER to try again")
 
+
+
+import os
+
+# Create required subfolders
+folders = ["logs", "config", "db", "temp"]
+if f in folders:
+	if not os.path.exists(f):
+		os.makedirs(f)
+	
 # Set up logging
 import logging
 from logging import handlers
-import os
-
-if not os.path.exists("logs"):
-	os.makedirs("logs")
 	
 loglevel = logging.DEBUG if args.debug else logging.INFO
 
