@@ -21,14 +21,14 @@ def config_init():
 	cfg["BOT"].setdefault("DESC", "Blue-on-Blue")
 	cfg["BOT"].setdefault("CMD_PREFIXES", ["$$"])
 	cfg["BOT"].setdefault("TOKEN")
-	cfg["BOT"].setdefault("COGS", ["BotControl","ChatFilter","Missions","Pings","Punish","Verify"])
+	cfg["BOT"].setdefault("COGS", ["Users","ChatFilter","Missions","Pings","Punish","Verify"]) # Users needs to be loaded first
 	
 	cfg.setdefault("STEAM",{})
 	cfg["STEAM"].setdefault("API_TOKEN")
 	cfg["STEAM"].setdefault("GROUP")
 	
 	cfg.setdefault("SERVER",{})
-	cfg["SERVER"].setdefault("ID",1)
+	cfg["SERVER"].setdefault("ID",)
 	cfg["SERVER"].setdefault("CHANNELS",{})
 	cfg["SERVER"]["CHANNELS"].setdefault("MOD")
 	cfg["SERVER"]["CHANNELS"].setdefault("CHECK_IN")
@@ -60,7 +60,7 @@ def config_init():
 	cfg["MISSIONS"].setdefault("SHEET",{})
 	cfg["MISSIONS"]["SHEET"].setdefault("URL")
 	cfg["MISSIONS"]["SHEET"].setdefault("WORKSHEET")
-	cfg["MISSIONS"]["SHEET"].setdefault("API_TOKEN_FILE")
+	cfg["MISSIONS"]["SHEET"].setdefault("API_TOKEN_FILE","config/google_api.json")
 	cfg["MISSIONS"].setdefault("WIKI")
 
 	# Write the config
