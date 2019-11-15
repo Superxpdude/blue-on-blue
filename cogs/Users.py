@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 import blueonblue
+from blueonblue.config import config
 from tinydb import TinyDB, Query
 from tinydb.operations import delete as tiny_delete
 import typing
@@ -13,6 +14,35 @@ def get_user_id(usr):
 		return usr.id
 	else:
 		return usr
+
+def no_excluded_roles(bot, member, excluded_roles):
+	for r in excluded_roles:
+		role = bot._guild.get_role(r)
+		if role in member.roles:
+			return False
+	return True
+
+async def update_user_roles(self, *members):
+	"""Update the roles for multiple users in the database
+	Requires a list of members (not users) for the server"""
+	everyone = self.bot._guild.default_role # Get the default role
+	bot_role = self.bot._guild.me.top_role # Get the bot's highest role
+	ignored_roles = [] # Array of role IDs to be ignored when updating
+	excluded_roles = [
+		config["SERVER"]["ROLES"]["DEAD"],
+		config["SERVER"]["ROLES"]["PUNISH"]
+	] # Array of role IDs that exclude the user roles from being updated
+	for m in members:
+		if type(m) is int: # Make sure that we have the member object
+			m = self.bot._guild.get_member(m)
+		
+		# Do not update roles if the user is a bot, does not have roles, or has any excluded role
+		if (m.bot is not True) and (len(m.roles) > 1) and (no_excluded_roles(self.bot, m, excluded_roles)):
+			roles = []
+			for r in m.roles:
+				if (r < bot_role) and (r != everyone): # Only store roles that the bot can add/remove
+					roles.append({"name": r.name, "id": r.id})
+			self.db.upsert({"user_id": m.id, "roles": roles}, Query().user_id == m.id)
 
 class Users(commands.Cog, name="Users"):
 	"""Base cog for user management."""
@@ -27,8 +57,11 @@ class Users(commands.Cog, name="Users"):
 	async def read_data(self, usr: typing.Union[discord.Member, int], key: str):
 		"""Read data from the users database."""
 		usr_id = get_user_id(usr) # Make sure that we have the userID
-		u = self.db.get(Query.user_id == usr_id) # Get the user information from the database
-		return u[key]
+		u = self.db.get(Query().user_id == usr_id) # Get the user information from the database
+		try:
+			return u[key]
+		except:
+			return None
 	
 	async def write_data(self, usr: typing.Union[discord.Member, int], value: dict):
 		"""Write data to the users database."""
@@ -40,33 +73,23 @@ class Users(commands.Cog, name="Users"):
 		"""Remove a key from a user's data."""
 		usr_id = get_user_id(usr) # Make sure that we have the userID
 		if self.db.contains(Query().user_id == usr_id): # Check if the user exists in the db
-			self.db.update(tiny_delete(key), Query.user_id == usr_id)
+			self.db.update(tiny_delete(key), Query().user_id == usr_id)
 	
 	@tasks.loop(hours=1, reconnect=True)
 	async def user_update_loop(self):
 		members = self.bot._guild.members # Get a list of members
-		everyone = self.bot._guild.default_role # Get the default role
-		bot_role = self.bot._guild.me.top_role # Get the bot's highest role
 		for m in members:
 			if (m.bot is not True) and (len(m.roles) > 1): # Only look for users that have a role assigned
-				roles = []
-				for r in m.roles:
-					if (r < bot_role) and (r != everyone): # Only store roles that the bot can add/remove
-						roles.append({"name": r.name, "id": r.id})
-				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name, "roles": roles}, Query().user_id == m.id)
+				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name}, Query().user_id == m.id)
+		await update_user_roles(self,*members)
 	
 	@commands.command()
 	async def user_update(self, ctx):
 		members = self.bot._guild.members # Get a list of members
-		everyone = self.bot._guild.default_role # Get the default role
-		bot_role = self.bot._guild.me.top_role # Get the bot's highest role
 		for m in members:
 			if (m.bot is not True) and (len(m.roles) > 1): # Only look for users that have a role assigned
-				roles = []
-				for r in m.roles:
-					if (r < bot_role) and (r != everyone): # Only store roles that the bot can add/remove
-						roles.append({"name": r.name, "id": r.id})
-				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name, "roles": roles}, Query().user_id == m.id)
+				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name}, Query().user_id == m.id)
+		await update_user_roles(self,*members)
 
 def setup(bot):
 	bot.add_cog(Users(bot))

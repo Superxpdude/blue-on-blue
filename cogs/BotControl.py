@@ -23,6 +23,7 @@ class BotControl(commands.Cog, name="Bot Control"):
 	@commands.check(check_bot_control)
 	async def logout(self, ctx):
 		await ctx.send("Goodbye")
+		log.info("Bot terminated by '%s'" % (ctx.author.name))
 		await self.bot.close()
 	
 	@logout.error
@@ -36,30 +37,32 @@ class BotControl(commands.Cog, name="Bot Control"):
 	@commands.check(check_bot_control)
 	async def cogload(self, ctx, *, cog: str):
 		"""Command which Loads a Module.
-		Remember to use dot path. e.g: cogs.owner"""
+		Cog name is case sensitive."""
 	
 		try:
 			self.bot.load_extension("cogs." + cog)
 		except Exception as e:
 			await ctx.send(f'**`ERROR:`** {type(e).__name__} - {e}')
-			log.exception(f'Failed to load extension: {e}.')
+			log.exception(f'Failed to load extension: {cog}.')
 		else:
 			await ctx.send('**`SUCCESS`**')
+			log.info(f'Loaded extension: {cog}.')
 	
 	@commands.command(name='cogunload', hidden=True)
 	@commands.check(check_bot_control)
 	async def cogunload(self, ctx, *, cog: str):
 		"""Command which Unloads a Module.
-		Remember to use dot path. e.g: cogs.owner"""
+		Cog name is case sensitive."""
 		
 		if cog != "BotControl":
 			try:
 				self.bot.unload_extension("cogs." + cog)
 			except Exception as e:
 				await ctx.send(f'**`ERROR:`** {type(e).__name__} - {e}')
-				log.exception(f'Failed to load extension: {e}.')
+				log.exception(f'Error unloading extension: {cog}.')
 			else:
 				await ctx.send('**`SUCCESS`**')
+				log.info(f'Unloaded extension: {cog}.')
 		else:
 			await ctx.send("You cannot unload the bot control module!")
 	
@@ -67,15 +70,17 @@ class BotControl(commands.Cog, name="Bot Control"):
 	@commands.check(check_bot_control)
 	async def cogreload(self, ctx, *, cog: str):
 		"""Command which Reloads a Module.
-		Remember to use dot path. e.g: cogs.owner"""
+		Cog name is case sensitive."""
 		
 		if cog != "BotControl":
 			try:
 				self.bot.reload_extension("cogs." + cog)
 			except Exception as e:
 				await ctx.send(f'**`ERROR:`** {type(e).__name__} - {e}')
+				log.exception(f'Failed to reload extension: {cog}.')
 			else:
 				await ctx.send('**`SUCCESS`**')
+				log.info(f'Reloaded extension: {cog}.')
 		else:
 			await ctx.send("You cannot unload the bot control module!")
 

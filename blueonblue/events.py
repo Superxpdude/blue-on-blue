@@ -82,6 +82,9 @@ def init_events(bot):
 			await ctx.send("%s, you're missing some arguments." % (ctx.author.mention))
 			await ctx.send_help(ctx.command)
 		
+		elif isinstance(error, commands.ArgumentParsingError):
+			await ctx.send_help(ctx.command)
+		
 		elif isinstance(error, commands.UserInputError):
 			await ctx.send_help()
 		

@@ -28,7 +28,7 @@ def config_init():
 	cfg["STEAM"].setdefault("GROUP")
 	
 	cfg.setdefault("SERVER",{})
-	cfg["SERVER"].setdefault("ID")
+	cfg["SERVER"].setdefault("ID",1)
 	cfg["SERVER"].setdefault("CHANNELS",{})
 	cfg["SERVER"]["CHANNELS"].setdefault("MOD")
 	cfg["SERVER"]["CHANNELS"].setdefault("CHECK_IN")
