@@ -75,6 +75,10 @@ class Users(commands.Cog, name="Users"):
 		if self.db.contains(Query().user_id == usr_id): # Check if the user exists in the db
 			self.db.update(tiny_delete(key), Query().user_id == usr_id)
 	
+	async def user_update(self, *members):
+		"""Calls the update_user_roles function."""
+		await update_user_roles(self,*members)
+	
 	@tasks.loop(hours=1, reconnect=True)
 	async def user_update_loop(self):
 		members = self.bot._guild.members # Get a list of members
@@ -82,6 +86,7 @@ class Users(commands.Cog, name="Users"):
 			if (m.bot is not True) and (len(m.roles) > 1): # Only look for users that have a role assigned
 				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name}, Query().user_id == m.id)
 		await update_user_roles(self,*members)
+	
 	
 #	@commands.command()
 #	async def user_update(self, ctx):
