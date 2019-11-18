@@ -78,7 +78,7 @@ class Punish(commands.Cog, name="Punish"):
 				channel_mod = self.bot.get_channel(config["SERVER"]["CHANNELS"]["MOD"])
 				
 				# Ensure that the user database is up to date first
-				await users.update_user_roles(usr)
+				await users.user_update(usr)
 				await users.write_data(usr, {"punished": True})
 				
 				rls_tm = tm + tmdelta
