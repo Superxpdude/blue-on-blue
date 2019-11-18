@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 import blueonblue
 import random
 import time
+import asyncio
 from blueonblue.config import config
 from datetime import datetime, timedelta
 from tinydb import TinyDB, Query
@@ -86,44 +87,52 @@ class Fun(commands.Cog, name="Fun"):
 		# A regular revolver
 		if gun.lower() == "revolver":
 			kill = True if (random.randint(1,6) == 1) else False
-			await ctx.send("%s is feeling lucky today." % (ctx.author.mention))
-			time.sleep(sleeptime)
-			await ctx.send("%s loads one bullet into a chamber..." % (ctx.author.display_name))
-			time.sleep(sleeptime)
-			await ctx.send("%s gives the cylinder a good spin..." % (ctx.author.display_name))
-			time.sleep(sleeptime)
-			await ctx.send("%s presses the gun against their head and squeezes the trigger..." % (ctx.author.display_name)) 
-			time.sleep(sleeptime*2)
+			txt = "%s is feeling lucky today." % (ctx.author.mention)
+			message = await ctx.send(txt)
+			await asyncio.sleep(sleeptime)
+			txt += "\n%s loads one bullet into a chamber..." % (ctx.author.display_name)
+			await message.edit(content=txt)
+			await asyncio.sleep(sleeptime)
+			txt += "\n%s gives the cylinder a good spin..." % (ctx.author.display_name)
+			await message.edit(content=txt)
+			await asyncio.sleep(sleeptime)
+			txt += "\n%s presses the gun against their head and squeezes the trigger..." % (ctx.author.display_name)
+			await message.edit(content=txt)
+			await asyncio.sleep(sleeptime*2)
 			if kill:
 				await ctx.send("*BANG*")
 				await kill_user(self,ctx.author,reason="User died playing russian roulette.")
 				tbl.update(tinyops.increment("plays"), Query().user_id == ctx.author.id)
 				tbl.update(tinyops.increment("deaths"), Query().user_id == ctx.author.id)
 				tbl.update(tinyops.set("streak",0), Query().user_id == ctx.author.id)
-				time.sleep(sleeptime)
+				await asyncio.sleep(sleeptime)
 				await ctx.send("%s died.")
 			else:
 				await ctx.send("*Click*")
 				tbl.update(tinyops.increment("plays"), Query().user_id == ctx.author.id)
 				tbl.update(tinyops.increment("streak"), Query().user_id == ctx.author.id)
-				time.sleep(sleeptime)
+				await asyncio.sleep(sleeptime)
 				await ctx.send("%s survived, stats have been updated." % (ctx.author.display_name))
 			
 		elif gun.lower() == "m1911":
-			await ctx.send("%s is feeling lucky today..." % (ctx.author.mention))
-			time.sleep(sleeptime)
-			await ctx.send("%s loads one bullet into the magazine..." % (ctx.author.display_name))
-			time.sleep(sleeptime)
-			await ctx.send("%s inserts the magazine and draws the slide..." % (ctx.author.display_name))
-			time.sleep(sleeptime)
-			await ctx.send("%s presses the gun against their head and squeezes the trigger..." % (ctx.author.display_name))
-			time.sleep(sleeptime*2)
+			txt = "%s is feeling lucky today." % (ctx.author.mention)
+			message = await ctx.send(txt)
+			await asyncio.sleep(sleeptime)
+			txt += "\n%s loads one bullet into the magazine..." % (ctx.author.display_name)
+			await message.edit(content=txt)
+			await asyncio.sleep(sleeptime)
+			txt += "\n%s inserts the magazine and draws the slide..." % (ctx.author.display_name)
+			await message.edit(content=txt)
+			await asyncio.sleep(sleeptime)
+			txt += "\n%s presses the gun against their head and squeezes the trigger..." % (ctx.author.display_name)
+			await message.edit(content=txt)
+			await asyncio.sleep(sleeptime*2)
 			await ctx.send("*BANG*")
 			await kill_user(self,ctx.author,reason="User died playing russian roulette.")
 			tbl.update(tinyops.increment("plays"), Query().user_id == ctx.author.id)
 			tbl.update(tinyops.increment("deaths"), Query().user_id == ctx.author.id)
 			tbl.update(tinyops.set("streak",0), Query().user_id == ctx.author.id)
-			time.sleep(sleeptime)
+			await asyncio.sleep(sleeptime)
 			await ctx.send("%s died. I don't know what they expected." % (ctx.author.display_name))
 		
 		else:
@@ -158,6 +167,7 @@ class Fun(commands.Cog, name="Fun"):
 			raise commands.ArgumentParsingError()
 		
 		await kill_user(self,usr)
+		await ctx.send("%s has been executed by %s" % (usr.mention, ctx.author.mention))
 		
 	
 	@commands.command(name="revive",hidden=True)
@@ -170,6 +180,7 @@ class Fun(commands.Cog, name="Fun"):
 			raise commands.ArgumentParsingError()
 		
 		await revive_user(self,usr)
+		await ctx.send("%s has been revived by %s" % (usr.mention, ctx.author.mention))
 	
 	@tasks.loop(minutes=1, reconnect=True)
 	async def deadloop(self):
