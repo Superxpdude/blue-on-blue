@@ -46,7 +46,7 @@ import os
 
 # Create required subfolders
 folders = ["logs", "config", "db", "temp"]
-if f in folders:
+for f in folders:
 	if not os.path.exists(f):
 		os.makedirs(f)
 	
