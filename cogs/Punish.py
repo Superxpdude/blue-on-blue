@@ -92,8 +92,8 @@ class Punish(commands.Cog, name="Punish"):
 						usr_roles.append(r)
 				
 				punish_reason = "User punished by '%s' for '%s'." % (ctx.author.display_name,tm_readable)
+				await usr.add_roles(role_punish, reason=punish_reason) #Add the punish role first to prevent incorrect updating of the users database
 				await usr.remove_roles(*usr_roles, reason=punish_reason)
-				await usr.add_roles(role_punish, reason=punish_reason)
 				await channel_mod.send("User '%s' has been punished by '%s' for '%s'." % (usr.display_name,ctx.author.display_name,tm_readable))
 	
 	@commands.command(

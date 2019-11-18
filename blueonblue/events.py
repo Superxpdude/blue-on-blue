@@ -98,6 +98,9 @@ def init_events(bot):
 			#print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
 			#traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 			log.exception('Ignoring exception in command {}:'.format(ctx.command))
+		
+		elif isinstance(error, commands.CommandOnCooldown):
+			await ctx.send("The command `%s` is on cooldown. Try again in %s seconds." % (ctx.command, round(error.retry_after)))
 			
 		elif isinstance(error, commands.NoPrivateMessage):
 			await ctx.send("That command cannot be used in private messages.")

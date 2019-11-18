@@ -21,7 +21,7 @@ def config_init():
 	cfg["BOT"].setdefault("DESC", "Blue-on-Blue")
 	cfg["BOT"].setdefault("CMD_PREFIXES", ["$$"])
 	cfg["BOT"].setdefault("TOKEN")
-	cfg["BOT"].setdefault("COGS", ["Users","ChatFilter","Missions","Pings","Punish","Verify"]) # Users needs to be loaded first
+	cfg["BOT"].setdefault("COGS", ["Users","ChatFilter","Fun","Missions","Pings","Punish","Verify"]) # Users needs to be loaded first
 	
 	cfg.setdefault("STEAM",{})
 	cfg["STEAM"].setdefault("API_TOKEN")

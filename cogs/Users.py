@@ -87,6 +87,16 @@ class Users(commands.Cog, name="Users"):
 				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name}, Query().user_id == m.id)
 		await update_user_roles(self,*members)
 	
+#	@commands.Cog.listener()
+#	async def on_member_update(self,before,after):
+#		"""Updates the user roles on member update."""
+#		await update_user_roles(self,after)
+#	
+#	@commands.Cog.listener()
+#	async def on_member_remove(self,member):
+#		"""Updates the user roles when a member leaves."""
+#		await update_user_roles(self,member)
+	
 	
 #	@commands.command()
 #	async def user_update(self, ctx):
