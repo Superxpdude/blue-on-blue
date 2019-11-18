@@ -77,11 +77,12 @@ import discord
 discordLog = logging.getLogger("discord")
 discordLog.setLevel(logging.WARNING)
 
-from blueonblue.bot import bot
-from blueonblue.events import init_events
+
 from blueonblue.config import config_init
 config_init()
 from blueonblue.config import config
+from blueonblue.bot import bot
+from blueonblue.events import init_events
 
 log.info("Starting Blue on Blue")
 
