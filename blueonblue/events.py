@@ -122,6 +122,9 @@ def init_events(bot):
 			
 			await ctx.send(message)
 		
+		elif isinstance(error, blueonblue.checks.UserUnauthorized):
+			await ctx.send("%s, you are not authorized to use the command `%s`." % (ctx.author.mention, ctx.command))
+		
 		# If we don't have a handler for that error type, execute default error code.
 		else:
 			#print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
