@@ -81,10 +81,6 @@ discordLog.setLevel(logging.WARNING)
 from blueonblue.config import config_init
 config_init()
 from blueonblue.config import config
-from blueonblue.bot import bot
-from blueonblue.events import init_events
-
-log.info("Starting Blue on Blue")
 
 bot_token = config["BOT"]["TOKEN"]
 if bot_token is None:
@@ -92,6 +88,10 @@ if bot_token is None:
 	print("The bot needs a Discord API token in order to run.")
 	input("Press ENTER to continue...")
 	exit()
+
+log.info("Starting Blue on Blue")
+from blueonblue.bot import bot
+from blueonblue.events import init_events
 
 init_events(bot)
 bot.run(bot_token, bot=True, reconnect=True)
