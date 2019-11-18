@@ -83,13 +83,13 @@ class Users(commands.Cog, name="Users"):
 				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name}, Query().user_id == m.id)
 		await update_user_roles(self,*members)
 	
-	@commands.command()
-	async def user_update(self, ctx):
-		members = self.bot._guild.members # Get a list of members
-		for m in members:
-			if (m.bot is not True) and (len(m.roles) > 1): # Only look for users that have a role assigned
-				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name}, Query().user_id == m.id)
-		await update_user_roles(self,*members)
+#	@commands.command()
+#	async def user_update(self, ctx):
+#		members = self.bot._guild.members # Get a list of members
+#		for m in members:
+#			if (m.bot is not True) and (len(m.roles) > 1): # Only look for users that have a role assigned
+#				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name}, Query().user_id == m.id)
+#		await update_user_roles(self,*members)
 
 def setup(bot):
 	bot.add_cog(Users(bot))
