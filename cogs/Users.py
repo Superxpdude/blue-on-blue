@@ -40,7 +40,7 @@ async def update_user_roles(self, *members):
 		if (m.bot is not True) and (len(m.roles) > 1) and (no_excluded_roles(self.bot, m, excluded_roles)):
 			roles = []
 			for r in m.roles:
-				if (r < bot_role) and (r != everyone): # Only store roles that the bot can add/remove
+				if (r < bot_role) and (r != everyone) and (r.managed != True): # Only store roles that the bot can add/remove
 					roles.append({"name": r.name, "id": r.id})
 			self.db.upsert({"user_id": m.id, "roles": roles}, Query().user_id == m.id)
 
