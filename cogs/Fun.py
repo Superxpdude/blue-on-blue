@@ -234,7 +234,7 @@ class Fun(commands.Cog, name="Fun"):
 		users = []
 		async for m in ctx.history(limit=100,after=datetime.utcnow() - tmdelta):
 			if (m.author.top_role < ctx.me.top_role) and (m.author not in users): # Ignore users that have roles above the bot
-				users.add(m.author)
+				users.append(m.author)
 		
 		message = "%s has ordered the execution of one of the following users:\n" % (ctx.author.mention)
 		message += ", ".join(u.mention for u in users)
