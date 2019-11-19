@@ -88,7 +88,7 @@ class Punish(commands.Cog, name="Punish"):
 				
 				usr_roles = []
 				for r in usr.roles: # Make a list of roles that the bot can remove
-					if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role):
+					if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role) and (r.managed is not True):
 						usr_roles.append(r)
 				
 				punish_reason = "User punished by '%s' for '%s'." % (ctx.author.display_name,tm_readable)

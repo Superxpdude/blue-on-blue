@@ -29,7 +29,7 @@ async def kill_user(self,usr,*,reason: str="User died",duration: int=15):
 	
 	usr_roles = []
 	for r in usr.roles: # Make a list of roles that the bot can remove
-		if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role):
+		if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role) and (r.managed is not True):
 			usr_roles.append(r)
 	
 	try:
@@ -88,7 +88,7 @@ class Fun(commands.Cog, name="Fun"):
 		tbl = self.db.table("roulette")
 		sleeptime = 2 # Time to sleep between messages
 		if not tbl.contains(Query().user_id == ctx.author.id):
-			tbl.upsert({"user_id": ctx.author.id, "plays": 0, "deaths": 0, "streak": 0},Query().user_id == ctx.author.id)
+			tbl.upsert({"user_id": ctx.author.id, "plays": 0, "deaths": 0, "streak": 0, "max_streak": 0},Query().user_id == ctx.author.id)
 		
 		# Make sure we have an up to date name for the player
 		tbl.upsert({"name": ctx.author.name, "display_name": ctx.author.display_name},Query().user_id == ctx.author.id)
@@ -163,6 +163,8 @@ class Fun(commands.Cog, name="Fun"):
 			usrdata = tbl.search(Query().user_id == ctx.author.id)
 			usrdata[0]["plays"] += 1
 			usrdata[0]["streak"] += 1
+			if usrdata[0]["streak"] > usrdata[0].get("max_streak",0):
+				usrdata[0]["max_streak"] = usrdata[0]["streak"]
 			tbl.write_back(usrdata)
 			await asyncio.sleep(sleeptime)
 			await ctx.send(text_survive)
@@ -179,10 +181,31 @@ class Fun(commands.Cog, name="Fun"):
 			usrdata = tbl.get(Query().user_id == ctx.author.id)
 			embed = discord.Embed(title = "Russian Roulette", color=0x922B21)
 			embed.set_author(name=ctx.author.display_name,icon_url=ctx.author.avatar_url)
-			embed.add_field(name="Plays", value=usrdata["plays"], inline=True)
-			embed.add_field(name="Deaths", value=usrdata["deaths"], inline=True)
-			embed.add_field(name="Streak", value=usrdata["streak"], inline=True)
+			embed.add_field(name="Plays", value=usrdata.get("plays","N/A"), inline=True)
+			embed.add_field(name="Deaths", value=usrdata.get("deaths","N/A"), inline=True)
+			embed.add_field(name="Streak", value=usrdata.get("streak","N/A"), inline=True)
+			embed.add_field(name="Max Streak", value=usrdata.get("max_streak","N/A"), inline=True)
 			await ctx.send(embed=embed)
+	
+	@russian_roulette.command(name="leaderboard")
+	async def russian_roulette_leaderboard(self,ctx):
+		"""Displays the leaderboard."""
+		tbl = self.db.table("roulette")
+		board = sorted(tbl.all(), key=lambda u: (u.get("max_streak",0),u.get("wins",0)))
+		if len(board) > 0:
+			embed = discord.Embed(title = "Roulette Leaderboard", color=0x922B21, description="Ranked by highest win streak.")
+			embed.add_field(name="First Place", value="%s - %s" % (self.bot._guild.get_member(board[0]["user_id"]).display_name,board[0].get("max_streak",0)), inline=False)
+			if len(board) > 1:
+				embed.add_field(name="Second Place", value="%s - %s" % (self.bot._guild.get_member(board[1]["user_id"]).display_name,board[1].get("max_streak",0)), inline=False)
+			if len(board) > 2:
+				embed.add_field(name="Third Place", value="%s - %s" % (self.bot._guild.get_member(board[2]["user_id"]).display_name,board[2].get("max_streak",0)), inline=False)
+			if len(board) > 3:
+				embed.add_field(name="Fourth Place", value="%s - %s" % (self.bot._guild.get_member(board[3]["user_id"]).display_name,board[3].get("max_streak",0)), inline=False)
+			if len(board) > 4:
+				embed.add_field(name="Fifth Place", value="%s - %s" % (self.bot._guild.get_member(board[4]["user_id"]).display_name,board[4].get("max_streak",0)), inline=False)
+			await ctx.send(embed=embed)
+		else:
+			await ctx.send("The russian roulette leaderboard is empty!")
 	
 	@commands.command(name="kill",hidden=True)
 	@commands.check(blueonblue.checks.check_group_mods)
