@@ -12,13 +12,13 @@ import typing
 import logging
 log = logging.getLogger("blueonblue")
 
-async def kill_user(self,usr,reason: str="User died"):
+async def kill_user(self,usr,*,reason: str="User died",duration: int=15):
 	"""Function to set the user to dead."""
 	tbl = self.db.table('dead')
 	role_dead = self.bot._guild.get_role(config["SERVER"]["ROLES"]["DEAD"])
 	users = self.bot.get_cog("Users")
 	
-	time = datetime.utcnow() + timedelta(minutes=15)
+	time = datetime.utcnow() + timedelta(minutes=duration)
 	timestr = time.isoformat() # TinyDB can't store the time format. Convert it to string.
 	
 	await users.user_update(usr)
@@ -33,6 +33,7 @@ async def kill_user(self,usr,reason: str="User died"):
 	
 	await usr.add_roles(role_dead, reason=reason)
 	await usr.remove_roles(*usr_roles, reason=reason)
+	log.debug("Killed user [%s|%s]" % (usr.name,usr.id))
 
 async def revive_user(self,usr):
 	"""Function to set the user to alive."""
@@ -47,6 +48,7 @@ async def revive_user(self,usr):
 	await usr.remove_roles(role_dead, reason='Dead timeout expired')
 	tbl.remove(Query().user_id == usr.id)
 	await users.remove_data(usr, "dead")
+	log.debug("Revived user [%s|%s]" % (usr.name,usr.id))
 
 class Fun(commands.Cog, name="Fun"):
 	def __init__(self,bot):
@@ -84,60 +86,80 @@ class Fun(commands.Cog, name="Fun"):
 		# Make sure we have an up to date name for the player
 		tbl.upsert({"name": ctx.author.name, "display_name": ctx.author.display_name},Query().user_id == ctx.author.id)
 		
-		# A regular revolver
+		# Set our default values
+		kill = False
+		text_before = [
+			{"text": "Default roulette text."},
+			{"text": "You should never see this."}
+		]
+		text_bang = "*BANG*"
+		text_click = "*Click*"
+		text_dead = "%s died." % (ctx.author.display_name)
+		text_survive = "%s survived, stats have been updated." % (ctx.author.display_name)
+			
 		if gun.lower() == "revolver":
 			kill = True if (random.randint(1,6) == 1) else False
-			txt = "%s is feeling lucky today." % (ctx.author.mention)
-			message = await ctx.send(txt)
-			await asyncio.sleep(sleeptime)
-			txt += "\n%s loads one bullet into a chamber..." % (ctx.author.display_name)
-			await message.edit(content=txt)
-			await asyncio.sleep(sleeptime)
-			txt += "\n%s gives the cylinder a good spin..." % (ctx.author.display_name)
-			await message.edit(content=txt)
-			await asyncio.sleep(sleeptime)
-			txt += "\n%s presses the gun against their head and squeezes the trigger..." % (ctx.author.display_name)
-			await message.edit(content=txt)
-			await asyncio.sleep(sleeptime*2)
-			if kill:
-				await ctx.send("*BANG*")
-				await kill_user(self,ctx.author,reason="User died playing russian roulette.")
-				tbl.update(tinyops.increment("plays"), Query().user_id == ctx.author.id)
-				tbl.update(tinyops.increment("deaths"), Query().user_id == ctx.author.id)
-				tbl.update(tinyops.set("streak",0), Query().user_id == ctx.author.id)
-				await asyncio.sleep(sleeptime)
-				await ctx.send("%s died.")
-			else:
-				await ctx.send("*Click*")
-				tbl.update(tinyops.increment("plays"), Query().user_id == ctx.author.id)
-				tbl.update(tinyops.increment("streak"), Query().user_id == ctx.author.id)
-				await asyncio.sleep(sleeptime)
-				await ctx.send("%s survived, stats have been updated." % (ctx.author.display_name))
-			
+			text_before = [
+				{"text": "%s is feeling lucky today." % (ctx.author.mention), "sleep": sleeptime},
+				{"text": "%s loads one bullet into a chamber..." % (ctx.author.display_name), "sleep": sleeptime},
+				{"text": "%s gives the cylinder a good spin..." % (ctx.author.display_name), "sleep": sleeptime},
+				{"text": "%s presses the gun against their head and squeezes the trigger..." % (ctx.author.display_name), "sleep": sleeptime*2}
+			]
+		
+		elif gun.lower() == "bigiron":
+			kill = True if (random.randint(1,5) == 1) else False
+			text_before = [
+				{"text": "%s is feeling lucky today." % (ctx.author.mention), "sleep": sleeptime},
+				{"text": "%s takes the big iron from their hip." % (ctx.author.display_name), "sleep": sleeptime},
+				{"text": "%s loads one bullet into a chamber, and gives the cylinder a good spin..." % (ctx.author.display_name), "sleep": sleeptime},
+				{"text": "%s presses the big iron against their head and squeezes the trigger..." % (ctx.author.display_name), "sleep": sleeptime*2}
+			]
+			text_bang = "***BANG***"
+			text_dead = "%s made one fatal slip, they were no match for the ranger with the big iron on his hip." % (ctx.author.display_name)
+			text_survive = "%s returns the big iron to their hip, yee haw. Stats have been updated." % (ctx.author.display_name)
+		
 		elif gun.lower() == "m1911":
-			txt = "%s is feeling lucky today." % (ctx.author.mention)
-			message = await ctx.send(txt)
-			await asyncio.sleep(sleeptime)
-			txt += "\n%s loads one bullet into the magazine..." % (ctx.author.display_name)
-			await message.edit(content=txt)
-			await asyncio.sleep(sleeptime)
-			txt += "\n%s inserts the magazine and draws the slide..." % (ctx.author.display_name)
-			await message.edit(content=txt)
-			await asyncio.sleep(sleeptime)
-			txt += "\n%s presses the gun against their head and squeezes the trigger..." % (ctx.author.display_name)
-			await message.edit(content=txt)
-			await asyncio.sleep(sleeptime*2)
-			await ctx.send("*BANG*")
-			await kill_user(self,ctx.author,reason="User died playing russian roulette.")
-			tbl.update(tinyops.increment("plays"), Query().user_id == ctx.author.id)
-			tbl.update(tinyops.increment("deaths"), Query().user_id == ctx.author.id)
-			tbl.update(tinyops.set("streak",0), Query().user_id == ctx.author.id)
-			await asyncio.sleep(sleeptime)
-			await ctx.send("%s died. I don't know what they expected." % (ctx.author.display_name))
+			kill = True
+			text_before = [
+				{"text": "%s is feeling lucky today." % (ctx.author.mention), "sleep": sleeptime},
+				{"text": "%s loads one bullet into the magazine..." % (ctx.author.display_name), "sleep": sleeptime},
+				{"text": "%s inserts the magazine and draws the slide..." % (ctx.author.display_name), "sleep": sleeptime},
+				{"text": "%s presses the gun against their head and squeezes the trigger..." % (ctx.author.display_name), "sleep": sleeptime*2}
+			]
+			text_dead = "%s died. I don't know what they expected." % (ctx.author.display_name)
+			text_survive = "Literally how. Stats have been updated."
 		
 		else:
 			await ctx.send("%s, the weapon %s is not a valid weapon for russian roulette." % (ctx.author.mention, gun))
 			commands.Command.reset_cooldown(ctx.command,ctx)
+			return 0
+		
+		txt = text_before[0]["text"]
+		message = await ctx.send(txt)
+		await asyncio.sleep(text_before[0].get("sleep", sleeptime))
+		for t in text_before[1:]:
+			txt += "\n" + t["text"]
+			await message.edit(content=txt)
+			await asyncio.sleep(t.get("sleep", sleeptime))
+		if kill:
+			await ctx.send(text_bang)
+			await kill_user(self,ctx.author,reason="User died playing russian roulette.")
+			usrdata = tbl.search(Query().user_id == ctx.author.id)
+			usrdata[0]["plays"] += 1
+			usrdata[0]["deaths"] += 1
+			usrdata[0]["streak"] = 0
+			tbl.write_back(usrdata)
+			await asyncio.sleep(sleeptime)
+			await ctx.send(text_dead)
+		else:
+			await ctx.send(text_click)
+			usrdata = tbl.search(Query().user_id == ctx.author.id)
+			usrdata[0]["plays"] += 1
+			usrdata[0]["streak"] += 1
+			tbl.write_back(usrdata)
+			await asyncio.sleep(sleeptime)
+			await ctx.send(text_survive)
+			
 	
 	@russian_roulette.command(name="stats")
 	async def russian_roulette_stats(self,ctx):

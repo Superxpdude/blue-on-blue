@@ -10,6 +10,9 @@ import requests
 import os
 from oauth2client.service_account import ServiceAccountCredentials
 
+import logging
+log = logging.getLogger("blueonblue")
+
 async def decode_file_name(self,ctx,filename):
 	"""Decodes the file name for a mission to collect information about it.
 	Returns a dict of parameters if successful, otherwise returns False."""
