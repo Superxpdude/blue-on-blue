@@ -185,12 +185,12 @@ class Fun(commands.Cog, name="Fun"):
 	@tasks.loop(minutes=1, reconnect=True)
 	async def deadloop(self):
 		
+		tbl = self.db.table('dead')
 		tm = datetime.utcnow()
 		# Begin looping through all users in the dead table
 		for u in tbl:
 			rls_text = u['revive']
 			rls_tm = datetime.fromisoformat(rls_text)
-			
 			if tm > rls_tm: # Check if the user should be revived
 				usr = self.bot._guild.get_member(u['user_id'])
 				await revive_user(self,usr)
