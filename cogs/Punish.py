@@ -92,8 +92,12 @@ class Punish(commands.Cog, name="Punish"):
 						usr_roles.append(r)
 				
 				punish_reason = "User punished by '%s' for '%s'." % (ctx.author.display_name,tm_readable)
-				await usr.add_roles(role_punish, reason=punish_reason) #Add the punish role first to prevent incorrect updating of the users database
-				await usr.remove_roles(*usr_roles, reason=punish_reason)
+				try:
+					await usr.add_roles(role_punish, reason=punish_reason) #Add the punish role first to prevent incorrect updating of the users database
+					await usr.remove_roles(*usr_roles, reason=punish_reason)
+				except:
+					await channel_mod.send("Error assigning roles when punishing user %s." % (usr.mention))
+					log.warning("Failed to assign roles to punish user. User: %s. Roles: %s" % (usr.name,*usr_roles))
 				await channel_mod.send("User '%s' has been punished by '%s' for '%s'." % (usr.display_name,ctx.author.display_name,tm_readable))
 	
 	@commands.command(
@@ -150,9 +154,13 @@ class Punish(commands.Cog, name="Punish"):
 			usr_roles.append(self.bot._guild.get_role(r["id"]))
 		
 		if tbl.contains(Query().user_id == usr_id):
-			await usr.remove_roles(role_punish, reason="Punishment removed by '%s'." % (ctx.author.display_name))
-			await usr.add_roles(*usr_roles, reason="Punishment removed by '%s'." % (ctx.author.display_name))
-			await channel_mod.send("User '%s' has been released from punishment by '%s'." % (usr.mention,ctx.author.mention))
+			try:
+				await usr.remove_roles(role_punish, reason="Punishment removed by '%s'." % (ctx.author.display_name))
+				await usr.add_roles(*usr_roles, reason="Punishment removed by '%s'." % (ctx.author.display_name))
+			except:
+				await channel_mod.send("Error assigning roles when releasing user %s from punishment. Please assign roles manually." % (usr.mention))
+				log.warning("Failed to assign roles to release user from punishment. User: [%s]. Roles: [%s]" % (usr.name,*usr_roles))
+			await channel_mod.send("User '%s' has been released from punishment by '%s'." % (usr.mention,ctx.author.mention))	
 			tbl.remove(Query().user_id == usr_id)
 			await users.remove_data(usr, "punished")
 		else:
@@ -183,8 +191,12 @@ class Punish(commands.Cog, name="Punish"):
 				if usr is None:
 					await channel_mod.send("Failed to remove punishment from user '%s', user may no longer be present in the server." % (u['name']))
 				else:
-					await usr.remove_roles(role_punish, reason='Punishment timeout expired')
-					await usr.add_roles(*usr_roles, reason='Punishment timeout expired')
+					try:
+						await usr.remove_roles(role_punish, reason='Punishment timeout expired')
+						await usr.add_roles(*usr_roles, reason='Punishment timeout expired')
+					except:
+						await channel_mod.send("Error assigning roles when releasing user %s from punishment." % (usr.mention))
+						log.warning("Failed to assign roles to release user from punishment. User: [%s]. Roles: [%s]" % (usr.name,*usr_roles))
 				await channel_mod.send("User '%s' has been released from punishment due to timeout expiry." % (usr.display_name))
 				tbl.remove(Query().user_id == usr.id)
 				await users.remove_data(usr, "punished")

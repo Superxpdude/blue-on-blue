@@ -31,8 +31,11 @@ async def kill_user(self,usr,*,reason: str="User died",duration: int=15):
 		if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role):
 			usr_roles.append(r)
 	
-	await usr.add_roles(role_dead, reason=reason)
-	await usr.remove_roles(*usr_roles, reason=reason)
+	try:
+		await usr.add_roles(role_dead, reason=reason)
+		await usr.remove_roles(*usr_roles, reason=reason)
+	except:
+		log.warning("Failed to remove roles to kill user. User: %s. Roles: %s" % (usr.name,*usr_roles))
 	log.debug("Killed user [%s|%s]" % (usr.name,usr.id))
 
 async def revive_user(self,usr):
@@ -44,8 +47,11 @@ async def revive_user(self,usr):
 	usr_roles = []
 	for r in await users.read_data(usr, "roles"):
 		usr_roles.append(self.bot._guild.get_role(r["id"]))
-	await usr.add_roles(*usr_roles, reason='Dead timeout expired')
-	await usr.remove_roles(role_dead, reason='Dead timeout expired')
+	try:
+		await usr.add_roles(*usr_roles, reason='Dead timeout expired')
+		await usr.remove_roles(role_dead, reason='Dead timeout expired')
+	except:
+		log.warning("Failed to assign roles to revive user. User: %s. Roles: %s" % (usr.name,*usr_roles))
 	tbl.remove(Query().user_id == usr.id)
 	await users.remove_data(usr, "dead")
 	log.debug("Revived user [%s|%s]" % (usr.name,usr.id))
