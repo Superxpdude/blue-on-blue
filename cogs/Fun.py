@@ -6,6 +6,7 @@ import time
 import asyncio
 from blueonblue.config import config
 from datetime import datetime, timedelta
+from pytimeparse.timeparse import timeparse
 from tinydb import TinyDB, Query
 import tinydb.operations as tinyops
 import typing
@@ -209,6 +210,66 @@ class Fun(commands.Cog, name="Fun"):
 		
 		await revive_user(self,usr)
 		await ctx.send("%s has been revived by %s" % (usr.mention, ctx.author.mention))
+	
+	@commands.command(name="killrandom",hidden=True)
+	@commands.guild_only()
+	@blueonblue.checks.has_any_role_guild(config["SERVER"]["ROLES"]["ADMIN"])
+	async def killrandom(self, ctx, time: str="10m"):
+		"""Randomly executes a user that has sent a recent message.
+		
+		Selects a user that has posted in this channel within the specified period of time.
+		Will only look back 100 messages, if the channel is busy it may not search back the specified duration.
+		Time is specified using a number, and a unit. Accepts time units up to a week (10m, 30s, 1h, etc.)"""
+		
+		tmparsed = timeparse(time)
+		if tmparsed is None:
+			await ctx.send("You have specified an invalid length of time.")
+			raise commands.ArgumentParsingError()
+		
+		# Convert the provided time string to a timedelta
+		tmdelta = timedelta(seconds=tmparsed)
+		# Convert the timedelta to a human readable format
+		tm_readable = str(tmdelta)
+		
+		users = []
+		async for m in ctx.history(limit=100,after=datetime.utcnow() - tmdelta):
+			if (m.author.top_role < ctx.me.top_role) and (m.author not in users): # Ignore users that have roles above the bot
+				users.add(m.author)
+		
+		message = "%s has ordered the execution of one of the following users:\n" % (ctx.author.mention)
+		message += ", ".join(u.mention for u in users)
+		message += "\nPlease confirm the execution by selecting the checkmark."
+		msg = await ctx.send(message)
+		await msg.add_reaction("✅")
+		await msg.add_reaction("❌")
+		
+		def emoji_check(reaction, user):
+			return user == ctx.author and (str(reaction.emoji) == '✅' or str(reaction.emoji) == '❌')
+		
+		try:
+			reaction, user = await self.bot.wait_for('reaction_add', timeout=30, check=emoji_check)
+		except asyncio.TimeoutError: # If the message times out
+			await ctx.send("%s, you took too long to respond. The execution was automatically aborted." % \
+						  (ctx.author.mention))
+		else: # If one of the emotes was pressed
+			if str(reaction.emoji) == '❌':
+				# Execution
+				await ctx.send ("%s, the pending execution has been aborted." % (ctx.author.mention))
+				return 0
+			else:
+				await ctx.send("%s grabs a gun..." % (ctx.author.mention))
+				await asyncio.sleep(2)
+				await ctx.send("%s loads one bullet into the magazine..." % (ctx.author.display_name))
+				await asyncio.sleep(2)
+				await ctx.send("%s inserts the magazine and draws the slide..." % (ctx.author.display_name))
+				await asyncio.sleep(2)
+				await ctx.send("%s takes aim and squeezes the trigger..." % (ctx.author.display_name))
+				await asyncio.sleep(5)
+				deaduser = random.choice(users)
+				await ctx.send("***BANG***")
+				await kill_user(self,deaduser,reason="User was executed at random.")
+				await asyncio.sleep(2)
+				await ctx.send("%s has been executed by %s." % (deaduser.mention,ctx.author.mention))
 	
 	@tasks.loop(minutes=1, reconnect=True)
 	async def deadloop(self):
