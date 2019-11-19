@@ -191,7 +191,7 @@ class Fun(commands.Cog, name="Fun"):
 	async def russian_roulette_leaderboard(self,ctx):
 		"""Displays the leaderboard."""
 		tbl = self.db.table("roulette")
-		board = sorted(tbl.all(), key=lambda u: (u.get("max_streak",0),u.get("wins",0)))
+		board = sorted(tbl.all(), key=lambda u: (u.get("max_streak",0),u.get("wins",0)),reverse=True)
 		if len(board) > 0:
 			embed = discord.Embed(title = "Roulette Leaderboard", color=0x922B21, description="Ranked by highest win streak.")
 			embed.add_field(name="First Place", value="%s - %s" % (self.bot._guild.get_member(board[0]["user_id"]).display_name,board[0].get("max_streak",0)), inline=False)
