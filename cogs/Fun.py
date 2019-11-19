@@ -232,7 +232,7 @@ class Fun(commands.Cog, name="Fun"):
 		tm_readable = str(tmdelta)
 		
 		users = []
-		async for m in ctx.history(limit=100,after=datetime.utcnow() - tmdelta):
+		async for m in ctx.history(limit=250,after=datetime.utcnow() - tmdelta,oldest_first=False):
 			if (m.author.top_role < ctx.me.top_role) and (m.author not in users): # Ignore users that have roles above the bot
 				users.append(m.author)
 		
