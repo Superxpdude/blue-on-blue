@@ -191,18 +191,38 @@ class Fun(commands.Cog, name="Fun"):
 	async def russian_roulette_leaderboard(self,ctx):
 		"""Displays the leaderboard."""
 		tbl = self.db.table("roulette")
-		board = sorted(tbl.all(), key=lambda u: (u.get("max_streak",0),u.get("wins",0)),reverse=True)
+		board = sorted(tbl.all(), key=lambda u: (u.get("max_streak",0),(u.get("plays",0)-u.get("deaths",0))/max(u.get("deaths",0),1)),reverse=True)
 		if len(board) > 0:
 			embed = discord.Embed(title = "Roulette Leaderboard", color=0x922B21, description="Ranked by highest win streak.")
-			embed.add_field(name="First Place", value="%s - %s" % (self.bot._guild.get_member(board[0]["user_id"]).display_name,board[0].get("max_streak",0)), inline=False)
+			try:
+				usr1 = self.bot._guild.get_member(board[0]["user_id"]).display_name
+			except:
+				usr1 = board[0]["display_name"]
+			embed.add_field(name="First Place", value="%s - %s" % (usr1,board[0].get("max_streak",0)), inline=False)
 			if len(board) > 1:
-				embed.add_field(name="Second Place", value="%s - %s" % (self.bot._guild.get_member(board[1]["user_id"]).display_name,board[1].get("max_streak",0)), inline=False)
+				try:
+					usr2 = self.bot._guild.get_member(board[1]["user_id"]).display_name
+				except:
+					usr2 = board[1]["display_name"]
+				embed.add_field(name="Second Place", value="%s - %s" % (usr2,board[1].get("max_streak",0)), inline=False)
 			if len(board) > 2:
-				embed.add_field(name="Third Place", value="%s - %s" % (self.bot._guild.get_member(board[2]["user_id"]).display_name,board[2].get("max_streak",0)), inline=False)
+				try:
+					usr3 = self.bot._guild.get_member(board[2]["user_id"]).display_name
+				except:
+					usr3 = board[2]["display_name"]
+				embed.add_field(name="Third Place", value="%s - %s" % (usr3,board[2].get("max_streak",0)), inline=False)
 			if len(board) > 3:
-				embed.add_field(name="Fourth Place", value="%s - %s" % (self.bot._guild.get_member(board[3]["user_id"]).display_name,board[3].get("max_streak",0)), inline=False)
+				try:
+					usr4 = self.bot._guild.get_member(board[3]["user_id"]).display_name
+				except:
+					usr4 = board[3]["display_name"]
+				embed.add_field(name="Fourth Place", value="%s - %s" % (usr4,board[3].get("max_streak",0)), inline=False)
 			if len(board) > 4:
-				embed.add_field(name="Fifth Place", value="%s - %s" % (self.bot._guild.get_member(board[4]["user_id"]).display_name,board[4].get("max_streak",0)), inline=False)
+				try:
+					usr5 = self.bot._guild.get_member(board[4]["user_id"]).display_name
+				except:
+					usr5 = board[4]["display_name"]
+				embed.add_field(name="Fifth Place", value="%s - %s" % (usr5,board[4].get("max_streak",0)), inline=False)
 			await ctx.send(embed=embed)
 		else:
 			await ctx.send("The russian roulette leaderboard is empty!")
