@@ -77,7 +77,7 @@ class Fun(commands.Cog, name="Fun"):
 	async def russian_roulette_play(self, ctx, *, gun: str="revolver"):
 		"""I want to play a game.
 		
-		Optional: Specify a gun to use. Current available weapons are 'revolver', and 'm1911'."""
+		Optional: Specify a gun to use. Current available weapons are 'revolver', 'bigiron', and 'm1911'."""
 		tbl = self.db.table("roulette")
 		sleeptime = 2 # Time to sleep between messages
 		if not tbl.contains(Query().user_id == ctx.author.id):
