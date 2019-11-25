@@ -113,7 +113,7 @@ class Pings(commands.Cog, name="Pings"):
 		pings.remove("_default") # Remove the default table
 		
 		if "<@" in tag: # Search by user
-			if tag == ctx.author:
+			if int(tag.replace("<","").replace("@","").replace("!","").replace(">","")) == ctx.author.id:
 				ls = []
 				for p in pings: # Iterate through all valid pings
 					t = self.db.table(p)
