@@ -168,7 +168,72 @@ class Fun(commands.Cog, name="Fun"):
 			tbl.write_back(usrdata)
 			await asyncio.sleep(sleeptime)
 			await ctx.send(text_survive)
-			
+	
+	@russian_roulette.command(
+		name="force"
+	)
+	@commands.check(blueonblue.checks.check_group_mods)
+	async def russian_roulette_force(self, ctx, target: typing.Optional[discord.Member]):
+		"""Forces a user to play russian roulette with a revolver."""
+		
+		if target is None:
+			await ctx.send("You need to specify a valid user!")
+			raise commands.ArgumentParsingError()
+		
+		if target is ctx.me:
+			await ctx.send("How can a bot hold a gun if it doesn't have any hands!")
+			raise commands.ArgumentParsingError()
+		
+		# The code below is just a modified version of the regular roulette command
+		
+		tbl = self.db.table("roulette")
+		sleeptime = 2 # Time to sleep between messages
+		if not tbl.contains(Query().user_id == target.id):
+			tbl.upsert({"user_id": target.id, "plays": 0, "deaths": 0, "streak": 0, "max_streak": 0},Query().user_id == target.id)
+		
+		# Make sure we have an up to date name for the player
+		tbl.upsert({"name": target.name, "display_name": target.display_name},Query().user_id == target.id)
+		
+		# Set our default values
+		kill = True if (random.randint(1,6) == 1) else False
+		text_before = [
+			{"text": "%s thinks that %s is feeling lucky today." % (ctx.author.mention, target.mention), "sleep": sleeptime},
+			{"text": "%s loads one bullet into a chamber, and gives the cylinder a good spin..." % (ctx.author.display_name), "sleep": sleeptime},
+			{"text": "%s hands the gun to %s..." % (ctx.author.display_name,target.display_name), "sleep": sleeptime},
+			{"text": "%s presses the gun against their head and squeezes the trigger..." % (target.display_name), "sleep": sleeptime*2}
+		]
+		text_bang = "*BANG*"
+		text_click = "*Click*"
+		text_dead = "%s died." % (target.display_name)
+		text_survive = "%s survived, stats have been updated." % (target.display_name)
+		
+		txt = text_before[0]["text"]
+		message = await ctx.send(txt)
+		await asyncio.sleep(text_before[0].get("sleep", sleeptime))
+		for t in text_before[1:]:
+			txt += "\n" + t["text"]
+			await message.edit(content=txt)
+			await asyncio.sleep(t.get("sleep", sleeptime))
+		if kill:
+			await ctx.send(text_bang)
+			await kill_user(self,target,reason="User died playing forced russian roulette.")
+			usrdata = tbl.search(Query().user_id == target.id)
+			usrdata[0]["plays"] += 1
+			usrdata[0]["deaths"] += 1
+			usrdata[0]["streak"] = 0
+			tbl.write_back(usrdata)
+			await asyncio.sleep(sleeptime)
+			await ctx.send(text_dead)
+		else:
+			await ctx.send(text_click)
+			usrdata = tbl.search(Query().user_id == target.id)
+			usrdata[0]["plays"] += 1
+			usrdata[0]["streak"] += 1
+			if usrdata[0]["streak"] > usrdata[0].get("max_streak",0):
+				usrdata[0]["max_streak"] = usrdata[0]["streak"]
+			tbl.write_back(usrdata)
+			await asyncio.sleep(sleeptime)
+			await ctx.send(text_survive)
 	
 	@russian_roulette.command(name="stats")
 	async def russian_roulette_stats(self,ctx):
