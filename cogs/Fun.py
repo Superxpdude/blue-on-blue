@@ -70,7 +70,7 @@ class Fun(commands.Cog, name="Fun"):
 		name="rr",
 		aliases=["roulette"]
 	)
-	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
+	#@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	async def russian_roulette(self,ctx):
 		"""How about a nice game of russian roulette?"""
 		if ctx.invoked_subcommand is None:
@@ -80,6 +80,7 @@ class Fun(commands.Cog, name="Fun"):
 		name="play",
 		cooldown_after_parsing=True
 	)
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	@commands.cooldown(rate=1, per=15, type=commands.BucketType.channel)
 	async def russian_roulette_play(self, ctx, *, gun: str="revolver"):
 		"""I want to play a game.
@@ -236,6 +237,7 @@ class Fun(commands.Cog, name="Fun"):
 			await ctx.send(text_survive)
 	
 	@russian_roulette.command(name="stats")
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	async def russian_roulette_stats(self,ctx):
 		"""Displays your stats for russian roulette."""
 		tbl = self.db.table("roulette")
@@ -253,6 +255,7 @@ class Fun(commands.Cog, name="Fun"):
 			await ctx.send(embed=embed)
 	
 	@russian_roulette.command(name="leaderboard")
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	async def russian_roulette_leaderboard(self,ctx):
 		"""Displays the leaderboard."""
 		tbl = self.db.table("roulette")
