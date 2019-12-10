@@ -238,7 +238,7 @@ class Fun(commands.Cog, name="Fun"):
 	
 	@russian_roulette.command(name="tournament",aliases=["tourney"],cooldown_after_parsing=True)
 	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
-	@blueonblue.checks.has_any_role_guild(config["SERVER"]["ROLES"]["ADMIN"])
+	@commands.cooldown(rate=1, per=1800, type=commands.BucketType.channel)
 	async def russian_roulette_tournament(self,ctx):
 		"""Somehow more dangerous than normal russian roulette."""
 		tbl = self.db.table("roulette")
@@ -274,6 +274,7 @@ class Fun(commands.Cog, name="Fun"):
 		
 		if len(userlist) <= 1:
 			await ctx.send("Tournament aborted due to lack of participants.")
+			commands.Command.reset_cooldown(ctx.command,ctx)
 			return
 		
 		txt = "A tournament is beginning!\nThe participants are: "
@@ -347,6 +348,8 @@ class Fun(commands.Cog, name="Fun"):
 			# No users survived
 			await ctx.send("This tournament has no winner. All remaining participants died in the same round.")
 		
+		# Reset the cooldown
+		commands.Command.reset_cooldown(ctx.command,ctx)
 	
 	@russian_roulette.command(name="stats")
 	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
