@@ -279,7 +279,11 @@ class Fun(commands.Cog, name="Fun"):
 		
 		txt = "A tournament is beginning!\nThe participants are: "
 		txt += ", ".join(u.mention for u in userlist)
-		await ctx.send(txt)		
+		await ctx.send(txt)
+		
+		for u in userlist:
+			if not tbl.contains(Query().user_id == u.id):
+				tbl.upsert({"user_id": u.id, "plays": 0, "deaths": 0, "streak": 0, "max_streak": 0},Query().user_id == u.id)
 		
 		round = 1
 		
