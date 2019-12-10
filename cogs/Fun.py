@@ -236,6 +236,118 @@ class Fun(commands.Cog, name="Fun"):
 			await asyncio.sleep(sleeptime)
 			await ctx.send(text_survive)
 	
+	@russian_roulette.command(name="tournament",aliases=["tourney"],cooldown_after_parsing=True)
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
+	@blueonblue.checks.has_any_role_guild(config["SERVER"]["ROLES"]["ADMIN"])
+	async def russian_roulette_tournament(self,ctx):
+		"""Somehow more dangerous than normal russian roulette."""
+		tbl = self.db.table("roulette")
+		sleeptime = 2
+		
+		# Post the message to gather contestants
+		msg = await ctx.send("%s has started a roulette tournament!" \
+							"\nSelect the 🎲 to enter the tournament. The tournament will begin in two minutes." \
+							"\nThe tournament host can start the tournament early by selecting the checkmark." % (ctx.author.mention))
+		await msg.add_reaction("✅")
+		await msg.add_reaction("🎲")
+		
+		def emoji_check(reaction, user):
+			return user == ctx.author and (str(reaction.emoji) == '✅')
+		
+		try:
+			reaction, user = await self.bot.wait_for("reaction_add", timeout=120, check=emoji_check)
+		except asyncio.TimeoutError: # Bot has waited two minutes
+			await ctx.send("Time's up! Starting the tournament now!")
+		else:
+			await ctx.send("Starting the tournament now!")
+		
+		cache_msg = discord.utils.get(self.bot.cached_messages, id=msg.id)
+		
+		# Grab our user list
+		userlist = [ctx.author] # The author has to participate
+		for r in cache_msg.reactions:
+			if r.emoji == "🎲":
+				usrs =  await r.users().flatten()
+				for u in usrs:
+					if (u not in userlist) and (u.bot is False):
+						userlist.append(u)
+		
+		if len(userlist) <= 1:
+			await ctx.send("Tournament aborted due to lack of participants.")
+			return
+		
+		txt = "A tournament is beginning!\nThe participants are: "
+		txt += ", ".join(u.mention for u in userlist)
+		await ctx.send(txt)		
+		
+		round = 1
+		
+		cylinderpos = random.SystemRandom().randint(1,6)
+		deadpos = random.SystemRandom().randint(1,6)
+		# Start our loop
+		while len(userlist) > 1:
+			await ctx.send("ROUND %s, START" % (round))
+			await asyncio.sleep(2)
+			random.SystemRandom().shuffle(userlist)
+			templist = []
+			for u in userlist:
+				text_before = [
+					{"text": "%s picks up the revolver..." % (u.mention), "sleep": sleeptime},
+					{"text": "%s loads one bullet into a chamber..." % (u.display_name), "sleep": sleeptime},
+					{"text": "%s gives the cylinder a good spin..." % (u.display_name), "sleep": sleeptime},
+					{"text": "%s presses the gun against their head and squeezes the trigger..." % (u.display_name), "sleep": sleeptime*2}
+				]
+				txt = text_before[0]["text"]
+				msg = await ctx.send(txt)
+				await asyncio.sleep(text_before[0].get("sleep", sleeptime))
+				for t in text_before[1:]:
+					txt += "\n" + t["text"]
+					await msg.edit(content=txt)
+					await asyncio.sleep(t.get("sleep", sleeptime))
+				if (random.SystemRandom().randint(1,6) == 1):
+					# User was killed
+					await ctx.send("*BANG*")
+					await kill_user(self,u,reason="User died in russian roulette tournament")
+					usrdata = tbl.search(Query().user_id == u.id)
+					usrdata[0]["plays"] += 1
+					usrdata[0]["deaths"] += 1
+					usrdata[0]["streak"] = 0
+					tbl.write_back(usrdata)
+					await asyncio.sleep(sleeptime)
+					await ctx.send("%s has been eliminated from the tournament." % (u.mention))
+				else:
+					# User survived
+					await ctx.send("*Click*")
+					usrdata = tbl.search(Query().user_id == u.id)
+					usrdata[0]["plays"] += 1
+					usrdata[0]["streak"] += 1
+					if usrdata[0]["streak"] > usrdata[0].get("max_streak",0):
+						usrdata[0]["max_streak"] = usrdata[0]["streak"]
+					tbl.write_back(usrdata)
+					await asyncio.sleep(sleeptime)
+					await ctx.send("%s survived round %s." % (u.mention,round))
+					templist.append(u) # Add the user to the survivors list
+				await asyncio.sleep(3) # Sleep three seconds between users
+			userlist = templist.copy()
+			txt = "ROUND %s COMPLETE." % (round)
+			if len(userlist) > 1:
+				txt += " The following participants remain.\n"
+				txt += ", ".join(u.mention for u in templist)
+				txt += "\nThe next round will begin in 10 seconds."
+			round += 1 # Increment the round counter
+			await ctx.send(txt)
+			if len(userlist) > 1:
+				await asyncio.sleep(10)
+		
+		# Tournament over
+		if len(userlist) > 0:
+			# One user survived
+			await ctx.send("%s has won the tournament!" % userlist[0].mention)
+		else:
+			# No users survived
+			await ctx.send("This tournament has no winner. All remaining participants died in the same round.")
+		
+	
 	@russian_roulette.command(name="stats")
 	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	async def russian_roulette_stats(self,ctx):
