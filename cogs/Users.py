@@ -54,14 +54,14 @@ class Users(commands.Cog, name="Users"):
 	def cog_unload(self):
 		self.user_update_loop.stop()
 	
-	async def read_data(self, usr: typing.Union[discord.Member, int], key: str):
+	async def read_data(self, usr: typing.Union[discord.Member, int], key: str, default_value = None):
 		"""Read data from the users database."""
 		usr_id = get_user_id(usr) # Make sure that we have the userID
 		u = self.db.get(Query().user_id == usr_id) # Get the user information from the database
 		try:
 			return u[key]
 		except:
-			return None
+			return default_value
 	
 	async def write_data(self, usr: typing.Union[discord.Member, int], value: dict):
 		"""Write data to the users database."""

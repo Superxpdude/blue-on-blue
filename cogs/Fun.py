@@ -46,7 +46,7 @@ async def revive_user(self,usr):
 	users = self.bot.get_cog("Users")
 	
 	usr_roles = []
-	for r in await users.read_data(usr, "roles"):
+	for r in await users.read_data(usr, "roles", []):
 		usr_roles.append(self.bot._guild.get_role(r["id"]))
 	try:
 		await usr.add_roles(*usr_roles, reason='Dead timeout expired')
@@ -424,6 +424,10 @@ class Fun(commands.Cog, name="Fun"):
 		if usr is None:
 			await ctx.send("You need to specify a valid user!")
 			raise commands.ArgumentParsingError()
+		
+		if usr is ctx.me:
+			await ctx.send("I'm sorry %s. I'm afraid I can't do that." % (ctx.author.mention))
+			return
 		
 		await kill_user(self,usr)
 		await ctx.send("%s has been executed by %s" % (usr.mention, ctx.author.mention))

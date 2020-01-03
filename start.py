@@ -60,7 +60,7 @@ loglevel = logging.DEBUG if args.debug else logging.INFO
 rootLogger = logging.getLogger()
 logFormat = logging.Formatter("%(asctime)s [%(levelname)s]  %(message)s")
 
-logFile = handlers.TimedRotatingFileHandler("logs/blueonblue.log",when="midnight")
+logFile = handlers.TimedRotatingFileHandler("logs/blueonblue.log",when="midnight",backupCount=30)
 logFile.setFormatter(logFormat)
 rootLogger.addHandler(logFile)
 
