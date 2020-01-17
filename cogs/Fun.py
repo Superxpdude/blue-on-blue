@@ -521,6 +521,12 @@ class Fun(commands.Cog, name="Fun"):
 	@deadloop.before_loop
 	async def before_deadloop(self):
 		await self.bot.wait_until_ready() # Wait until the bot is ready
+		
+	@deadloop.after_loop
+	async def after_deadloop(self):
+		if self.deadloop.failed():
+			log.warning("Revive loop has failed. Attempting to restart.")
+			self.deadloop.restart()
 
 def setup(bot):
 	if (bot.get_cog("Users")) is None:
