@@ -516,7 +516,10 @@ class Fun(commands.Cog, name="Fun"):
 			rls_tm = datetime.fromisoformat(rls_text)
 			if tm > rls_tm: # Check if the user should be revived
 				usr = self.bot._guild.get_member(u['user_id'])
-				await revive_user(self,usr)
+				if usr is not None:
+					await revive_user(self,usr)
+				else:
+					log.info("Could not locate user for automatic revival. User: %s. Roles: %s" % (u['name'],*usr_roles))
 	
 	@deadloop.before_loop
 	async def before_deadloop(self):

@@ -77,28 +77,33 @@ class Punish(commands.Cog, name="Punish"):
 				role_punish = self.bot._guild.get_role(config["SERVER"]["ROLES"]["PUNISH"])
 				channel_mod = self.bot.get_channel(config["SERVER"]["CHANNELS"]["MOD"])
 				
-				# Ensure that the user database is up to date first
-				await users.user_update(usr)
-				await users.write_data(usr, {"punished": True})
-				
 				rls_tm = tm + tmdelta
 				rls_text = rls_tm.isoformat() # TinyDB can't store the time format, we need to convert to string
 				
-				tbl.upsert({'name': usr.name, 'displayname': usr.display_name, 'user_id': usr.id, 'release': rls_text}, Query().user_id == usr.id)
-				
-				usr_roles = []
-				for r in usr.roles: # Make a list of roles that the bot can remove
-					if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role) and (r.managed is not True):
-						usr_roles.append(r)
-				
-				punish_reason = "User punished by '%s' for '%s'." % (ctx.author.display_name,tm_readable)
-				try:
-					await usr.add_roles(role_punish, reason=punish_reason) #Add the punish role first to prevent incorrect updating of the users database
-					await usr.remove_roles(*usr_roles, reason=punish_reason)
-				except:
-					await channel_mod.send("Error assigning roles when punishing user %s." % (usr.mention))
-					log.warning("Failed to assign roles to punish user. User: %s. Roles: %s" % (usr.name,*usr_roles))
-				await channel_mod.send("User '%s' has been punished by '%s' for '%s'." % (usr.display_name,ctx.author.display_name,tm_readable))
+				if tbl.contains(Query().id == usr.id): # User is already in punish database
+					# Do not remove roles from the user, only update their release time
+					tbl.upsert({'name': usr.name, 'displayname': usr.display_name, 'user_id': usr.id, 'release': rls_text}, Query().user_id == usr.id)
+					await channel_mod.send("Punishment for user '%s' has been modified by '%s' to '%s'." % (usr.display_name,ctx.author.display_name,tm_readable))
+				else:
+					# Ensure that the user database is up to date first
+					await users.user_update(usr)
+					await users.write_data(usr, {"punished": True})
+					
+					tbl.upsert({'name': usr.name, 'displayname': usr.display_name, 'user_id': usr.id, 'release': rls_text}, Query().user_id == usr.id)
+					
+					usr_roles = []
+					for r in usr.roles: # Make a list of roles that the bot can remove
+						if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role) and (r.managed is not True):
+							usr_roles.append(r)
+					
+					punish_reason = "User punished by '%s' for '%s'." % (ctx.author.display_name,tm_readable)
+					try:
+						await usr.add_roles(role_punish, reason=punish_reason) #Add the punish role first to prevent incorrect updating of the users database
+						await usr.remove_roles(*usr_roles, reason=punish_reason)
+					except:
+						await channel_mod.send("Error assigning roles when punishing user %s." % (usr.mention))
+						log.warning("Failed to assign roles to punish user. User: %s. Roles: %s" % (usr.name,*usr_roles))
+					await channel_mod.send("User '%s' has been punished by '%s' for '%s'." % (usr.display_name,ctx.author.display_name,tm_readable))
 	
 	@commands.command(
 		name = "punishlist"
