@@ -13,7 +13,7 @@ import typing
 import logging
 log = logging.getLogger("blueonblue")
 
-async def kill_user(self,usr,*,reason: str="User died",duration: int=15):
+async def kill_user(self,usr,*,reason: str="User died",duration: int=5):
 	"""Function to set the user to dead."""
 	tbl = self.db.table('dead')
 	role_dead = self.bot._guild.get_role(config["SERVER"]["ROLES"]["DEAD"])
