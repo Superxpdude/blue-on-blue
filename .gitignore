@@ -1,2 +1,8 @@
 /google_api.json
 /config.json
+*.pyc
+*.pyo
+/logs
+/config
+/db
+/temp

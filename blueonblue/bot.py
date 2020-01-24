@@ -1,17 +1,21 @@
+# Blue on blue bot file
+# Handles actually running the bot
+import asyncio
 import discord
-from settings import config
 from discord.ext import commands
+from blueonblue.config import config
+import logging
+log = logging.getLogger("blueonblue")
 
-# Bot definition moved to this file so that we can import it later if needed.
+__all__ = ["bot"]
 
-# Define the prefix function
+# Define some variables
+loop = asyncio.get_event_loop()
+
+# Function to determine bot prefixes
 def get_prefix(client, message):
 	# Set the prefixes
 	prefixes = config["BOT"]["CMD_PREFIXES"]
-	
-	# Uncomment to allow for different prefixes in PMs
-	# if not message.guild:
-	#	#prefixes = ['$$']
 	
 	# Allow users to mention the bot instead of using a prefix
 	return commands.when_mentioned_or(*prefixes)(client, message)
@@ -22,3 +26,9 @@ bot = commands.Bot(
 	description=config["BOT"]["DESC"], # Sets the bot description for the help command
 	case_insensitive=True # Allow commands to be case insensitive
 )
+
+# Assign some values to the bot
+bot._uptime = None
+bot._config = config
+bot._guild = None
+bot._log = log

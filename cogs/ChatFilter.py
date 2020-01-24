@@ -1,20 +1,19 @@
 import discord
 from discord.ext import commands
-from settings import config
-from tinydb import TinyDB, Query
 import blueonblue
+from blueonblue.config import config
+from tinydb import TinyDB, Query
+import logging
+log = logging.getLogger("blueonblue")
 
 # Function to update the blacklist
-def update_list():
-	db = TinyDB('db/chatfilter.json', indent=4)
-	bl = db.table("blacklist")
-	data = Query()
+def update_list(self):
+	bl = self.db.table("blacklist")
 	global blacklist
 	blacklist = []
 	for b in bl:
 		blacklist += [b["word"]]
-	
-	wl = db.table("whitelist")
+	wl = self.db.table("whitelist")
 	global whitelist
 	whitelist = []
 	for w in wl:
@@ -27,37 +26,32 @@ async def _cf_add(self,ctx,ls,word):
 	if word is None:
 		await ctx.send("Invalid word.")
 		return 0
-	db = TinyDB('db/chatfilter.json', indent=4)
-	table = db.table(ls)
-	data = Query()
+	table = self.db.table(ls)
 	word = word.lower()
-	if table.contains(data.word == word):
+	if table.contains(Query().word == word):
 		await ctx.send("Word already present in %s!" % (ls))
 		return 0
 	else:
 		table.insert({"word": word})
 		await ctx.send("Word '%s' added to %s." % (word, ls))
-		update_list()
+		update_list(self)
 
 async def _cf_remove(self,ctx,ls,word):
 	if str is None:
 		await ctx.send("Invalid word.")
 		return 0
-	db = TinyDB('db/chatfilter.json', indent=4) # Define the database
-	table = db.table(ls) # Grab the blacklist table
-	data = Query() # Define query
+	table = self.db.table(ls) # Grab the blacklist table
 	word = word.lower() # String searching is case-sensitive
-	if table.contains(data.word == word):
-		table.remove(data.word == word)
+	if table.contains(Query().word == word):
+		table.remove(Query().word == word)
 		await ctx.send("Word '%s' has been removed from the %s." % (word,ls))
-		update_list()
+		update_list(self)
 	else:
 		await ctx.send("Word '%s' is not present in the %s." % (word,ls))
 		return 0
 
 async def _cf_list(self,ctx,ls):
-	db = TinyDB('db/chatfilter.json', indent=4) # Define the database
-	table = db.table(ls) # Grab the blacklist table
+	table = self.db.table(ls) # Grab the blacklist table
 	if len(table)>0:
 		message = "Chat filter %s: \n```" % (ls)
 		list = []
@@ -76,7 +70,7 @@ async def _cf_list(self,ctx,ls):
 
 def checkphrase(message):
 	phrase = message.content.lower()
-	if phrase[2:][:9] == "cf remove": # Don't trigger if someone is using the remove command
+	if phrase[2:][:3] == "cf ": # Don't trigger if someone is using the remove command
 		return 0
 	processed_word = phrase
 	if any(safe_words in phrase for safe_words in whitelist):
@@ -109,7 +103,8 @@ class ChatFilter(commands.Cog, name="Chat Filter"):
 	
 	def __init__(self, bot):
 		self.bot = bot
-		update_list()
+		self.db = TinyDB('db/chatfilter.json', indent=4)
+		update_list(self)
 	
 	@commands.group()
 	@commands.check(blueonblue.check_group_mods)

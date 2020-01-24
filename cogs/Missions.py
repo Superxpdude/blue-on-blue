@@ -1,6 +1,7 @@
 import discord
-from settings import config
 from discord.ext import commands, tasks
+import blueonblue
+from blueonblue.config import config
 from datetime import datetime, timedelta
 import gspread
 import asyncio
@@ -8,7 +9,52 @@ import json
 import requests
 import os
 from oauth2client.service_account import ServiceAccountCredentials
-import blueonblue
+
+import logging
+log = logging.getLogger("blueonblue")
+
+async def decode_file_name(self,ctx,filename):
+	"""Decodes the file name for a mission to collect information about it.
+	Returns a dict of parameters if successful, otherwise returns False."""
+	
+	filearr = filename.split(".")
+	
+	# Check if the file name ends with pbo
+	if filearr[-1:][0].lower() != "pbo":
+		await ctx.send("Missions can only be submitted in .pbo format.")
+		return False
+	
+	# Check if there are any erroneous periods in the file name
+	if len(filearr) is not 3:
+		await ctx.send("File names can only have periods to denote the map and file extension.")
+		return False
+	
+	map = filearr[-2:][0].lower() # The map will always be the second-last entry here
+	
+	# Check if the mission is a test mission
+	if filename.split("_")[0].lower() == "test":
+		arr = filename.split("_")[1:]
+	else:
+		arr = filename.split("_")
+	
+	# Grab the mission type
+	try:
+		type = arr[0].lower()
+		if not (type in ["coop", "tvt", "cotvt", "zeus", "zgm"]):
+			await ctx.send("'%s' is not a valid mission type!" % (type))
+			return False
+	except:
+		await ctx.send("I could not determine the game type of your mission.")
+		return False
+	
+	# Grab the player count
+	try:
+		playercount = int(arr[1])
+	except:
+		await ctx.send("I could not determine the player count in your mission.")
+		return False
+	
+	return {"gametype": type, "playercount": playercount, "map": map}
 
 class Missions(commands.Cog, name="Missions"):
 	def __init__(self, bot):
@@ -114,9 +160,12 @@ class Missions(commands.Cog, name="Missions"):
 			await ctx.send("You have to attach your mission in order to submit it.")
 			return
 		for a in ctx.message.attachments:
-			if a.filename[-4:] != ".pbo":
-				await ctx.send("You can only submit missions in .pbo format.")
-				return
+			missioninfo = await decode_file_name(self,ctx,a.filename)
+			if missioninfo is False:
+				await ctx.send("%s, I encountered some errors when submitting your mission for auditing. "
+							"Please ensure that your mission file name follows the correct naming format. "
+							"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`" % (ctx.author.mention))
+				return 0
 			await ctx.send("%s, your mission has been submitted for auditing." % (ctx.author.mention))
 			reply = "Mission submitted for audit by %s." % (ctx.author.mention)
 			if text != "":
@@ -141,7 +190,7 @@ class Missions(commands.Cog, name="Missions"):
 		brief="Schedules a mission to be played",
 		aliases=["mission_schedule","schedule"]
 	)
-	@commands.check(blueonblue.check_bot_channel_only)
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	@commands.guild_only()
 	async def op_schedule(self,ctx, date, *, text: str=""):
 		"""Missions must be present in the audit list, and must be spelled *EXACTLY* as they are in the audit list (spaces and other special characters included).
@@ -292,7 +341,7 @@ class Missions(commands.Cog, name="Missions"):
 		brief="Removes a mission from the schedule",
 		aliases=["mission_schedule_cancel","op_schedule_cancel"]
 	)
-	@commands.check(blueonblue.check_group_mods)
+	@commands.check(blueonblue.checks.check_group_mods)
 	async def op_schedule_cancel(self,ctx, date):
 		"""The date must be provided in the ISO 8601 date format (YYYY-MM-DD)."""
 		

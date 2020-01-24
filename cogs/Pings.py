@@ -1,8 +1,11 @@
 import discord
-from settings import config
 from discord.ext import commands
-from tinydb import TinyDB, Query
 import blueonblue
+from blueonblue.config import config
+from tinydb import TinyDB, Query
+import typing
+import logging
+log = logging.getLogger("blueonblue")
 
 # Function to check if any invalid character patters are in a string.
 def sanitize(text):
@@ -30,178 +33,130 @@ def check_ascii(text):
 class Pings(commands.Cog, name="Pings"):
 	"""Ping users by tag."""
 	
-	def __init__(self, bot):
+	def __init__(self,bot):
 		self.bot = bot
+		self.db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
+		
+		# The database stores the following info:
+		# name: User name when added to the list
+		# user_id: Discord user ID
 	
-	# Function that checks if a user can use ping control functions
-	async def check_ping_control(ctx):
-		roles = ctx.author.roles
-		authors = [134830326789832704,96018174163570688]
-		if (
-			ctx.guild.get_role(config["SERVER"]["ROLES"]["ADMIN"]) in roles or
-			ctx.guild.get_role(config["SERVER"]["ROLES"]["MODERATOR"]) in roles or
-			ctx.author.id in authors
-		):
-			return True
-		else:
-			return False
-	
-	@commands.command(
-		name="ping"
-	)
+	@commands.command(name="ping")
 	@commands.guild_only()
 	async def ping(self, ctx, *, tag: str=""):
 		"""Pings all users associated with a specific tag.
-		
 		Any text on a new line will be ignored. You can use this to send a message along with a ping."""
+		data = Query() # Define query
 		tag = tag.split("\n")[0]
 		san = sanitize(tag)
 		if san is not None:
 			await ctx.send(san)
 			return
-		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		tag = tag.lower() # String searching is case-sensitive
-		pings = db.tables() # Grab all tables
+		pings = self.db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
 		if tag in pings: # Pull info from a tag if it exists
-			ping = db.table(tag)
+			ping = self.db.table(tag)
+			users = []
 			message = "Pinging '%s': " % (tag)
-			for u in ping.all(): # Grab all users associated with a tag
-				if "user_id" in u.keys():
-					usr = self.bot.get_user(u["user_id"])
-					if usr is not None:
-						message += usr.mention
-						message += " "
-				else:
-					message += u['mention']
-					message += " "
-			message = message[:-1] # Remove the last character of the message
+			for u in ping.all(): # Grab all users associated with the tag
+				usr = self.bot._guild.get_member(u["user_id"]) # Get the user object
+				if usr is not None: # If we can't find the user (i.e. not in the server), remove them
+					users.append(usr.mention)
+#				else:
+#					ping.remove(doc_ids=[u.doc_id])
+			message = ("Pinging '%s': " % (tag)) + " ".join(users) # Create the ping message
 		else: # If the tag doesn't exist, inform the user
 			message = "This tag does not exist. Try %spinglist for a list of active pings." % (ctx.prefix)
 		
 		# Send the message to the channel
 		await ctx.send(message)
-	
-	@commands.command(
-		name="pingme"
-	)
-	@commands.check(blueonblue.check_bot_channel_only)
+		
+	@commands.command(name="pingme")
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	async def pingme(self, ctx, *, tag: str=""):
 		"""Adds or removes you from a ping list.
-		
 		If you're not in the list, it will add you to the list.
 		If you are in the list, it will remove you from the list."""
 		san = sanitize(tag)
 		if san is not None:
 			await ctx.send(san)
 			return
-		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		tag = tag.lower() # String searching is case-sensitive
-		ping = db.table(tag) # Grab the table for the ping
+		if tag not in self.db.tables():
+			log.info("New tag '%s' created by '%s' [%s]" % (tag, ctx.author.name, ctx.author.id))
+		ping = self.db.table(tag) # Grab the table for the ping
 		data = Query() # Define query
 		if ping.contains(data.user_id == ctx.author.id): # User in ping list
 			ping.remove(data.user_id == ctx.author.id) # Remove the user from the list
 			if len(ping) == 0: # If no users are in the list, remove the list
-				db.purge_table(tag)
-			await ctx.send("%s You have been removed from ping: %s" % (ctx.author.mention,tag))
-		elif ping.contains(data.mention == ctx.author.mention): # User in ping list
-			ping.remove(data.mention == ctx.author.mention) # Remove the user from the list
-			if len(ping) == 0: # If no users are in the list, remove the list
-				db.purge_table(tag)
+				self.db.purge_table(tag)
+				log.info("Tag '%s' removed due to lack of users." % (tag))
 			await ctx.send("%s You have been removed from ping: %s" % (ctx.author.mention,tag))
 		else: # User not in ping list
-			ping.insert({'name': ctx.author.name, 'mention': ctx.author.mention, 'user_id': ctx.author.id})
+			ping.insert({'name': ctx.author.name, 'user_id': ctx.author.id})
 			await ctx.send("%s You have been added to ping: %s" % (ctx.author.mention,tag))
 	
-	@commands.command(
-		name="pinglist"
-	)
-	@commands.check(blueonblue.check_bot_channel_only)
+	@commands.command(name="pinglist")
+	@blueonblue.checks.in_any_channel(config["SERVER"]["CHANNELS"]["BOT"])
 	async def pinglist(self, ctx, *, tag: str=""):
 		"""Lists information about pings.
 		
 		When called with no tag, it will list all active tags.
 		When called with a tag, it will list all users subscribed to that tag.
 		When called with a mention to yourself, it will list all pings that you are currently subscribed to.
-		NOTE: Usernames are stored when added to the list, and may no longer be accurate."""
+		Supports searching for tags. Entering a partial tag will return all valid matches."""
 		
 		gld = self.bot.get_guild(config["SERVER"]["ID"]) # Grab the server object
-		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
 		data = Query() # Define query
-		tag = tag.lower() # String searching is case-sensitive
-		pings = db.tables() # Grab all tables
-		pings.remove('_default') # Remove the default table
-		if tag in pings: # Pull info from a tag if it exists
-			ping = db.table(tag)
-			message = "Tag '%s' mentions the following users: \n```" % (tag)
-			list = []
-			for u in ping.all(): # Grab all users associated with a tag
-				usr = None # Define usr as none
-				if "user_id" in u.keys(): # Check to see if we can find the user
-					usr = gld.get_member(u["user_id"])
-				if usr is not None: # If we found the user, grab their current name
-					list += [usr.display_name]
-				else: # If we can't find the user, or if user_id is not defined, use the stored name
-					list += [u['name']]
-			list = sorted(list, key=str.lower) # Sort list alphabetically
-			for u in list:
-				message += u
-				message += ", "
-			message = message[:-2] # Remove the last two characters of a message
-			message += "```"
-		elif "<@" in tag: # If the tag is a mention
-			if tag.startswith("<@!"):
-				t = tag[3:][:-1]
-			else:
-				t = tag[2:][:-1]
-			if ctx.author.mention.startswith("<@!"):
-				m = ctx.author.mention[3:][:-1]
-			else:
-				m = ctx.author.mention[2:][:-1]
-			if t == m:
-				list = []
-				for p in pings:	# Iterate through all valid pings
-					t = db.table(p)
+		pings = self.db.tables() # Grab all tables
+		pings.remove("_default") # Remove the default table
+		
+		if "<@" in tag: # Search by user
+			if int(tag.replace("<","").replace("@","").replace("!","").replace(">","")) == ctx.author.id:
+				ls = []
+				for p in pings: # Iterate through all valid pings
+					t = self.db.table(p)
 					if t.contains(data.user_id == ctx.author.id):
-						list += [p]
-					elif t.contains(data.mention == ctx.author.mention):
-						list += [p]
-				list = sorted(list, key=str.lower) # Sort list alphabetically
-				if len(list)>0:
-					message = "%s, you are currently subscribed to the following pings: \n```" % (ctx.author.mention)
-					for p in list:
-						message += p
-						message += ", "
-					message = message[:-2]
-					message += "```"
+						ls.append(p)
+				ls = sorted(ls, key=str.lower) # Sort list alphabetically
+				if len(ls)>0:
+					message = f"{ctx.author.mention}, you are currently subscribed to the following pings: "\
+					"\n```" + ", ".join(ls) + "```"
 				else:
 					message = "%s, you are not currently subscribed to any pings." % (ctx.author.mention)
 			else:
-				message = "You can't check a ping list for another user!"
-		elif tag == "": # If no tag present, return all tags
-			if len(pings)>0: 
-				message = "Tag list: \n```"
-				list = []
-				for p in pings: # Grab all pings
-					list += [p]
-				list = sorted(list, key=str.lower) # Sort list alphabetically
-				for p in list:
-					message += p
-					message += ", "
-				message = message[:-2]
-				message += "```"
+				message = "%s, you cannot check a ping list for another user!" % (ctx.author.mention)
+		elif tag in pings: # Direct match for an existing ping
+			ping = self.db.table(tag)
+			ls = []
+			for u in ping.all(): # Grab all users associated with a tag
+				usr = gld.get_member(u["user_id"])
+				if usr is not None: # If we found the user, grab their current name
+					ls.append(usr.display_name)
+#				else: # If we could not find the user (i.e. no longer in the server), remove them from the list
+#					ping.remove(doc_ids=[u.doc_id])
+			ls = sorted(ls, key=str.lower) # Sort list alphabetically
+			message = "Tag '%s' mentions the following users: \n```" % (tag) + ", ".join(ls) + "```"
+		elif len(tag)>0: # Search for pings
+			ls = list(filter(lambda x: x.startswith(tag),pings)) # Filter pings
+			if len(ls)>0:
+				ls = sorted(ls, key=str.lower) # Sort list alphabetically
+				message = "Tag search for '%s': \n```" % (tag) + ", ".join(ls) + "```"
+			else:
+				message = "%s, there are no tags that match the search term: '%s'" % (ctx.author.mention, tag)
+		else: # If no tag is provided, return all tags
+			if len(pings)>0:
+				ls = sorted(pings, key=str.lower) # Sort list of pings alphabetically
+				message = "Tag list: \n```" + ", ".join(ls) + "```"
 			else:
 				message = "There are currently no pings defined."
-		else: # If the tag doesn't exist, inform the user
-			message = "This tag does not exist. Try %spinglist for a list of active pings." % (ctx.prefix)
 		
 		# Send the message to the channel
 		await ctx.send(message)
 	
-	@commands.command(
-		name="pingpurge"
-	)
-	@commands.check(blueonblue.check_group_mods)
+	@commands.command(name="pingpurge")
+	@commands.check(blueonblue.checks.check_group_mods)
 	async def pingpurge(self, ctx, *, tag: str=""):
 		"""Destroys a ping list.
 		
@@ -210,44 +165,18 @@ class Pings(commands.Cog, name="Pings"):
 		This action cannot be undone."""
 		# Purge does not get filtered, we need to make sure it always works.
 		tag = tag.lower() # String searching is case-sensitive
-		db = TinyDB('db/pings.json', sort_keys=True, indent=4) # Define the database
-		pings = db.tables() # Grab all tables
+		pings = self.db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
 		if tag in pings:
-			db.purge_table(tag)
+			self.db.purge_table(tag)
 			await ctx.send("Tag '%s' has been permanently removed by %s." % (tag, ctx.author.name))
+			log.info("Tag '%s' has been permanently removed by %s." % (tag, ctx.author.name))
 		else:
 			await ctx.send("This tag does not exist.")
 
-	#@pingpurge.error
-	#async def pingpurge_error(self,ctx,error):
-	#	if isinstance(error, commands.CheckFailure):
-	#		await ctx.send("You are not authorized to use that command.")
-			
-#	@commands.group()
-#	@commands.check(check_ping_control)
-#	async def pingmod(self, ctx):
-#		"""Ping moderator functions.
-#		
-#		Subcommands are used to modify the ping module.
-#		These commands can only be used by authorized users."""
-#		if ctx.invoked_subcommand is None:
-#			await ctx.send("Invalid pingmod command passed.")
-#	
-#	@pingmod.command()
-#	async def create(self, ctx, *, tag: str=""):
-#		"""Creates a ping list.
-#		
-#		Creates a ping list and allows users to assign themselves to it.
-#		Can only be used by authorized users."""
-#		san = sanitize(tag)
-#		if san is not None:
-#			ctx.send(san)
-#			return
-#		db = TinyDB('db/pings.json') # Define the database
-#		#ping = db.table(tag) # Grab the table for the ping
-#		data = Query() # Define query
-#		tag = tag.lower() # String searching is case-sensitive
-
 def setup(bot):
+	#usercog = bot.get_cog("Users")
+	#if usercog is None:
+	#	print("The user cog must be loaded first!")
+	#	raise RuntimeError("User cog not found")
 	bot.add_cog(Pings(bot))
