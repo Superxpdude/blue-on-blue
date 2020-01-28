@@ -21,6 +21,26 @@ async def msg(request):
 	await chnl.send("Web message!")
 	return web.Response(text="Message sent")
 
+async def hook_gitlab(request):
+	# Make sure that our secret token is valid!
+	if request.headers["x-gitlab-token"] != config["WEB"]["GITLAB-TOKEN"]:
+		log.warning("Gitlab token does not match config file: [%s]" % (request.headers["x-gitlab-token"]))
+		return web.Response(status=403)
+	
+	gld = bluebot.get_guild(config["SERVER"]["ID"])
+	chnl = gld.get_channel(config["SERVER"]["CHANNELS"]["BOT"])
+	
+	
+	
+async def hook(request):
+	data = await request.json()
+	if request.headers["Content-Type"] == "application/json":
+		print("JSON!")
+		print(data["event_name"])
+#	if request.body_exists:
+#		print(await request.read())
+	return web.Response(status=200)
+
 async def webserver_start(self):
 	app = web.Application()
 	app.add_routes([web.get('/', hello)])

@@ -56,6 +56,9 @@ def config_init():
 	cfg["GITHUB"].setdefault("API_TOKEN")
 	cfg["GITHUB"].setdefault("PROJECTS",[])
 	
+	cfg.setdefault("WEB",{})
+	cfg["WEB"].setdefault("GITLAB-TOKEN","changeme")
+	
 	cfg.setdefault("MISSIONS",{})
 	cfg["MISSIONS"].setdefault("SHEET",{})
 	cfg["MISSIONS"]["SHEET"].setdefault("URL")
