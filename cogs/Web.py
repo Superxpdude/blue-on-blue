@@ -20,7 +20,7 @@ async def hello(request):
 async def hook_gitlab(request):
 	# Check if we were sent some JSON data
 	if request.headers["Content-Type"] != "application/json":
-		log.info("Gitlab webhook received with content type: [%s]" % (request.headers["Content-Type"]))
+		log.warning("Gitlab webhook received with content type: [%s]" % (request.headers["Content-Type"]))
 		return web.Response(status=415) # Return "Unsupported Media Type" if we did not receive json
 	
 	# Make sure that our secret token is valid!
@@ -37,17 +37,18 @@ async def hook_gitlab(request):
 	# Push event
 	if data["event_name"].casefold() == "push".casefold():
 		log.info(f"Gitlab webhook received. Push event for project {data['project']['path_with_namespace']}")
-		repo_name = data["project"]["name"]
-		repo_branch = data["ref"].split("/")[2]
-		# Iterate through all of our commits
-		for c in data["commits"]:
-			embed_title = f"{c['author']['name']} committed to [{repo_name}:{repo_branch}]"
-			embed_desc = c["message"]
-			embed_url = c["url"]
-			embed = discord.Embed(title=embed_title, description=embed_desc, color=0xfc6d26)
-			embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-rgb.png", url=config["GITLAB"]["WEB_URL"])
-			embed.add_field(name=c["id"][:7], value="[[Gitlab]](" + embed_url + ")", inline=False)
-			await chnl.send(embed=embed)
+		if data["project"]["visibility_level"] >= 10: # Only send the message if the project is not private.
+			repo_name = data["project"]["name"]
+			repo_branch = data["ref"].split("/")[2]
+			# Iterate through all of our commits
+			for c in data["commits"]:
+				embed_title = f"{c['author']['name']} committed to [{repo_name}:{repo_branch}]"
+				embed_desc = c["message"]
+				embed_url = c["url"]
+				embed = discord.Embed(title=embed_title, description=embed_desc, color=0xfc6d26)
+				embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-rgb.png", url=config["GITLAB"]["WEB_URL"])
+				embed.add_field(name=c["id"][:7], value="[[Gitlab]](" + embed_url + ")", inline=False)
+				await chnl.send(embed=embed)
 	
 	# Return the web response
 	return web.Response(status=200)
@@ -55,7 +56,7 @@ async def hook_gitlab(request):
 async def hook_github(request):
 	# Check if we were sent some JSON data
 	if request.headers["Content-Type"] != "application/json":
-		log.info("Github webhook received with content type: [%s]" % (request.headers["Content-Type"]))
+		log.warning("Github webhook received with content type: [%s]" % (request.headers["Content-Type"]))
 		return web.Response(status=415) # Return "Unsupported Media Type" if we did not receive json
 	
 	# Check to ensure that the data is valid, and encoded with the github token
