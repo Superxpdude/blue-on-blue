@@ -44,10 +44,10 @@ async def hook_gitlab(request):
 			embed_title = f"{c['author']['name']} committed to [{repo_name}:{repo_branch}]"
 			embed_desc = c["message"]
 			embed_url = c["url"]
-			embed = discord.Embed(title=embed_title, description=embed_desc, color=0x4078c0)
-			embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-light.png", url=config["GITLAB"]["WEB_URL"])
+			embed = discord.Embed(title=embed_title, description=embed_desc, color=0xfc6d26)
+			embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-rgb.png", url=config["GITLAB"]["WEB_URL"])
 			embed.add_field(name=c["id"][:7], value="[[Github]](" + embed_url + ")", inline=False)
-			await channel.send(embed=embed)
+			await chnl.send(embed=embed)
 	
 	# Return the web response
 	return web.Response(status=200)
@@ -87,7 +87,7 @@ async def hook_github(request):
 			embed = discord.Embed(title=embed_title, description=embed_desc, color=0x4078c0)
 			embed.set_author(name="Github", icon_url="http://files.superxp.ca/github-icon-light.png", url=config["GITHUB"]["WEB_URL"])
 			embed.add_field(name=c["id"][:7], value="[[Github]](" + embed_url + ")", inline=False)
-			await channel.send(embed=embed)
+			await chnl.send(embed=embed)
 	
 	# New release published (THIS SECTION WIP)
 #	if request.headers["x-github-event"].casefold() == "push".casefold():
