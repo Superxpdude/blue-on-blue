@@ -46,7 +46,7 @@ async def hook_gitlab(request):
 			embed_url = c["url"]
 			embed = discord.Embed(title=embed_title, description=embed_desc, color=0xfc6d26)
 			embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-rgb.png", url=config["GITLAB"]["WEB_URL"])
-			embed.add_field(name=c["id"][:7], value="[[Github]](" + embed_url + ")", inline=False)
+			embed.add_field(name=c["id"][:7], value="[[Gitlab]](" + embed_url + ")", inline=False)
 			await chnl.send(embed=embed)
 	
 	# Return the web response
