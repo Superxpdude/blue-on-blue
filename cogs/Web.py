@@ -45,7 +45,7 @@ async def hook_gitlab(request):
 			embed_desc = c["message"]
 			embed_url = c["url"]
 			embed = discord.Embed(title=embed_title, description=embed_desc, color=0x4078c0)
-			embed.set_author(name="Gitlab", icon_url"http://files.superxp.ca/gitlab-icon-light.png", url=config["GITLAB"]["WEB_URL"])
+			embed.set_author(name="Gitlab", icon_url="http://files.superxp.ca/gitlab-icon-light.png", url=config["GITLAB"]["WEB_URL"])
 			embed.add_field(name=c["id"][:7], value="[[Github]](" + embed_url + ")", inline=False)
 			await channel.send(embed=embed)
 	
@@ -85,7 +85,7 @@ async def hook_github(request):
 			embed_desc = c["message"]
 			embed_url = c["url"]
 			embed = discord.Embed(title=embed_title, description=embed_desc, color=0x4078c0)
-			embed.set_author(name="Github", icon_url"http://files.superxp.ca/github-icon-light.png", url=config["GITHUB"]["WEB_URL"])
+			embed.set_author(name="Github", icon_url="http://files.superxp.ca/github-icon-light.png", url=config["GITHUB"]["WEB_URL"])
 			embed.add_field(name=c["id"][:7], value="[[Github]](" + embed_url + ")", inline=False)
 			await channel.send(embed=embed)
 	
