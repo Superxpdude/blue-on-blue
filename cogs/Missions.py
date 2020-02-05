@@ -74,6 +74,7 @@ class Missions(commands.Cog, name="Missions"):
 		brief="Grabs a list of upcoming missions",
 		aliases=['missions','op']
 	)
+	@commands.max_concurrency(1,per=commands.BucketType.channel,wait=False)
 	async def missions(self, ctx):
 		# Google docs info
 		scope = ['https://spreadsheets.google.com/feeds']
@@ -144,6 +145,13 @@ class Missions(commands.Cog, name="Missions"):
 		
 		if no_missions:
 			await ctx.send("There aren't any missions scheduled right now. Why don't you schedule one?")
+	
+	@missions.error
+	async def missions_on_error(self, ctx, error):
+		if isinstance(error, commands.MaxConcurrencyReached):
+			return # Ignore max concurrency errors
+		else:
+			await ctx.bot.on_command_error(ctx, getattr(error, "original", error), error_force=True)
 	
 	@commands.command(
 		name="op_audit",
