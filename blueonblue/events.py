@@ -59,6 +59,8 @@ def init_events(bot):
 		error : Exception"""
 		
 		# Allow commands to override default error handling behaviour
+		# To continue to this error handler from a command-specific handler, use the following code
+		# await ctx.bot.on_command_error(ctx, getattr(error, "original", error), error_force=True)
 		if not error_force:
 			if hasattr(ctx.command, "on_error"):
 				return

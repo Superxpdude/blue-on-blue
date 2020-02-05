@@ -121,7 +121,10 @@ class Punish(commands.Cog, name="Punish"):
 			rls_tm = datetime.fromisoformat(rls_text) # Convert the time string to a time value
 			usr_id = i['user_id']
 			usr = self.bot._guild.get_member(i['user_id']) # Get the user by their ID
-			usr_name = usr.display_name # Get the user's display name
+			try:
+				usr_name = usr.display_name # Get the user's display name
+			except:
+				usr_name = i['displayname'] # If the user is no longer in the server. Grab their stored name
 			tmdelta = rls_tm - datetime.utcnow() # Find the time delta from now until user release
 			tmdelta = tmdelta - timedelta(microseconds=tmdelta.microseconds) # Remove microseconds
 			if tmdelta > timedelta(microseconds=0):
