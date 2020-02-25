@@ -194,11 +194,12 @@ class Punish(commands.Cog, name="Punish"):
 			if tm > rls_tm: # Check if the user should be released
 				usr = gld.get_member(u['user_id'])
 				usr_roles = []
-				for r in await users.read_data(usr, "roles"):
-					usr_roles.append(self.bot._guild.get_role(r["id"]))
+				
 				if usr is None:
 					await channel_mod.send("Failed to remove punishment from user '%s', user may no longer be present in the server." % (u['name']))
 				else:
+					for r in await users.read_data(usr, "roles", []):
+						usr_roles.append(self.bot._guild.get_role(r["id"]))
 					try:
 						await usr.remove_roles(role_punish, reason='Punishment timeout expired')
 						await usr.add_roles(*usr_roles, reason='Punishment timeout expired')
