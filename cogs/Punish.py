@@ -213,6 +213,12 @@ class Punish(commands.Cog, name="Punish"):
 	@punishloop.before_loop
 	async def before_punishloop(self):
 		await self.bot.wait_until_ready() # Wait until the bot is ready
+		
+	@punishloop.after_loop
+	async def after_punishloop(self):
+		if self.punishloop.failed():
+			log.warning("Punish loop has failed. Attempting to restart.")
+			self.punishloop.restart()
 
 def setup(bot):
 	if (bot.get_cog("Users")) is None:
