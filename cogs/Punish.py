@@ -197,6 +197,10 @@ class Punish(commands.Cog, name="Punish"):
 				
 				if usr is None:
 					await channel_mod.send("Failed to remove punishment from user '%s', user may no longer be present in the server." % (u['name']))
+					# A copy of the same information as below. But using information from the database.
+					await channel_mod.send("User '%s' has been released from punishment due to timeout expiry." % (u['name']))
+					tbl.remove(Query().user_id == u['user_id'])
+					await users.remove_data(u['user_id'], "punished")
 				else:
 					for r in await users.read_data(usr, "roles", []):
 						usr_roles.append(self.bot._guild.get_role(r["id"]))
@@ -206,9 +210,9 @@ class Punish(commands.Cog, name="Punish"):
 					except:
 						await channel_mod.send("Error assigning roles when releasing user %s from punishment." % (usr.mention))
 						log.warning("Failed to assign roles to release user from punishment. User: [%s]. Roles: [%s]" % (usr.name,*usr_roles))
-				await channel_mod.send("User '%s' has been released from punishment due to timeout expiry." % (usr.display_name))
-				tbl.remove(Query().user_id == usr.id)
-				await users.remove_data(usr, "punished")
+					await channel_mod.send("User '%s' has been released from punishment due to timeout expiry." % (usr.display_name))
+					tbl.remove(Query().user_id == usr.id)
+					await users.remove_data(usr, "punished")
 				
 	
 	@punishloop.before_loop
