@@ -17,6 +17,7 @@ async def kill_user(self,usr,*,reason: str="User died",duration: int=5):
 	"""Function to set the user to dead."""
 	tbl = self.db.table('dead')
 	role_dead = self.bot._guild.get_role(config["SERVER"]["ROLES"]["DEAD"])
+	role_punish = gld.get_role(config["SERVER"]["ROLES"]["PUNISH"])
 	users = self.bot.get_cog("Users")
 	
 	time = datetime.utcnow() + timedelta(minutes=duration)
@@ -29,7 +30,7 @@ async def kill_user(self,usr,*,reason: str="User died",duration: int=5):
 	
 	usr_roles = []
 	for r in usr.roles: # Make a list of roles that the bot can remove
-		if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role) and (r.managed is not True):
+		if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role) and (r.managed is not True) and (r != role_dead) and (r != role_punish):
 			usr_roles.append(r)
 	
 	try:
