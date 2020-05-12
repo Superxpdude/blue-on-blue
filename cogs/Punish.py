@@ -222,7 +222,9 @@ class Punish(commands.Cog, name="Punish"):
 	@punishloop.after_loop
 	async def after_punishloop(self):
 		if self.punishloop.failed():
-			log.warning("Punish loop has failed. Attempting to restart.")
+			log.warning("Punish loop has failed. Will attempt to restart in 10 minutes.")
+			asyncio.sleep(600)
+			log.warning("Attempting to restart punish loop.")
 			self.punishloop.restart()
 
 def setup(bot):

@@ -520,7 +520,7 @@ class Fun(commands.Cog, name="Fun"):
 				if usr is not None:
 					await revive_user(self,usr)
 				else:
-					log.info("Could not locate user for automatic revival. User: %s. Roles: %s" % (u['name'],*usr_roles))
+					log.info("Could not locate user for automatic revival. User: %s" % (u['name']))
 	
 	@deadloop.before_loop
 	async def before_deadloop(self):
@@ -529,7 +529,9 @@ class Fun(commands.Cog, name="Fun"):
 	@deadloop.after_loop
 	async def after_deadloop(self):
 		if self.deadloop.failed():
-			log.warning("Revive loop has failed. Attempting to restart.")
+			log.warning("Revive loop has failed. Will attempt to restart in 10 minutes.")
+			asyncio.sleep(600)
+			log.warning("Attempting to restart revive loop.")
 			self.deadloop.restart()
 
 def setup(bot):
