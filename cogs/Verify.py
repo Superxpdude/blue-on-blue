@@ -125,6 +125,8 @@ async def assign_roles(self,ctx,usr):
 			roles = []
 			for r in await usercog.read_data(usr, "roles"):
 				roles.append(self.bot._guild.get_role(r["id"]))
+			if len(roles) == 0:
+				roles.append(member_role)
 			try:
 				await usr.add_roles(*roles, reason="User verified")
 				return True
