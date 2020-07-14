@@ -520,7 +520,7 @@ class Fun(commands.Cog, name="Fun"):
 				if usr is not None:
 					await revive_user(self,usr)
 				else:
-					log.info("Could not locate user for automatic revival. User: %s" % (u['name']))
+					log.info("Could not locate user for automatic revival. User: [%s|%s]" % (u['name'],u['user_id']))
 	
 	@deadloop.before_loop
 	async def before_deadloop(self):

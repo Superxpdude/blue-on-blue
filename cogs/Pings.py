@@ -19,6 +19,8 @@ def sanitize(text):
 		return "You can't use emotes in a ping!"
 	elif check_ascii(text):
 		return "You can't use non-ASCII characters in a ping!"
+	elif "," in text:
+		return "You cannot use commas in a ping!"
 	else:
 		return None
 
