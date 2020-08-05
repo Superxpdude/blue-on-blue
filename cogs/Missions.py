@@ -25,7 +25,7 @@ async def decode_file_name(self,ctx,filename):
 		return False
 	
 	# Check if there are any erroneous periods in the file name
-	if len(filearr) is not 3:
+	if len(filearr) != 3:
 		await ctx.send("File names can only have periods to denote the map and file extension.")
 		return False
 	
