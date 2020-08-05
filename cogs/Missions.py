@@ -140,9 +140,9 @@ class Missions(commands.Cog, name="Missions"):
 						embed.add_field(name="Map", value=missionArr[1], inline=True)
 					else:
 						embed.add_field(name="Map", value="None", inline=True)
-					if (i[col_notes - 1] != ""):
-						embed.add_field(name="Notes", value=i[col_notes -1], inline=True)
 					embed.add_field(name="Author", value=i[4], inline=True)
+					if (i[col_notes - 1] != ""):
+						embed.add_field(name="Notes", value=i[col_notes -1], inline=False)
 					await ctx.send(embed=embed)
 		
 		if no_missions:
