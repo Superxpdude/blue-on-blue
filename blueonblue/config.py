@@ -21,7 +21,7 @@ def config_init():
 	cfg["BOT"].setdefault("DESC", "Blue-on-Blue")
 	cfg["BOT"].setdefault("CMD_PREFIXES", ["$$"])
 	cfg["BOT"].setdefault("TOKEN")
-	cfg["BOT"].setdefault("COGS", ["Users","ChatFilter","Fun","Missions","Pings","Punish","Verify"]) # Users needs to be loaded first
+	cfg["BOT"].setdefault("COGS", ["Users","ChatFilter","Fun","Gold","Missions","Pings","Punish","Verify"]) # Users needs to be loaded first
 	
 	cfg.setdefault("STEAM",{})
 	cfg["STEAM"].setdefault("API_TOKEN")
@@ -42,6 +42,7 @@ def config_init():
 	cfg["SERVER"]["ROLES"].setdefault("MISSION_MAKERS")
 	cfg["SERVER"]["ROLES"].setdefault("PUNISH")
 	cfg["SERVER"]["ROLES"].setdefault("DEAD")
+	cfg["SERVER"]["ROLES"].setdefault("GOLD")
 	
 	cfg.setdefault("GITLAB",{})
 	cfg["GITLAB"].setdefault("WEB_URL","https://gitlab.com")

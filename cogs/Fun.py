@@ -16,8 +16,9 @@ log = logging.getLogger("blueonblue")
 async def kill_user(self,usr,*,reason: str="User died",duration: int=5):
 	"""Function to set the user to dead."""
 	tbl = self.db.table('dead')
-	role_dead = self.bot._guild.get_role(config["SERVER"]["ROLES"]["DEAD"])
-	role_punish = self.bot._guild.get_role(config["SERVER"]["ROLES"]["PUNISH"])
+	gld = self.bot.get_guild(config["SERVER"]["ID"])
+	role_dead = gld.get_role(config["SERVER"]["ROLES"]["DEAD"])
+	role_punish = gld.get_role(config["SERVER"]["ROLES"]["PUNISH"])
 	users = self.bot.get_cog("Users")
 	
 	time = datetime.utcnow() + timedelta(minutes=duration)
@@ -30,7 +31,7 @@ async def kill_user(self,usr,*,reason: str="User died",duration: int=5):
 	
 	usr_roles = []
 	for r in usr.roles: # Make a list of roles that the bot can remove
-		if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role) and (r.managed is not True) and (r != role_dead) and (r != role_punish):
+		if (r != gld.default_role) and (r < gld.me.top_role) and (r.managed is not True) and (r != role_dead) and (r != role_punish):
 			usr_roles.append(r)
 	
 	try:
@@ -43,12 +44,13 @@ async def kill_user(self,usr,*,reason: str="User died",duration: int=5):
 async def revive_user(self,usr):
 	"""Function to set the user to alive."""
 	tbl = self.db.table('dead')
-	role_dead = self.bot._guild.get_role(config["SERVER"]["ROLES"]["DEAD"])
+	gld = self.bot.get_guild(config["SERVER"]["ID"])
+	role_dead = gld.get_role(config["SERVER"]["ROLES"]["DEAD"])
 	users = self.bot.get_cog("Users")
 	
 	usr_roles = []
 	for r in await users.read_data(usr, "roles", []):
-		usr_roles.append(self.bot._guild.get_role(r["id"]))
+		usr_roles.append(gld.get_role(r["id"]))
 	try:
 		await usr.add_roles(*usr_roles, reason='Dead timeout expired')
 		await usr.remove_roles(role_dead, reason='Dead timeout expired')
@@ -379,35 +381,36 @@ class Fun(commands.Cog, name="Fun"):
 	async def russian_roulette_leaderboard(self,ctx):
 		"""Displays the leaderboard."""
 		tbl = self.db.table("roulette")
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
 		board = sorted(tbl.all(), key=lambda u: (u.get("max_streak",0),(u.get("plays",0)-u.get("deaths",0))/max(u.get("deaths",0),1)),reverse=True)
 		if len(board) > 0:
 			embed = discord.Embed(title = "Roulette Leaderboard", color=0x922B21, description="Ranked by highest win streak.")
 			try:
-				usr1 = self.bot._guild.get_member(board[0]["user_id"]).display_name
+				usr1 = gld.get_member(board[0]["user_id"]).display_name
 			except:
 				usr1 = board[0]["display_name"]
 			embed.add_field(name="First Place", value="%s - %s" % (usr1,board[0].get("max_streak",0)), inline=False)
 			if len(board) > 1:
 				try:
-					usr2 = self.bot._guild.get_member(board[1]["user_id"]).display_name
+					usr2 = gld.get_member(board[1]["user_id"]).display_name
 				except:
 					usr2 = board[1]["display_name"]
 				embed.add_field(name="Second Place", value="%s - %s" % (usr2,board[1].get("max_streak",0)), inline=False)
 			if len(board) > 2:
 				try:
-					usr3 = self.bot._guild.get_member(board[2]["user_id"]).display_name
+					usr3 = gld.get_member(board[2]["user_id"]).display_name
 				except:
 					usr3 = board[2]["display_name"]
 				embed.add_field(name="Third Place", value="%s - %s" % (usr3,board[2].get("max_streak",0)), inline=False)
 			if len(board) > 3:
 				try:
-					usr4 = self.bot._guild.get_member(board[3]["user_id"]).display_name
+					usr4 = gld.get_member(board[3]["user_id"]).display_name
 				except:
 					usr4 = board[3]["display_name"]
 				embed.add_field(name="Fourth Place", value="%s - %s" % (usr4,board[3].get("max_streak",0)), inline=False)
 			if len(board) > 4:
 				try:
-					usr5 = self.bot._guild.get_member(board[4]["user_id"]).display_name
+					usr5 = gld.get_member(board[4]["user_id"]).display_name
 				except:
 					usr5 = board[4]["display_name"]
 				embed.add_field(name="Fifth Place", value="%s - %s" % (usr5,board[4].get("max_streak",0)), inline=False)
@@ -510,13 +513,14 @@ class Fun(commands.Cog, name="Fun"):
 	async def deadloop(self):
 		
 		tbl = self.db.table('dead')
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
 		tm = datetime.utcnow()
 		# Begin looping through all users in the dead table
 		for u in tbl:
 			rls_text = u['revive']
 			rls_tm = datetime.fromisoformat(rls_text)
 			if tm > rls_tm: # Check if the user should be revived
-				usr = self.bot._guild.get_member(u['user_id'])
+				usr = gld.get_member(u['user_id'])
 				if usr is not None:
 					await revive_user(self,usr)
 				else:

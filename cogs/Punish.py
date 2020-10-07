@@ -35,6 +35,8 @@ class Punish(commands.Cog, name="Punish"):
 		ex. 'punish userID 1d 12h' would punish the user for 1.5 days.
 		ex. 'punish "Memer" 1w' would punish a user named 'Memer' for 1 week."""
 		
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
+		
 		if usr is None:
 			await ctx.send("You need to specify a valid user!")
 			raise commands.ArgumentParsingError()
@@ -73,8 +75,8 @@ class Punish(commands.Cog, name="Punish"):
 				tbl = self.db.table('punish')
 				users = self.bot.get_cog("Users")
 				tm = datetime.utcnow()
-				role_member = self.bot._guild.get_role(config["SERVER"]["ROLES"]["MEMBER"])
-				role_punish = self.bot._guild.get_role(config["SERVER"]["ROLES"]["PUNISH"])
+				role_member = gld.get_role(config["SERVER"]["ROLES"]["MEMBER"])
+				role_punish = gld.get_role(config["SERVER"]["ROLES"]["PUNISH"])
 				channel_mod = self.bot.get_channel(config["SERVER"]["CHANNELS"]["MOD"])
 				
 				rls_tm = tm + tmdelta
@@ -93,7 +95,7 @@ class Punish(commands.Cog, name="Punish"):
 					
 					usr_roles = []
 					for r in usr.roles: # Make a list of roles that the bot can remove
-						if (r != self.bot._guild.default_role) and (r < self.bot._guild.me.top_role) and (r.managed is not True) and (r != role_punish):
+						if (r != gld.default_role) and (r < gld.me.top_role) and (r.managed is not True) and (r != role_punish):
 							usr_roles.append(r)
 					
 					punish_reason = "User punished by '%s' for '%s'." % (ctx.author.display_name,tm_readable)
@@ -114,13 +116,14 @@ class Punish(commands.Cog, name="Punish"):
 		
 		Displays a full list of all users currently punished by the bot."""
 		
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
 		tbl = self.db.table('punish')
 		embed = discord.Embed(title = "Punished Users", color=0xff0000) # Make our embed
 		for i in tbl.all():
 			rls_text = i['release']
 			rls_tm = datetime.fromisoformat(rls_text) # Convert the time string to a time value
 			usr_id = i['user_id']
-			usr = self.bot._guild.get_member(i['user_id']) # Get the user by their ID
+			usr = gld.get_member(i['user_id']) # Get the user by their ID
 			try:
 				usr_name = usr.display_name # Get the user's display name
 			except:
@@ -148,7 +151,7 @@ class Punish(commands.Cog, name="Punish"):
 			raise commands.ArgumentParsingError()
 		
 		tbl = self.db.table('punish')
-		gld = self.bot._guild
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
 		role_punish = gld.get_role(config["SERVER"]["ROLES"]["PUNISH"])
 		channel_mod = self.bot.get_channel(config["SERVER"]["CHANNELS"]["MOD"])
 		if gld is None:
@@ -159,7 +162,7 @@ class Punish(commands.Cog, name="Punish"):
 		users = self.bot.get_cog("Users")
 		usr_roles = []
 		for r in await users.read_data(usr, "roles"):
-			usr_roles.append(self.bot._guild.get_role(r["id"]))
+			usr_roles.append(gld.get_role(r["id"]))
 		
 		if tbl.contains(Query().user_id == usr_id):
 			try:
@@ -178,7 +181,7 @@ class Punish(commands.Cog, name="Punish"):
 	async def punishloop(self):
 		tbl = self.db.table('punish')
 		tm = datetime.utcnow()
-		gld = self.bot._guild
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
 		role_punish = gld.get_role(config["SERVER"]["ROLES"]["PUNISH"])
 		channel_mod = self.bot.get_channel(config["SERVER"]["CHANNELS"]["MOD"])
 		if gld is None:
@@ -203,7 +206,7 @@ class Punish(commands.Cog, name="Punish"):
 					await users.remove_data(u['user_id'], "punished")
 				else:
 					for r in await users.read_data(usr, "roles", []):
-						usr_roles.append(self.bot._guild.get_role(r["id"]))
+						usr_roles.append(gld.get_role(r["id"]))
 					try:
 						await usr.remove_roles(role_punish, reason='Punishment timeout expired')
 						await usr.add_roles(*usr_roles, reason='Punishment timeout expired')

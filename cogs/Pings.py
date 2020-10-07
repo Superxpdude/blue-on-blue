@@ -48,6 +48,7 @@ class Pings(commands.Cog, name="Pings"):
 	async def ping(self, ctx, *, tag: str=""):
 		"""Pings all users associated with a specific tag.
 		Any text on a new line will be ignored. You can use this to send a message along with a ping."""
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
 		data = Query() # Define query
 		tag = tag.split("\n")[0]
 		san = sanitize(tag)
@@ -62,7 +63,7 @@ class Pings(commands.Cog, name="Pings"):
 			users = []
 			message = "Pinging '%s': " % (tag)
 			for u in ping.all(): # Grab all users associated with the tag
-				usr = self.bot._guild.get_member(u["user_id"]) # Get the user object
+				usr = gld.get_member(u["user_id"]) # Get the user object
 				if usr is not None: # If we can't find the user (i.e. not in the server), remove them
 					users.append(usr.mention)
 #				else:

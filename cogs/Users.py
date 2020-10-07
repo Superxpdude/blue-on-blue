@@ -17,7 +17,7 @@ def get_user_id(usr):
 
 def no_excluded_roles(bot, member, excluded_roles):
 	for r in excluded_roles:
-		role = bot._guild.get_role(r)
+		role = bot.get_guild(config["SERVER"]["ID"])
 		if role in member.roles:
 			return False
 	return True
@@ -25,16 +25,18 @@ def no_excluded_roles(bot, member, excluded_roles):
 async def update_user_roles(self, *members):
 	"""Update the roles for multiple users in the database
 	Requires a list of members (not users) for the server"""
-	everyone = self.bot._guild.default_role # Get the default role
-	bot_role = self.bot._guild.me.top_role # Get the bot's highest role
+	gld = self.bot.get_guild(config["SERVER"]["ID"])
+	everyone = gld.default_role # Get the default role
+	bot_role = gld.me.top_role # Get the bot's highest role
 	ignored_roles = [] # Array of role IDs to be ignored when updating
 	excluded_roles = [
 		config["SERVER"]["ROLES"]["DEAD"],
 		config["SERVER"]["ROLES"]["PUNISH"]
+		config["SERVER"]["ROLES"]["GOLD"]
 	] # Array of role IDs that exclude the user roles from being updated
 	for m in members:
 		if type(m) is int: # Make sure that we have the member object
-			m = self.bot._guild.get_member(m)
+			m = gld.get_member(m)
 		
 		# Do not update roles if the user is a bot, does not have roles, or has any excluded role
 		if (m.bot is not True) and (len(m.roles) > 1) and (no_excluded_roles(self.bot, m, excluded_roles)):
@@ -82,7 +84,8 @@ class Users(commands.Cog, name="Users"):
 	@tasks.loop(hours=1, reconnect=True)
 	async def user_update_loop(self):
 		log.debug("Starting user update loop.")
-		members = self.bot._guild.members # Get a list of members
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
+		members = gld.members # Get a list of members
 		for m in members:
 			if (m.bot is not True) and (len(m.roles) > 1): # Only look for users that have a role assigned
 				self.db.upsert({"user_id": m.id, "name": m.name, "display_name": m.display_name}, Query().user_id == m.id)

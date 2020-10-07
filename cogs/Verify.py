@@ -109,8 +109,9 @@ async def assign_roles(self,ctx,usr):
 	"""Assigns roles to a member once they verify themselves.
 	Uses roles from the users database if present, otherwise assigns the member role."""
 	usercog = self.bot.get_cog("Users")
-	member_role = self.bot._guild.get_role(config["SERVER"]["ROLES"]["MEMBER"])
-	punish_role = self.bot._guild.get_role(config["SERVER"]["ROLES"]["PUNISH"])
+	gld = self.bot.get_guild(config["SERVER"]["ID"])
+	member_role = gld.get_role(config["SERVER"]["ROLES"]["MEMBER"])
+	punish_role = gld.get_role(config["SERVER"]["ROLES"]["PUNISH"])
 	
 	if usercog is not None: # Users cog is loaded
 		punished = await usercog.read_data(usr, "punished")
@@ -124,7 +125,7 @@ async def assign_roles(self,ctx,usr):
 		elif data_roles is not None:
 			roles = []
 			for r in await usercog.read_data(usr, "roles"):
-				roles.append(self.bot._guild.get_role(r["id"]))
+				roles.append(gld.get_role(r["id"]))
 			if len(roles) == 0:
 				roles.append(member_role)
 			try:
@@ -162,7 +163,8 @@ class Verify(commands.Cog, name="Verify"):
 		Requires a full Steam profile URL for authentication."""
 		
 		usr = ctx.author
-		member_role = self.bot._guild.get_role(config["SERVER"]["ROLES"]["MEMBER"])
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
+		member_role = gld.get_role(config["SERVER"]["ROLES"]["MEMBER"])
 		
 		# Check if the user already has the member role
 		if member_role in ctx.author.roles:
@@ -218,7 +220,8 @@ class Verify(commands.Cog, name="Verify"):
 		"""Confirms that a user is a part of the steam group."""
 		
 		usr = ctx.author
-		member_role = self.bot._guild.get_role(config["SERVER"]["ROLES"]["MEMBER"])
+		gld = self.bot.get_guild(config["SERVER"]["ID"])
+		member_role = gld.get_role(config["SERVER"]["ROLES"]["MEMBER"])
 		
 		# Check if the user already has the member role
 		if member_role in ctx.author.roles:
