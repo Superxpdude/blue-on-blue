@@ -31,8 +31,7 @@ async def update_user_roles(self, *members):
 	ignored_roles = [] # Array of role IDs to be ignored when updating
 	excluded_roles = [
 		config["SERVER"]["ROLES"]["DEAD"],
-		config["SERVER"]["ROLES"]["PUNISH"],
-		config["SERVER"]["ROLES"]["GOLD"]
+		config["SERVER"]["ROLES"]["PUNISH"]
 	] # Array of role IDs that exclude the user roles from being updated
 	for m in members:
 		if type(m) is int: # Make sure that we have the member object
