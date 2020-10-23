@@ -17,7 +17,7 @@ def get_user_id(usr):
 
 def no_excluded_roles(bot, member, excluded_roles):
 	for r in excluded_roles:
-		role = bot.get_guild(config["SERVER"]["ID"])
+		role = bot.get_guild(config["SERVER"]["ID"]).get_role(r)
 		if role in member.roles:
 			return False
 	return True
