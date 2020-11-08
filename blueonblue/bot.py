@@ -20,11 +20,15 @@ def get_prefix(client, message):
 	# Allow users to mention the bot instead of using a prefix
 	return commands.when_mentioned_or(*prefixes)(client, message)
 
+intents = discord.Intents.default()
+intents.members = True
+
 # Define the bot
 bot = commands.Bot(
 	command_prefix=get_prefix, # Call the get_prefix function
 	description=config["BOT"]["DESC"], # Sets the bot description for the help command
-	case_insensitive=True # Allow commands to be case insensitive
+	case_insensitive=True, # Allow commands to be case insensitive
+	intents=intents # Enable the members intent
 )
 
 # Assign some values to the bot
