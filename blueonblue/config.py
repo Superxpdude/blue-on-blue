@@ -67,6 +67,10 @@ def config_init():
 	cfg["MISSIONS"]["SHEET"].setdefault("WORKSHEET")
 	cfg["MISSIONS"]["SHEET"].setdefault("API_TOKEN_FILE","config/google_api.json")
 	cfg["MISSIONS"].setdefault("WIKI")
+	
+	cfg.setdefault("EVENTS",{})
+	cfg["EVENTS"].setdefault("CALENDAR",{})
+	cfg["EVENTS"]["CALENDAR"].setDefault("CALENDAR_ID")
 
 	# Write the config
 	with open("config/config.json", "w") as f:
