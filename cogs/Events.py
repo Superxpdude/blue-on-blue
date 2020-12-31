@@ -6,15 +6,16 @@ from datetime import datetime, date
 import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from tinydb import TinyDB, Query
+import logging
+log = logging.getLogger("blueonblue")
 
 class Events(commands.Cog, name='Events'):
 
 	def __init__(self, bot):
 		self.bot = bot
+		self.db = TinyDB('db/events.json', sort_keys=True, indent=4) # Define the database
 		#self.event_channel = config['SERVER']['CHANNELS']['EVENT_ANNOUNCEMENTS']
-
-	#@commands.command(name='register_event')
-	#async def register_event(self, context, text_blob: str=""):
 	
 	@commands.command(
 		name="events",
@@ -23,6 +24,9 @@ class Events(commands.Cog, name='Events'):
 	)
 	@commands.max_concurrency(1,per=commands.BucketType.channel,wait=False)
 	async def events(self, ctx):
+		
+		# Database info
+		planner_tbl = self.db.table('event_planners')
 		
 		# Google docs info
 		scope = ['https://www.googleapis.com/auth/calendar']
@@ -39,22 +43,31 @@ class Events(commands.Cog, name='Events'):
 				startTime = datetime.fromisoformat(e["start"]["dateTime"]) if "dateTime" in e["start"].keys() else None
 				startDate = date.fromisoformat(e["start"]["date"]) if "date" in e["start"].keys() else None
 				
+				if "summary" not in e.keys():
+					log.info("Event calendar event found with no summary")
+					continue
+				
 				if startTime is not None:
 					tz = startTime.utcoffset()
 					tzText = "CST" if (tz.days * 24) + (tz.seconds / 3600) <= -6 else "CDT"
-					embedTitle = startTime.strftime("%I:%M%p {tz}, %A: %Y-%m-%d").format(tz=tzText)
+					timeText = startTime.strftime("%I:%M%p {tz}, %A: %Y-%m-%d").format(tz=tzText)
 				elif startDate is not None:
-					embedTitle = startDate.strftime("%A: %Y-%m-%d")
+					timeText = startDate.strftime("%A: %Y-%m-%d")
 				else:
-					embedTitle = "Date not found"
+					timeText = "Date not found"
 				
 				embedColour = 0x9B59B6 # Discord purple
 				
-				embed = discord.Embed(title=embedTitle, color=embedColour)
-				if "summary" in e.keys():
-					embed.add_field(name="Event", value=e["summary"], inline=True)
+				embed = discord.Embed(title=e["summary"], description=timeText, color=embedColour)
+				
 				if "description" in e.keys():
-					embed.add_field(name="Notes", value=e["description"], inline=False)
+					embed.add_field(name="\u200b", value=e["description"], inline=False) # Zero-width blank character as the title
+				
+				if ("creator" in e.keys()) and ("email" in e["creator"].keys()):
+					planner_info = planner_tbl.get(Query().email == e["creator"]["email"])
+					if (planner_info is not None) and ("displayName" in planner_info.keys()):
+						embed.set_footer(text=f"Organized by {planner_info['displayName']}")
+						
 				await ctx.send(embed=embed)
 				
 		else:
