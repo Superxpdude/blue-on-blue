@@ -71,6 +71,7 @@ def config_init():
 	cfg.setdefault("EVENTS",{})
 	cfg["EVENTS"].setdefault("CALENDAR",{})
 	cfg["EVENTS"]["CALENDAR"].setDefault("CALENDAR_ID")
+	cfg["EVENTS"]["CALENDAR"].setDefault("PUBLIC_URL")
 
 	# Write the config
 	with open("config/config.json", "w") as f:

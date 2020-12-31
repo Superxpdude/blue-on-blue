@@ -58,7 +58,7 @@ class Events(commands.Cog, name='Events'):
 				
 				embedColour = 0x9B59B6 # Discord purple
 				
-				embed = discord.Embed(title=e["summary"], description=timeText, color=embedColour)
+				embed = discord.Embed(title=e["summary"], description=timeText, url=config["EVENTS"]["CALENDAR"]["PUBLIC_URL"], color=embedColour)
 				
 				if "description" in e.keys():
 					embed.add_field(name="\u200b", value=e["description"], inline=False) # Zero-width blank character as the title
