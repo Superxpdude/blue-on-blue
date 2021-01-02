@@ -50,7 +50,7 @@ class Events(commands.Cog, name='Events'):
 				if startTime is not None:
 					tz = startTime.utcoffset()
 					tzText = "CST" if (tz.days * 24) + (tz.seconds / 3600) <= -6 else "CDT"
-					timeText = startTime.strftime("%I:%M%p {tz}, %A: %Y-%m-%d").format(tz=tzText)
+					timeText = startTime.strftime("%I:%M%p {tz}, %A: %Y-%m-%d").format(tz=tzText).lstrip("0")
 				elif startDate is not None:
 					timeText = startDate.strftime("%A: %Y-%m-%d")
 				else:
