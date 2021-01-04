@@ -9,5 +9,6 @@ if NOT exist pyvenv.cfg (
 	exit /b
 )
 echo Loading bot
-cmd /c scripts\activate.bat & python start.py -s
+cmd /c scripts\activate.bat ^
+& python start.py -s
 pause

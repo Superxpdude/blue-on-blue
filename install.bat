@@ -18,7 +18,9 @@ if exist pyvenv.cfg (
 	echo Virtual Environment Created
 )
 echo Installing dependencies
-cmd /c scripts\activate.bat & python start.py -i
+cmd /c scripts\activate.bat ^
+& python -m pip install --upgrade pip ^
+& python start.py -i
 echo Blue on Blue is now installed
 echo Press enter to close
 pause

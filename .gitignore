@@ -7,3 +7,7 @@
 /db
 /temp
 __pycache__
+/Include
+/Lib
+/Scripts
+pyvenv.cfg
