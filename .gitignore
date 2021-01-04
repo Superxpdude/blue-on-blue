@@ -6,3 +6,4 @@
 /config
 /db
 /temp
+__pycache__
