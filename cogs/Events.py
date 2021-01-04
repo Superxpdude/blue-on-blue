@@ -35,7 +35,7 @@ class Events(commands.Cog, name='Events'):
 		service = build("calendar","v3", credentials=credentials)
 		now = datetime.utcnow().isoformat() + "Z"
 		tz = "America/Winnipeg"
-		result = service.events().list(calendarId=config["EVENTS"]["CALENDAR"]["CALENDAR_ID"], timeMin=now, maxResults=10, singleEvents=True, orderBy='startTime', timeZone=tz).execute()
+		result = service.events().list(calendarId=config["EVENTS"]["CALENDAR"]["CALENDAR_ID"], timeMin=now, maxResults=5, singleEvents=True, orderBy='startTime', timeZone=tz).execute()
 		
 		if len(result["items"]) > 0:
 			for e in result["items"]:
