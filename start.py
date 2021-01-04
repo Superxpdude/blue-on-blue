@@ -8,6 +8,7 @@ import subprocess
 parser = argparse.ArgumentParser()
 parser.add_argument('-s','--start',action='store_true',dest="start",help='Run the bot immediately')
 parser.add_argument('-d','--debug',action='store_true',dest="debug",help='Enable debug logging')
+parser.add_argument('-i','--install',action='store_true',dest='install',help="Install the bot's dependencies")
 args = parser.parse_args()
 
 if sys.version_info < (3,7,0,'final'):
@@ -25,6 +26,13 @@ def print_menu():
 	print("3. Exit")
 	print(60 * "-")
 
+def install_dependencies():
+	subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+
+if args.install:
+	install_dependencies()
+	exit()
+
 # If the start argument was not passed, run the menu
 if not args.start:
 	while True:
@@ -34,7 +42,7 @@ if not args.start:
 		if menu_choice == "1": # Start bot
 			break
 		elif menu_choice == "2": # Install dependencies
-			subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+			install_dependencies()
 		elif menu_choice == "3": # Exit
 			exit()
 		else:
