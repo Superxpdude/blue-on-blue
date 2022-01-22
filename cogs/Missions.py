@@ -172,6 +172,9 @@ class Missions(commands.Cog, name="Missions"):
 			return
 		elif len(ctx.message.attachments) == 1:
 			missionFile = ctx.message.attachments[0]
+			if (missionFile.filename.split("_",1)[0].casefold() == "modnight"):
+				await ctx.send(f"{ctx.author.mention} Modnight missions must be submitted with a mod preset html!")
+				return
 			missioninfo = await decode_file_name(self,ctx,missionFile.filename)
 			if missioninfo is False:
 				await ctx.send("%s, I encountered some errors when submitting your mission for auditing. "
