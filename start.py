@@ -102,6 +102,6 @@ from blueonblue.bot import bot
 from blueonblue.events import init_events
 
 init_events(bot)
-bot.run(bot_token, bot=True, reconnect=True)
+bot.run(bot_token, reconnect=True)
 
 log.info("Closing Blue on Blue")

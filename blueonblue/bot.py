@@ -10,7 +10,7 @@ log = logging.getLogger("blueonblue")
 __all__ = ["bot"]
 
 # Define some variables
-loop = asyncio.get_event_loop()
+#loop = asyncio.get_event_loop()
 
 # Function to determine bot prefixes
 def get_prefix(client, message):

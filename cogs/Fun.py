@@ -155,21 +155,21 @@ class Fun(commands.Cog, name="Fun"):
 		if kill:
 			await ctx.send(text_bang)
 			await kill_user(self,ctx.author,reason="User died playing russian roulette.")
-			usrdata = tbl.search(Query().user_id == ctx.author.id)
-			usrdata[0]["plays"] += 1
-			usrdata[0]["deaths"] += 1
-			usrdata[0]["streak"] = 0
-			tbl.write_back(usrdata)
+			usrdata = tbl.get(Query().user_id == ctx.author.id)
+			usrdata["plays"] += 1
+			usrdata["deaths"] += 1
+			usrdata["streak"] = 0
+			tbl.upsert(usrdata,Query().user_id == ctx.author.id)
 			await asyncio.sleep(sleeptime)
 			await ctx.send(text_dead)
 		else:
 			await ctx.send(text_click)
-			usrdata = tbl.search(Query().user_id == ctx.author.id)
-			usrdata[0]["plays"] += 1
-			usrdata[0]["streak"] += 1
-			if usrdata[0]["streak"] > usrdata[0].get("max_streak",0):
-				usrdata[0]["max_streak"] = usrdata[0]["streak"]
-			tbl.write_back(usrdata)
+			usrdata = tbl.get(Query().user_id == ctx.author.id)
+			usrdata["plays"] += 1
+			usrdata["streak"] += 1
+			if usrdata["streak"] > usrdata.get("max_streak",0):
+				usrdata["max_streak"] = usrdata["streak"]
+			tbl.upsert(usrdata,Query().user_id == ctx.author.id)
 			await asyncio.sleep(sleeptime)
 			await ctx.send(text_survive)
 	
@@ -369,7 +369,7 @@ class Fun(commands.Cog, name="Fun"):
 		else:
 			usrdata = tbl.get(Query().user_id == ctx.author.id)
 			embed = discord.Embed(title = "Russian Roulette", color=0x922B21)
-			embed.set_author(name=ctx.author.display_name,icon_url=ctx.author.avatar_url)
+			embed.set_author(name=ctx.author.display_name,icon_url=ctx.author.avatar.url)
 			embed.add_field(name="Plays", value=usrdata.get("plays","N/A"), inline=True)
 			embed.add_field(name="Deaths", value=usrdata.get("deaths","N/A"), inline=True)
 			embed.add_field(name="Streak", value=usrdata.get("streak","N/A"), inline=True)
