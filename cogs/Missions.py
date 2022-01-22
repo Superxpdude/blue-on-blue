@@ -1,3 +1,4 @@
+from operator import truediv
 import discord
 from discord.ext import commands, tasks
 import blueonblue
@@ -40,7 +41,7 @@ async def decode_file_name(self,ctx,filename):
 	# Grab the mission type
 	try:
 		type = arr[0].lower()
-		if not (type in ["coop", "tvt", "cotvt", "zeus", "zgm"]):
+		if not (type in ["coop", "tvt", "cotvt", "zeus", "zgm", "rpg"]):
 			await ctx.send("'%s' is not a valid mission type!" % (type))
 			return False
 	except:
@@ -167,23 +168,24 @@ class Missions(commands.Cog, name="Missions"):
 		Any text present in the command will be forwarded to the auditors as a note."""
 		# TODO: Write filters to ensure that missions follow the correct file naming format
 		if len(ctx.message.attachments) <= 0:
-			await ctx.send("You have to attach your mission in order to submit it.")
+			await ctx.send(f"{ctx.author.mention} You have to attach your mission in order to submit it.")
 			return
-		for a in ctx.message.attachments:
-			missioninfo = await decode_file_name(self,ctx,a.filename)
+		elif len(ctx.message.attachments) == 1:
+			missionFile = ctx.message.attachments[0]
+			missioninfo = await decode_file_name(self,ctx,missionFile.filename)
 			if missioninfo is False:
 				await ctx.send("%s, I encountered some errors when submitting your mission for auditing. "
 							"Please ensure that your mission file name follows the correct naming format. "
 							"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`" % (ctx.author.mention))
 				return 0
-			await ctx.send("%s, your mission has been submitted for auditing." % (ctx.author.mention))
-			reply = "Mission submitted for audit by %s." % (ctx.author.mention)
+			await ctx.send("%s, your modnight mission has been submitted for auditing." % (ctx.author.mention))
+			reply = "Modnight mission submitted for audit by %s." % (ctx.author.mention)
 			if text != "":
 				reply += " Notes from the author below \n```"
 				reply += text
 				reply += "```"
-			file = os.path.join(os.getcwd(),"temp",a.filename)
-			await a.save(file)
+			file = os.path.join(os.getcwd(),"temp",missionFile.filename)
+			await missionFile.save(file)
 			mess = await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send(reply, file=discord.File(file))
 			try: 
 				await mess.pin()
@@ -194,6 +196,63 @@ class Missions(commands.Cog, name="Missions"):
 			except discord.HTTPException:
 				await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send("Pinning the audit message failed. The pin list might be full!")
 			os.remove(file)
+			return
+		
+		elif len(ctx.message.attachments) == 2:
+			# We're going to need to make sure that we have *both* a pbo and an html
+			hasPBO = False
+			hasHTML = False
+
+			for f in ctx.message.attachments:
+				fileExt = f.filename.split(".")[-1]
+				if fileExt.casefold() == "html":
+					hasHTML = True
+				elif fileExt.casefold() == "pbo":
+					hasPBO = True
+					if (f.filename.split("_",1)[0].casefold() != "modnight"):
+						await ctx.send(f"{ctx.author.mention} Modnight missions must be prefixed with `modnight`!")
+						return
+					missioninfo = await decode_file_name(self,ctx,f.filename.split("_",1)[-1])
+					if missioninfo is False:
+						await ctx.send("%s, I encountered some errors when submitting your mission for auditing. "
+									"Please ensure that your mission file name follows the correct naming format. "
+									"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`" % (ctx.author.mention))
+						return 0
+			# If we don't have a pbo and html, throw an error
+			if not (hasPBO and hasHTML):
+				await ctx.send(f"{ctx.author.mention} Modnight missions must be submitted with the mission .pbo and a mod preset .html file.")
+				return
+			# If we have a valid pbo and a valid html, submit the mission for auditing
+			await ctx.send("%s, your mission has been submitted for auditing." % (ctx.author.mention))
+			reply = "Mission submitted for audit by %s." % (ctx.author.mention)
+			if text != "":
+				reply += " Notes from the author below \n```"
+				reply += text
+				reply += "```"
+			
+			files = []
+			for f in ctx.message.attachments:
+				file = os.path.join(os.getcwd(),"temp",f.filename)
+				await f.save(file)
+				files.append(discord.File(file))
+			
+			mess = await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send(reply, files=files)
+			try: 
+				await mess.pin()
+			except discord.Forbidden:
+				await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send("I do not have permissions to pin this audit.")
+			except discord.NotFound:
+				await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send("I ran into an issue pinning an audit message.")
+			except discord.HTTPException:
+				await self.bot.get_channel(config["SERVER"]["CHANNELS"]["MISSION_AUDIT"]).send("Pinning the audit message failed. The pin list might be full!")
+			os.remove(file)
+
+		elif len(ctx.message.attachments) >= 3:
+			await ctx.send(f"{ctx.author.mention} You cannot submit more than two files for audit!")
+			return
+
+
+		
 	
 	@commands.command(
 		name="op_schedule",
