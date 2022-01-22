@@ -370,7 +370,7 @@ class Missions(commands.Cog, name="Missions"):
 		
 		if datecell is not None:
 			#Date already exists in a cell.
-			if mission_sheet.cell(datecell.row,col_mission).value == '':
+			if mission_sheet.cell(datecell.row,col_mission).value is None:
 				#Insert the mission info into the sheet
 				mission_sheet.update_cell(datecell.row,col_mission,audit_row[0])
 				mission_sheet.update_cell(datecell.row,col_map,audit_row[1])
