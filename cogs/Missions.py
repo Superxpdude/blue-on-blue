@@ -181,8 +181,8 @@ class Missions(commands.Cog, name="Missions"):
 							"Please ensure that your mission file name follows the correct naming format. "
 							"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`" % (ctx.author.mention))
 				return 0
-			await ctx.send("%s, your modnight mission has been submitted for auditing." % (ctx.author.mention))
-			reply = "Modnight mission submitted for audit by %s." % (ctx.author.mention)
+			await ctx.send("%s, your mission has been submitted for auditing." % (ctx.author.mention))
+			reply = "Mission submitted for audit by %s." % (ctx.author.mention)
 			if text != "":
 				reply += " Notes from the author below \n```"
 				reply += text
@@ -226,8 +226,8 @@ class Missions(commands.Cog, name="Missions"):
 				await ctx.send(f"{ctx.author.mention} Modnight missions must be submitted with the mission .pbo and a mod preset .html file.")
 				return
 			# If we have a valid pbo and a valid html, submit the mission for auditing
-			await ctx.send("%s, your mission has been submitted for auditing." % (ctx.author.mention))
-			reply = "Mission submitted for audit by %s." % (ctx.author.mention)
+			await ctx.send("%s, your modnight mission has been submitted for auditing." % (ctx.author.mention))
+			reply = "Modnight mission submitted for audit by %s." % (ctx.author.mention)
 			if text != "":
 				reply += " Notes from the author below \n```"
 				reply += text
