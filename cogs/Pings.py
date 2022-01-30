@@ -93,7 +93,7 @@ class Pings(commands.Cog, name="Pings"):
 		if ping.contains(data.user_id == ctx.author.id): # User in ping list
 			ping.remove(data.user_id == ctx.author.id) # Remove the user from the list
 			if len(ping) == 0: # If no users are in the list, remove the list
-				self.db.purge_table(tag)
+				self.db.drop_table(tag)
 				log.info("Tag '%s' removed due to lack of users." % (tag))
 			await ctx.send("%s You have been removed from ping: %s" % (ctx.author.mention,tag))
 		else: # User not in ping list
@@ -171,7 +171,7 @@ class Pings(commands.Cog, name="Pings"):
 		pings = self.db.tables() # Grab all tables
 		pings.remove('_default') # Remove the default table
 		if tag in pings:
-			self.db.purge_table(tag)
+			self.db.drop_table(tag)
 			await ctx.send("Tag '%s' has been permanently removed by %s." % (tag, ctx.author.name))
 			log.info("Tag '%s' has been permanently removed by %s." % (tag, ctx.author.name))
 		else:
