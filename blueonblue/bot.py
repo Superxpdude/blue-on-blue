@@ -69,7 +69,7 @@ class BlueonBlueBot(slash_util.Bot):
 			self.config.write(configfile)
 
 	# Rewritten start function to connect to sqlite db
-	async def blueOnBlue_start(self):
+	async def blueonblue_start(self):
 		async with asqlite.connect("data/blueonblue.sqlite3") as connection:
 			self.db_connection = connection
 			await self.start(self.config["CORE"].get("bot_token"), reconnect=True)
