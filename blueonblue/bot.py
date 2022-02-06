@@ -8,6 +8,8 @@ from datetime import datetime
 
 import sys, traceback
 
+from . import checks
+
 import logging
 log = logging.getLogger("blueonblue")
 
@@ -24,7 +26,14 @@ class BlueonBlueBot(slash_util.Bot):
 				"prefix": "$$",
 				"bot_token": None
 			},
-			"COGS": {}
+			"COGS": {},
+			"SERVER": {
+				"server_id": None,
+				"channel_bot": None,
+				"channel_mod_activity": None,
+				"role_admin": None,
+				"role_moderator": None
+			}
 		})
 
 		# Read local config file
@@ -38,7 +47,7 @@ class BlueonBlueBot(slash_util.Bot):
 		intents.members = True
 
 		super().__init__(
-			command_prefix = commands.when_mentioned_or(self.config["CORE"].get("prefix","$$")),
+			command_prefix = commands.when_mentioned_or(self.config.get("CORE", "prefix", fallback="$$")),
 			description = "Blue on Blue",
 			case_insensitive = True,
 			intents = intents
@@ -101,7 +110,7 @@ class BlueonBlueBot(slash_util.Bot):
 		log.debug(f"Command {ctx.command} invoked by {ctx.author.name}")
 
 	# On command error. Runs whenever a command fails (for any reason)
-	async def on_command_error(self, ctx, error, error_force=False):
+	async def on_command_error(self, ctx: commands.Context, error, error_force=False):
 		"""The event triggered when an error is raised while invoking a command.
 		ctx   : Context
 		error : Exception"""
@@ -148,9 +157,26 @@ class BlueonBlueBot(slash_util.Bot):
 		elif isinstance(error, commands.NoPrivateMessage):
 			await ctx.send("That command cannot be used in private messages.")
 
-		# Channel and user unauthorized goes here
+		elif isinstance(error, checks.ChannelUnauthorized):
+			channels = []
+			for c in error.channels:
+				ch = ctx.guild.get_channel(c)
+				if ch is not None:
+					channels.append(ch.mention)
 
-		elif isinstance(error, commands.NotOwner):
+			if len(channels) > 1:
+				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` can only be used in the following channels: "
+			elif len(channels) == 1:
+				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` can only be used in the following channel: "
+			else:
+				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` cannot be used in this channel."
+
+			# Add the channel idenfiers to the string
+			message += ", ".join(channels)
+
+			await ctx.send(message)
+
+		elif (isinstance(error, checks.UserUnauthorized)) or (isinstance(error, commands.NotOwner)):
 			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.")
 
 		# If we don't have a handler for that error type, execute default error code.
