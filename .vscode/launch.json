@@ -8,7 +8,7 @@
 			"name": "Start Bot",
 			"type": "python",
 			"request": "launch",
-			"program": "${workspaceFolder}/blueonblue",
+			"program": "${workspaceFolder}/start.py",
 			"cwd": "${workspaceFolder}",
 			"console": "integratedTerminal",
 			"subProcess": true,
