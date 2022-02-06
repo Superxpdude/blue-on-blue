@@ -128,7 +128,34 @@ class BlueonBlueBot(slash_util.Bot):
 		if isinstance(error,ignored):
 			return
 
+		elif isinstance(error, commands.MissingRequiredArgument):
+			await ctx.send(f"{ctx.author.mention}, you're missing some arguments.")
+			await ctx.send_help(ctx.command)
 
+		elif isinstance(error, commands.ArgumentParsingError):
+			await ctx.send_help(ctx.command)
 
+		elif isinstance(error, commands.UserInputError):
+			await ctx.send_help()
+
+		elif isinstance(error, commands.CommandInvokeError):
+			await ctx.send(f"Error in command `{ctx.command.qualified_name}`. Please check the logs for details.")
+			log.exception(f"Ignoring exception in command {ctx.command}:")
+
+		elif isinstance(error, commands.CommandOnCooldown):
+			await ctx.send(f"The command `{ctx.command}` is on cooldown. Try again in {round(error.retry_after)} seconds.")
+
+		elif isinstance(error, commands.NoPrivateMessage):
+			await ctx.send("That command cannot be used in private messages.")
+
+		# Channel and user unauthorized goes here
+
+		elif isinstance(error, commands.NotOwner):
+			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.")
+
+		# If we don't have a handler for that error type, execute default error code.
+		else:
+			log.exception(f"Ignoring exception in command {ctx.command}:")
+			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 bot = BlueonBlueBot()
