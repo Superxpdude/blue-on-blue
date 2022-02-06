@@ -88,4 +88,4 @@ if botToken is None:
 log.info("Starting Blue on Blue")
 
 #bot.bot.run(botToken, reconnect=True)
-asyncio.run(bot.blueOnBlue_start())
+asyncio.run(bot.blueonblue_start())
