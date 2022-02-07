@@ -50,30 +50,40 @@ class Users(slash_util.Cog, name="Users"):
 					if (not m.bot) and (len(m.roles)>1): # Only look for users that are not bots, and have at least one role assigned
 						await cursor.execute("INSERT OR REPLACE INTO users (server_id, user_id, display_name, name) VALUES\
 							(:server_id, :user_id, :display_name, :name)", {"server_id": g.id, "user_id": m.id, "name": m.name, "display_name": m.display_name})
-						# Remove roles that are no longer on the user
+
+
 						# Get a list of role IDs on the user that we can edit
 						memberRoles = []
+						updatesBlocked = False
 						for r in m.roles:
+							# Check if the user has any update blocking roles
+							await cursor.execute("SELECT * FROM roles WHERE role_id = :id AND block_updates = 1",{"id": r.id})
+							if await cursor.fetchone() is not None:
+								updatesBlocked = True
+							# Add roles we can manage to the list
 							if (not r.managed) and (r != g.default_role) and (r < g.me.top_role):
 								memberRoles.append(r)
 
-						activeRoles = memberRoles.copy()
-						# Get our stored list of roles
-						await cursor.execute("SELECT server_id, user_id, role_id FROM user_roles WHERE user_id = :user_id", {"user_id": m.id})
-						dbRoles = await cursor.fetchall()
-						for r in dbRoles:
-							if r["role_id"] in activeRoles:
-								dbRoles.remove(m)
+						# Only update the user if they don't have any "update blocked" roles
+						if not updatesBlocked:
+							# Remove roles that are no longer on the user
+							activeRoles = memberRoles.copy()
+							# Get our stored list of roles
+							await cursor.execute("SELECT server_id, user_id, role_id FROM user_roles WHERE user_id = :user_id", {"user_id": m.id})
+							dbRoles = await cursor.fetchall()
+							for r in dbRoles:
+								if r["role_id"] in activeRoles:
+									dbRoles.remove(m)
 
-						# Remove old roles from the database
-						await cursor.executemany("DELETE FROM user_roles WHERE (server_id = ? AND user_id = ? AND role_id = ?)", dbRoles)
+							# Remove old roles from the database
+							await cursor.executemany("DELETE FROM user_roles WHERE (server_id = ? AND user_id = ? AND role_id = ?)", dbRoles)
 
-						# Add new user roles to the database
-						userRoles = []
-						for r in memberRoles:
-							userRoles.append({"server_id": g.id, "user_id": m.id, "role_id": r.id})
+							# Add new user roles to the database
+							userRoles = []
+							for r in memberRoles:
+								userRoles.append({"server_id": g.id, "user_id": m.id, "role_id": r.id})
 
-						await cursor.executemany("INSERT OR REPLACE INTO user_roles VALUES (:server_id, :user_id, :role_id)", userRoles)
+							await cursor.executemany("INSERT OR REPLACE INTO user_roles VALUES (:server_id, :user_id, :role_id)", userRoles)
 
 			await self.bot.db_connection.commit()
 		log.debug("User update loop complete")
