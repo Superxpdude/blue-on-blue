@@ -2,9 +2,9 @@ import discord
 from discord.ext import commands, tasks
 import slash_util
 
-from blueonblue.bot import BlueOnBlueBot
-
 import asqlite
+
+import blueonblue
 
 import logging
 log = logging.getLogger("bloeonblue")
@@ -77,7 +77,7 @@ class Users(slash_util.Cog, name="Users"):
 	"""Base cog for user management"""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(bot, *args, **kwargs)
-		self.bot: BlueOnBlueBot = bot
+		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.db_update_loop.start()
 
 	def cog_unload(self):
@@ -158,5 +158,5 @@ class Users(slash_util.Cog, name="Users"):
 				UNIQUE(server_id,role_id))")
 			await self.bot.db_connection.commit()
 
-def setup(bot: BlueOnBlueBot):
+def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(Users(bot))
