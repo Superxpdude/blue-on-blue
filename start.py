@@ -3,7 +3,6 @@ import sys
 import argparse
 import subprocess
 import os
-import asyncio
 
 import logging
 import logging.handlers
@@ -75,7 +74,8 @@ discordLog = logging.getLogger("discord")
 discordLog.setLevel(logging.WARNING)
 
 # Don't import blueonblue until logging is configured
-from blueonblue import bot
+from blueonblue.bot import BlueOnBlueBot
+bot = BlueOnBlueBot()
 
 botToken = bot.config["CORE"].get("bot_token")
 
@@ -86,6 +86,4 @@ if botToken is None:
 	exit()
 
 log.info("Starting Blue on Blue")
-
-#bot.bot.run(botToken, reconnect=True)
-asyncio.run(bot.blueonblue_start())
+bot.run(botToken, reconnect=True)

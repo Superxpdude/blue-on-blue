@@ -6,7 +6,7 @@ if typing.TYPE_CHECKING:
 	import discord
 
 import logging
-log = logging.getlogger("blueonblue")
+log = logging.getLogger("blueonblue")
 
 async def _check_roles(ctx: commands.Context, *roles: int) -> bool:
 	"""Checks if a user has any of the specified roles (or is an owner of the bot)."""
