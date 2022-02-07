@@ -5,14 +5,14 @@ import subprocess
 
 import logging
 
-from blueonblue.bot import BlueOnBlueBot
+import blueonblue
 log = logging.getLogger("blueonblue")
 
 class BotControl(slash_util.Cog, name = "Bot Control"):
 	"""Commands that control the bot's core functionality."""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(bot, *args, **kwargs)
-		self.bot: BlueOnBlueBot = bot
+		self.bot: blueonblue.BlueOnBlueBot = bot
 
 	@commands.command(brief="This kills the bot")
 	@commands.is_owner()
@@ -106,5 +106,5 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 		print("Break")
 		await ctx.send("Continue!")
 
-def setup(bot: BlueOnBlueBot):
+def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(BotControl(bot))
