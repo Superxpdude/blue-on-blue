@@ -13,9 +13,9 @@ from . import checks
 import logging
 log = logging.getLogger("blueonblue")
 
-__all__ = ["bot", "BlueonBlueBot"]
+__all__ = ["BlueOnBlueBot"]
 
-class BlueonBlueBot(slash_util.Bot):
+class BlueOnBlueBot(slash_util.Bot):
 	def __init__(self):
 		# Set up our config
 		self.config = configparser.ConfigParser(allow_no_value=True)
@@ -42,6 +42,9 @@ class BlueonBlueBot(slash_util.Bot):
 		# Write config back to disk
 		self.write_config()
 
+		# Database variables for type hinting
+		self.db_connection: asqlite.Connection = None
+
 		# Set up our intents
 		intents = discord.Intents.default()
 		intents.members = True
@@ -61,7 +64,7 @@ class BlueonBlueBot(slash_util.Bot):
 		for ext in ["botcontrol","users"]:
 			if ext in extensions:
 				extensions.remove(ext)
-		#extensions.insert(0,"users") # Always load users second
+		extensions.insert(0,"users") # Always load users second
 		extensions.insert(0,"botcontrol") # Always load BotControl first
 
 		for ext in extensions:
@@ -74,14 +77,15 @@ class BlueonBlueBot(slash_util.Bot):
 		log.info("Extensions loaded")
 
 	def write_config(self):
+		"""Write the current bot config to disk"""
 		with open("config/config.ini", "w") as configfile:
 			self.config.write(configfile)
 
-	# Rewritten start function to connect to sqlite db
-	async def blueonblue_start(self):
+	# Override the start function to connect to the sqlite db
+	async def start(self, *args, **kwargs):
 		async with asqlite.connect("data/blueonblue.sqlite3") as connection:
 			self.db_connection = connection
-			await self.start(self.config["CORE"].get("bot_token"), reconnect=True)
+			await super().start(*args, **kwargs)
 
 	# On connect. Runs immediately upon connecting to Discord
 	async def on_connect(self):
@@ -183,5 +187,3 @@ class BlueonBlueBot(slash_util.Bot):
 		else:
 			log.exception(f"Ignoring exception in command {ctx.command}:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
-bot = BlueonBlueBot()
