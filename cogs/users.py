@@ -49,6 +49,30 @@ async def update_member_roles(self, member: discord.Member, cursor: asqlite.Curs
 				userRoles.append({"server_id": member.guild.id, "user_id": member.id, "role_id": r.id})
 			await cursor.executemany("INSERT OR REPLACE INTO user_roles VALUES (:server_id, :user_id, :role_id)", userRoles)
 
+async def update_guild_roles(self, guild: discord.Guild, cursor: asqlite.Cursor):
+	"""Updates role information in the database for a guild."""
+	# Get a list of currently stored roles from the database to see which ones we need to delete
+	removedRoles = []
+	await cursor.execute("SELECT role_id FROM roles WHERE server_id = :server_id", {"server_id": guild.id})
+	serverRoles = await cursor.fetchall()
+	for r in serverRoles:
+		removedRoles.append(r["role_id"])
+
+	for r in guild.roles:
+		if (not r.managed) and (r != guild.default_role) and (r < guild.me.top_role): # Ignore roles that we can't add/remove
+			if r.id in removedRoles:
+				# If the role already exists, don't update the block_updates column
+				await cursor.execute("UPDATE roles SET name = :name WHERE server_id = :server_id AND role_id = :role_id",
+					{"server_id": guild.id, "role_id": r.id, "name": r.name})
+				removedRoles.remove(r.id) # Remove this role from the to-be-deleted list
+			else:
+				# If the role does not exist, add it to the database
+				await cursor.execute("INSERT INTO roles (server_id, role_id, name) VALUES (:server_id, :role_id, :name)",
+				{"server_id": guild.id, "role_id": r.id, "name": r.name})
+
+	# Remove roles that are no longer present in the server
+	await cursor.executemany("DELETE FROM roles WHERE role_id IN (?)", [(i,) for i in removedRoles])
+
 class Users(slash_util.Cog, name="Users"):
 	"""Base cog for user management"""
 	def __init__(self, bot, *args, **kwargs):
@@ -59,6 +83,29 @@ class Users(slash_util.Cog, name="Users"):
 	def cog_unload(self):
 		self.db_update_loop.stop()
 
+	@commands.Cog.listener()
+	async def on_guild_join(self, guild: discord.Guild):
+		"""Add information on all roles to the database when joining a guild."""
+		async with self.bot.db_connection.cursor() as cursor:
+			await update_guild_roles(self, guild, cursor)
+			await self.bot.db_connection.commit()
+
+	@commands.Cog.listener()
+	async def on_guild_role_create(self, role: discord.Role):
+		"""Add role information to the database on role creation."""
+		if (not role.managed) and (role != role.guild.default_role) and (role < role.guild.me.top_role): # Ignore roles that we can't add/remove
+			async with self.bot.db_connection.cursor() as cursor:
+				await cursor.execute("INSERT INTO roles (server_id, role_id, name) VALUES (:server_id, :role_id, :name)",
+					{"server_id": role.guild.id, "role_id": role.id, "name": role.name})
+				await self.bot.db_connection.commit()
+
+	@commands.Cog.listener()
+	async def on_guild_role_delete(self, role: discord.Role):
+		"""Remove role information from the database on role deletion."""
+		async with self.bot.db_connection.cursor() as cursor:
+			await cursor.execute("DELETE FROM roles WHERE role_id = :role_id", {"role_id": role.id}) # Delete any roles in our DB matching the role id
+			await self.bot.db_connection.commit()
+
 	async def update_members(self, *members: discord.Member):
 		"""Updates member data for a collection of members."""
 		async with self.bot.db_connection.cursor() as cursor:
@@ -68,36 +115,14 @@ class Users(slash_util.Cog, name="Users"):
 					await update_member_roles(self, m, cursor)
 			await self.bot.db_connection.commit()
 
-
-	@tasks.loop(seconds=10, reconnect = True)
+	@tasks.loop(hours=1, reconnect = True)
 	async def db_update_loop(self):
 		"""Periodically updates the user database"""
 		log.debug("Starting user update loop.")
 		async with self.bot.db_connection.cursor() as cursor:
 			for g in self.bot.guilds:
 				# Update role info
-				# Get a list of currently stored roles from the database to see which ones we need to delete
-				removedRoles = []
-				await cursor.execute("SELECT role_id FROM roles WHERE server_id = :server_id", {"server_id": g.id})
-				serverRoles = await cursor.fetchall()
-				for r in serverRoles:
-					removedRoles.append(r["role_id"])
-
-				for r in g.roles:
-					if (not r.managed) and (r != g.default_role) and (r < g.me.top_role): # Ignore roles that we can't add/remove
-						if r.id in removedRoles:
-							# If the role already exists, don't update the block_updates column
-							await cursor.execute("UPDATE roles SET name = :name WHERE server_id = :server_id AND role_id = :role_id",
-								{"server_id": g.id, "role_id": r.id, "name": r.name})
-							removedRoles.remove(r.id) # Remove this role from the to-be-deleted list
-						else:
-							# If the role does not exist, add it to the database
-							await cursor.execute("INSERT INTO roles (server_id, role_id, name) VALUES (:server_id, :role_id, :name)",
-							{"server_id": g.id, "role_id": r.id, "name": r.name})
-
-				# Remove roles that are no longer present in the server
-				await cursor.executemany("DELETE FROM roles WHERE role_id IN (?)", [(i,) for i in removedRoles])
-
+				await update_guild_roles(self, g, cursor)
 				# Update member info
 				for m in g.members:
 					if (not m.bot) and (len(m.roles)>1): # Only look for users that are not bots, and have at least one role assigned
