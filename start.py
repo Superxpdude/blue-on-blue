@@ -77,7 +77,7 @@ discordLog.setLevel(logging.WARNING)
 from blueonblue.bot import BlueOnBlueBot
 bot = BlueOnBlueBot()
 
-botToken = bot.config["CORE"].get("bot_token")
+botToken = bot.config.get("CORE","bot_token", fallback=None)
 
 if botToken is None:
 	logging.error("No Discord API token found in config file.")
