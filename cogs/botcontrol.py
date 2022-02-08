@@ -44,8 +44,9 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 			await ctx.send("**`SUCCESS`**")
 			log.info(f"Loaded extension: {cog}.")
 			# Add the extension to the config list
-			self.bot.config["COGS"][cog] = "True"
-			self.bot.write_config()
+			if cog not in ["botcontrol","users"]:
+				self.bot.config["COGS"][cog] = "True"
+				self.bot.write_config()
 
 	@commands.command()
 	@commands.is_owner()
@@ -65,8 +66,9 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 				log.info(f"Error unloading extension: {cog}.")
 
 				# Disable the extension in the config
-				self.bot.config["COGS"][cog] = "False"
-				self.bot.write_config()
+				if cog not in ["botcontrol","users"]:
+					self.bot.config["COGS"][cog] = "False"
+					self.bot.write_config()
 		else:
 			await ctx.send(f"You cannot unload the bot control module! Try using `{ctx.prefix}cogreload` instead.")
 
