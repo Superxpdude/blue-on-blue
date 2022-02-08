@@ -106,6 +106,15 @@ class Users(slash_util.Cog, name="Users"):
 			await cursor.execute("DELETE FROM roles WHERE role_id = :role_id", {"role_id": role.id}) # Delete any roles in our DB matching the role id
 			await self.bot.db_connection.commit()
 
+	@commands.Cog.listener()
+	async def on_member_remove(self, member: discord.Member):
+		"""Updates member data when a member leaves the server"""
+		async with self.bot.db_connection.cursor() as cursor:
+			if (not member.bot) and (len(member.roles)>1): # Only update if the member is not a bot, and has roles assigned
+				await update_member_info(self, member, cursor)
+				await update_member_roles(self, member, cursor)
+			await self.bot.db_connection.commit()
+
 	async def update_members(self, *members: discord.Member):
 		"""Updates member data for a collection of members."""
 		async with self.bot.db_connection.cursor() as cursor:
