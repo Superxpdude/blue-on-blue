@@ -17,30 +17,36 @@ __all__ = ["BlueOnBlueBot"]
 
 class BlueOnBlueBot(slash_util.Bot):
 	def __init__(self):
-		# Set up our config
+		# Set up our core config
 		self.config = configparser.ConfigParser(allow_no_value=True)
-
 		# Set default values
 		self.config.read_dict({
 			"CORE": {
 				"prefix": "$$",
 				"bot_token": None
 			},
-			"COGS": {},
-			"SERVER": {
-				"server_id": None,
+			"COGS": {}
+		})
+		# Read local config file
+		self.config.read("config/config.ini")
+		# Write config back to disk
+		self.write_config()
+
+		# Set up our server config
+		self.serverConfig = configparser.ConfigParser(allow_no_value=True)
+		# Set default values
+		self.serverConfig.read_dict({
+			"DEFAULT": {
 				"channel_bot": None,
 				"channel_mod_activity": None,
 				"role_admin": None,
 				"role_moderator": None
 			}
 		})
-
 		# Read local config file
-		self.config.read("config/config.ini")
-
-		# Write config back to disk
-		self.write_config()
+		self.serverConfig.read("config/serverconfig.ini")
+		# Write serverconfig back to disk
+		self.write_serverConfig()
 
 		# Database variables for type hinting
 		self.db_connection: asqlite.Connection = None
@@ -78,8 +84,13 @@ class BlueOnBlueBot(slash_util.Bot):
 
 	def write_config(self):
 		"""Write the current bot config to disk"""
-		with open("config/config.ini", "w") as configfile:
-			self.config.write(configfile)
+		with open("config/config.ini", "w") as configFile:
+			self.config.write(configFile)
+
+	def write_serverConfig(self):
+		"""Write the current server configs to disk"""
+		with open("config/serverconfig.ini", "w") as configFile:
+			self.serverConfig.write(configFile)
 
 	# Override the start function to connect to the sqlite db
 	async def start(self, *args, **kwargs):
@@ -97,6 +108,12 @@ class BlueOnBlueBot(slash_util.Bot):
 	async def on_ready(self):
 		if hasattr(self, "_uptime"):
 			return
+
+		# Ensure that we have a config section for each server that we're in
+		for g in self.guilds:
+			if not self.serverConfig.has_section(str(g.id)):
+				self.serverConfig.add_section(str(g.id))
+		self.write_serverConfig()
 
 		self._uptime = datetime.utcnow()
 
