@@ -261,6 +261,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 					# User not already in ping
 					success = await ping_add_user(self, tag, ctx.guild, ctx.author, cursor)
 					if success:
+						await ping_update_time(self, tag, ctx.guild, cursor)
 						response = f"{ctx.author.mention} You have been added to ping: `{tag}`"
 					else:
 						response = f"{ctx.author.mention} There was an error adding you to ping: `{tag}`"
