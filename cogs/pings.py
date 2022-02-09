@@ -92,7 +92,8 @@ async def ping_create(self, tag: str, guild: discord.Guild, cursor: asqlite.Curs
 async def ping_delete(self, tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
 	"""Removes a ping from the database"""
 	tag = tag.casefold()
-	await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND ping_name = :ping)", {"server_id": guild.id, "ping": tag})
+	ping_id = await ping_get_id(self, tag, guild, cursor)
+	await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND id = :ping)", {"server_id": guild.id, "ping": ping_id})
 
 async def ping_update_time(self, tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> bool:
 	"""Updates the "last used time" of a ping in the database."""
@@ -194,6 +195,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 		# Begin our DB section
 		async with self.bot.db_connection.cursor() as cursor:
+			response = None
 			ping_id = await ping_get_id(self, tag, ctx.guild, cursor) # Get the ID of the ping (or none if it doesn't exist)
 			if ping_id is None:
 				# Ping does not exist
@@ -241,6 +243,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 		# Begin our DB section
 		async with self.bot.db_connection.cursor() as cursor:
+			response = None
 			# Check if the user in in that ping list
 			# Get the ping ID, and check if the ping exists
 			if await ping_exists(self, tag, ctx.guild, cursor): # Ping exists
@@ -281,6 +284,133 @@ class Pings(slash_util.Cog, name = "Pings"):
 				response = f"{ctx.author.mention} It looks like there was an error with the command `{ctx.command.name}`"
 
 			await ctx.send(response)
+
+	@commands.command()
+	async def pinglist(self, ctx: commands.Context, *, tag: str=""):
+		"""Lists information about pings.
+
+		When called with no tag, it will list all active tags.
+		When called with a tag, it will list all users subscribed to that tag.
+		When called with a mention to yourself, it will list all pings that you are currently subscribed to.
+		Supports searching for tags. Entering a partial tag will return all valid matches."""
+		tag = tag.casefold() # String searching is case-sensitive
+
+		# Begin our DB section
+		async with self.bot.db_connection.cursor() as cursor:
+			response = None
+			# We need to figure out what kind of search we need to run
+			if "<@" in tag: # Search by user
+				userID = tag.replace("<","").replace("@","").replace("!","").replace(">","")
+				if not userID.isnumeric():
+					response = f"{ctx.author.mention}: Error reading pinglist criteria."
+				else:
+					# UserID is numeric
+					if int(userID) == ctx.author.id:
+						# userID matches author. Get list of ping IDs
+						await cursor.execute("SELECT ping_id FROM ping_users WHERE (server_id = :server_id AND user_id = :user_id)",
+							{"server_id": ctx.guild.id, "user_id": ctx.author.id})
+						pingIDData = await cursor.fetchall() # Get the list of pings from the database
+						pingIDs: list[int] = []
+						for ping in pingIDData: # Iterate through our response
+							if "ping_id" in ping.keys():
+								pingIDs.append(ping["ping_id"])
+						if len(pingIDs) > 0:
+							# User is subscribed to at least one ping
+							# Now that we have our ping IDs, we can grab a list of pings
+							# This doesn't create an SQL injection vulnerability, despite formatting the query
+							# This creates a string that looks like ?,?,?,?... where the number of ? matches the length of the pingID list
+							await cursor.execute(f"SELECT ping_name FROM pings WHERE id IN ({','.join('?' * len(pingIDs))})", tuple(pingIDs))
+							userPingData = await cursor.fetchall()
+							userPings: list[str] = []
+							for u in userPingData:
+								if "ping_name" in u.keys():
+									userPings.append(u["ping_name"])
+							# Now we have a list of pings, get ready to print them
+							if len(userPings) > 0:
+								# We have at least one ping
+								response = f"{ctx.author.mention}, you are currently subscribed to the following pings: "\
+									"\n```" + ", ".join(userPings) + "```"
+							else:
+								# Found pings, but could not find their names
+								response = f"{ctx.author.mention}, there was an error retrieving your pings."
+						else:
+							# Did not find any pings for the user
+							response = f"{ctx.author.mention}, you are not currently subscribed to any pings."
+					else:
+						# userID does not match author
+						response = f"{ctx.author.mention}, you cannot check a ping list for another user!"
+
+			elif len(tag) > 0:
+				# Ping provided. Search to see if it exists
+				await cursor.execute("SELECT id, alias_for FROM pings WHERE server_id = :server_id AND ping_name = :ping", {"server_id": ctx.guild.id, "ping": tag})
+				pingInfo = await cursor.fetchone()
+				if pingInfo is not None:
+					# We found a direct match for that ping
+					alias = None
+					if pingInfo["alias_for"] is not None:
+						# Ping is an alias
+						pingID = pingInfo["alias_for"]
+						await cursor.execute("SELECT ping_name FROM pings WHERE id = :ping", {"ping": pingID})
+						aliasData = await cursor.fetchone()
+						if (aliasData is not None) and ("ping_name" in aliasData.keys()):
+							alias = aliasData["ping_name"]
+					else:
+						# Ping is not an alias
+						pingID = pingInfo["id"]
+					# Retrieve a list of users subscribed to the referenced ping
+					await cursor.execute("SELECT user_id FROM ping_users WHERE ping_id = :ping", {"ping": pingID})
+					pingUserData = await cursor.fetchall()
+					pingUserNames = []
+					for p in pingUserData:
+						member = ctx.guild.get_member(p["user_id"])
+						if member is not None: # If we could find the user
+							pingUserNames.append(member.display_name)
+					# Now that we have our display names, create our response
+					if alias is None:
+						# Not an alias
+						response = f"Tag `{tag}` mentions the following users: \n```{', '.join(pingUserNames)}```"
+					else:
+						# Tag is an alias
+						response = f"Tag `{tag}` is an alias for `{alias}`, which mentions the following users: \n```{', '.join(pingUserNames)}```"
+				else:
+					# No direct match. Search for pings matching that tag.
+					# This can't be used with a dict for parameters, since the LIKE statement won't be happy with it
+					await cursor.execute("SELECT ping_name FROM pings WHERE server_id = ? AND ping_name LIKE ? AND alias_for IS NULL", (ctx.guild.id,"%"+tag+"%",))
+					pingData = await cursor.fetchall()
+					pingResults: list[str] = []
+					for p in pingData:
+						if p["ping_name"] is not None: # Ensure that we have a ping name
+							pingResults.append(p["ping_name"])
+					# Now that we have our ping names, we can form our response
+					if len(pingResults) > 0:
+						# We have at least one ping response
+						response = f"Tag search for `{tag}`: \n```{', '.join(sorted(pingResults, key=str.casefold))}```"
+					else:
+						# We did not find any search results
+						response = f"{ctx.author.mention}, there are no tags for the search term: `{tag}`"
+
+			else:
+				# No tag is provided. Return all tags (that are not aliases)
+				await cursor.execute("SELECT ping_name FROM pings WHERE server_id = :server_id AND alias_for IS NULL", {"server_id": ctx.guild.id})
+				pingData = await cursor.fetchall()
+				pingResults: list[str] = []
+				for p in pingData:
+					if "ping_name" in p.keys():
+						pingResults.append(p["ping_name"])
+				# Now that we have our ping names, we can form our response
+				if len(pingResults) > 0:
+					# We have at least one ping response
+					response = f"Tag list: \n```{', '.join(pingResults)}```"
+				else:
+					# No pings defined
+					response = "There are currently no pings defined."
+
+			if response is None:
+				response = f"{ctx.author.mention} It looks like there was an error with the command `{ctx.command.name}`"
+
+			# Send our response
+			await ctx.send(response)
+			# We don't need to commit to the DB, since we don't write anything here
 
 	@tasks.loop(seconds=1, reconnect = False, count=1)
 	async def db_check(self):
