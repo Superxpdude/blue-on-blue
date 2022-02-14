@@ -43,6 +43,8 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 		else:
 			await ctx.send("**`SUCCESS`**")
 			log.info(f"Loaded extension: {cog}.")
+			# Synchronize slash commands
+			await self.bot.sync_commands()
 			# Add the extension to the config list
 			if cog not in ["botcontrol","users"]:
 				self.bot.config["COGS"][cog] = "True"
@@ -63,7 +65,10 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 				log.exception(f"Error unloading extension: {cog}.")
 			else:
 				await ctx.send("**`SUCCESS`**")
-				log.info(f"Error unloading extension: {cog}.")
+				log.info(f"Unloaded extension: {cog}.")
+
+				# Synchronize slash commands
+				await self.bot.sync_commands()
 
 				# Disable the extension in the config
 				if cog not in ["botcontrol","users"]:
@@ -87,6 +92,8 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 		else:
 			await ctx.send("**`SUCCESS`**")
 			log.info(f"Reloaded extension: {cog}.")
+			# Synchronize slash commands
+			await self.bot.sync_commands()
 
 	@commands.command()
 	@commands.is_owner()
