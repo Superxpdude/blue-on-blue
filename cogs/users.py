@@ -36,7 +36,7 @@ async def update_member_roles(self, member: discord.Member, cursor: asqlite.Curs
 			# Remove roles that are no longer on the user
 			activeRoles = memberRoles.copy()
 			# Get our stored list of roles
-			await cursor.execute("SELECT server_id, user_id, role_id FROM user_roles WHERE user_id = :user_id", {"user_id": member.id})
+			await cursor.execute("SELECT server_id, user_id, role_id FROM user_roles WHERE server_id = :server_id AND user_id = :user_id", {"server_id": member.guild.id, "user_id": member.id})
 			dbRoles = await cursor.fetchall()
 			for r in dbRoles:
 				if r["role_id"] in activeRoles:

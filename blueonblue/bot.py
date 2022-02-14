@@ -1,3 +1,4 @@
+import aiohttp
 import discord
 from discord.ext import commands
 import slash_util
@@ -25,7 +26,9 @@ class BlueOnBlueBot(slash_util.Bot):
 				"prefix": "$$",
 				"bot_token": None
 			},
-			"COGS": {}
+			"STEAM": {
+				"api_token": None
+			}
 		})
 		# Read local config file
 		self.config.read("config/config.ini")
@@ -34,23 +37,30 @@ class BlueOnBlueBot(slash_util.Bot):
 
 		# Set up our server config
 		self.serverConfig = configparser.ConfigParser(allow_no_value=True)
+		# Read local config file
+		self.serverConfig.read("config/serverconfig.ini")
 		# Set default values
 		self.serverConfig.read_dict({
 			"DEFAULT": {
-				"channel_bot": None,
-				"channel_mod_activity": None,
-				"role_admin": None,
-				"role_moderator": None,
-				"role_member": None
+				"channel_bot": -1,
+				"channel_mod_activity": -1,
+				"channel_check_in": -1,
+				"role_admin": -1,
+				"role_moderator": -1,
+				"role_member": -1,
+				"steam_group_id": -1,
+				"group_apply_url": None,
+				"group_name": None
 			}
 		})
-		# Read local config file
-		self.serverConfig.read("config/serverconfig.ini")
 		# Write serverconfig back to disk
 		self.write_serverConfig()
 
 		# Database variables for type hinting
 		self.db_connection: asqlite.Connection = None
+
+		# Set up an aioHTTP session
+		self.http_session: aiohttp.ClientSession = aiohttp.ClientSession()
 
 		# Set up our intents
 		intents = discord.Intents.default()
@@ -64,17 +74,25 @@ class BlueOnBlueBot(slash_util.Bot):
 		)
 
 		# Load extensions
-		extensions = []
-		for cog in self.config["COGS"]:
-			if self.config["COGS"].getboolean(cog, fallback=True):
-				extensions.append(cog)
-		for ext in ["botcontrol","users"]:
-			if ext in extensions:
-				extensions.remove(ext)
-		extensions.insert(0,"users") # Always load users second
-		extensions.insert(0,"botcontrol") # Always load BotControl first
+		# Botcontrol and users must be first and second respectively
+		self.initial_extensions = [
+			"botcontrol",
+			"users",
+			"pings",
+			"verify"
+		]
 
-		for ext in extensions:
+		# extensions = []
+		# for cog in self.config["COGS"]:
+		# 	if self.config["COGS"].getboolean(cog, fallback=True):
+		# 		extensions.append(cog)
+		# for ext in ["botcontrol","users"]:
+		# 	if ext in extensions:
+		# 		extensions.remove(ext)
+		# extensions.insert(0,"users") # Always load users second
+		# extensions.insert(0,"botcontrol") # Always load BotControl first
+
+		for ext in self.initial_extensions:
 			try:
 				self.load_extension("cogs." + ext)
 			except Exception as e:
