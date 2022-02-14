@@ -40,7 +40,8 @@ class BlueOnBlueBot(slash_util.Bot):
 				"channel_bot": None,
 				"channel_mod_activity": None,
 				"role_admin": None,
-				"role_moderator": None
+				"role_moderator": None,
+				"role_member": None
 			}
 		})
 		# Read local config file
