@@ -46,9 +46,9 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 			# Synchronize slash commands
 			await self.bot.sync_commands()
 			# Add the extension to the config list
-			if cog not in ["botcontrol","users"]:
-				self.bot.config["COGS"][cog] = "True"
-				self.bot.write_config()
+			# if cog not in ["botcontrol","users"]:
+			# 	self.bot.config["COGS"][cog] = "True"
+			# 	self.bot.write_config()
 
 	@commands.command()
 	@commands.is_owner()
@@ -71,9 +71,9 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 				await self.bot.sync_commands()
 
 				# Disable the extension in the config
-				if cog not in ["botcontrol","users"]:
-					self.bot.config["COGS"][cog] = "False"
-					self.bot.write_config()
+				# if cog not in ["botcontrol","users"]:
+				# 	self.bot.config["COGS"][cog] = "False"
+				# 	self.bot.write_config()
 		else:
 			await ctx.send(f"You cannot unload the bot control module! Try using `{ctx.prefix}cogreload` instead.")
 
