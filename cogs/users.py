@@ -79,11 +79,10 @@ class Users(slash_util.Cog, name="Users"):
 		super().__init__(bot, *args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.bot.loop.create_task(self.db_init())
-		#self.db_update_loop.start()
+		self.db_update_loop.start()
 
 	def cog_unload(self):
-		#self.db_update_loop.stop()
-		print("Unload")
+		self.db_update_loop.stop()
 
 	async def db_init(self):
 		async with self.bot.db_connection.cursor() as cursor:
