@@ -180,7 +180,28 @@ class Pings(slash_util.Cog, name = "Pings"):
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(bot, *args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
-		self.db_check.start()
+		self.bot.loop.create_task(self.db_init())
+
+	async def db_init(self):
+		"""Initializes the database for the cog.
+		Creates the tables if they don't exist."""
+		async with self.bot.db_connection.cursor() as cursor:
+			# Create the tables if they do not exist
+			await cursor.execute("CREATE TABLE if NOT EXISTS pings (\
+				id INTEGER PRIMARY KEY AUTOINCREMENT,\
+				server_id INTEGER NOT NULL,\
+				ping_name TEXT NOT NULL,\
+				last_used_time INTEGER,\
+				alias_for INTEGER,\
+				UNIQUE(server_id,ping_name),\
+				FOREIGN KEY (alias_for) REFERENCES pings (id) ON DELETE CASCADE)")
+			await cursor.execute("CREATE TABLE if NOT EXISTS ping_users (\
+				server_id INTEGER NOT NULL,\
+				ping_id INTEGER,\
+				user_id INTEGER NOT NULL,\
+				UNIQUE(server_id,ping_id,user_id),\
+				FOREIGN KEY (ping_id) REFERENCES pings (id) ON DELETE CASCADE)")
+			await self.bot.db_connection.commit()
 
 	@commands.command()
 	async def ping(self, ctx: commands.Context, *, tag: str=""):
@@ -411,33 +432,6 @@ class Pings(slash_util.Cog, name = "Pings"):
 			# Send our response
 			await ctx.send(response)
 			# We don't need to commit to the DB, since we don't write anything here
-
-	@tasks.loop(seconds=1, reconnect = False, count=1)
-	async def db_check(self):
-		"""Checks that the database tables exist. Before loop function creates it if it doesn't."""
-		log.debug("Creating ping tables if they don't exist.")
-
-	@db_check.before_loop
-	async def db_setup(self):
-		"""Creates the db tables if they don't exist."""
-		# We don't need to wait until the bot is ready for this loop
-		async with self.bot.db_connection.cursor() as cursor:
-			# Create the tables if they do not exist
-			await cursor.execute("CREATE TABLE if NOT EXISTS pings (\
-				id INTEGER PRIMARY KEY AUTOINCREMENT,\
-				server_id INTEGER NOT NULL,\
-				ping_name TEXT NOT NULL,\
-				last_used_time INTEGER,\
-				alias_for INTEGER,\
-				UNIQUE(server_id,ping_name),\
-				FOREIGN KEY (alias_for) REFERENCES pings (id) ON DELETE CASCADE)")
-			await cursor.execute("CREATE TABLE if NOT EXISTS ping_users (\
-				server_id INTEGER NOT NULL,\
-				ping_id INTEGER,\
-				user_id INTEGER NOT NULL,\
-				UNIQUE(server_id,ping_id,user_id),\
-				FOREIGN KEY (ping_id) REFERENCES pings (id) ON DELETE CASCADE)")
-			await self.bot.db_connection.commit()
 
 def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(Pings(bot))

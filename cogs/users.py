@@ -78,10 +78,35 @@ class Users(slash_util.Cog, name="Users"):
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(bot, *args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
-		self.db_update_loop.start()
+		self.bot.loop.create_task(self.db_init())
+		#self.db_update_loop.start()
 
 	def cog_unload(self):
-		self.db_update_loop.stop()
+		#self.db_update_loop.stop()
+		print("Unload")
+
+	async def db_init(self):
+		async with self.bot.db_connection.cursor() as cursor:
+			# Create the tables if they do not exist
+			await cursor.execute("CREATE TABLE if NOT EXISTS users (\
+				server_id INTEGER,\
+				user_id INTEGER,\
+				display_name TEXT,\
+				name TEXT,\
+				UNIQUE(server_id,user_id))")
+			await cursor.execute("CREATE TABLE if NOT EXISTS user_roles (\
+				server_id INTEGER,\
+				user_id INTEGER,\
+				role_id INTEGER,\
+				UNIQUE(server_id,user_id,role_id),\
+				FOREIGN KEY (role_id) REFERENCES roles (role_id) ON DELETE CASCADE)")
+			await cursor.execute("CREATE TABLE if NOT EXISTS roles(\
+				server_id INTEGER,\
+				role_id INTEGER PRIMARY KEY,\
+				name TEXT,\
+				block_updates INTEGER NOT NULL DEFAULT 0,\
+				UNIQUE(server_id,role_id))")
+			await self.bot.db_connection.commit()
 
 	@commands.Cog.listener()
 	async def on_guild_join(self, guild: discord.Guild):
@@ -141,31 +166,10 @@ class Users(slash_util.Cog, name="Users"):
 			await self.bot.db_connection.commit()
 		log.debug("User update loop complete")
 
-	# Create the DB tables before the loop starts running
 	@db_update_loop.before_loop
 	async def before_db_update_loop(self):
+		# Wait until the bot is ready
 		await self.bot.wait_until_ready()
-		async with self.bot.db_connection.cursor() as cursor:
-			# Create the tables if they do not exist
-			await cursor.execute("CREATE TABLE if NOT EXISTS users (\
-				server_id INTEGER,\
-				user_id INTEGER,\
-				display_name TEXT,\
-				name TEXT,\
-				UNIQUE(server_id,user_id))")
-			await cursor.execute("CREATE TABLE if NOT EXISTS user_roles (\
-				server_id INTEGER,\
-				user_id INTEGER,\
-				role_id INTEGER,\
-				UNIQUE(server_id,user_id,role_id),\
-				FOREIGN KEY (role_id) REFERENCES roles (role_id) ON DELETE CASCADE)")
-			await cursor.execute("CREATE TABLE if NOT EXISTS roles(\
-				server_id INTEGER,\
-				role_id INTEGER PRIMARY KEY,\
-				name TEXT,\
-				block_updates INTEGER NOT NULL DEFAULT 0,\
-				UNIQUE(server_id,role_id))")
-			await self.bot.db_connection.commit()
 
 def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(Users(bot))
