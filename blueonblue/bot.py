@@ -92,14 +92,14 @@ class BlueOnBlueBot(slash_util.Bot):
 		# extensions.insert(0,"users") # Always load users second
 		# extensions.insert(0,"botcontrol") # Always load BotControl first
 
-		for ext in self.initial_extensions:
-			try:
-				self.load_extension("cogs." + ext)
-			except Exception as e:
-				log.exception(f"Failed to load extension: {ext}")
-			else:
-				log.info(f"Loaded extension: {ext}")
-		log.info("Extensions loaded")
+		# for ext in self.initial_extensions:
+		# 	try:
+		# 		self.load_extension("cogs." + ext)
+		# 	except Exception as e:
+		# 		log.exception(f"Failed to load extension: {ext}")
+		# 	else:
+		# 		log.info(f"Loaded extension: {ext}")
+		# log.info("Extensions loaded")
 
 	def write_config(self):
 		"""Write the current bot config to disk"""
@@ -115,6 +115,16 @@ class BlueOnBlueBot(slash_util.Bot):
 	async def start(self, *args, **kwargs):
 		async with asqlite.connect("data/blueonblue.sqlite3") as connection:
 			self.db_connection = connection
+			# Load our extensions
+			for ext in self.initial_extensions:
+				try:
+					self.load_extension("cogs." + ext)
+				except Exception as e:
+					log.exception(f"Failed to load extension: {ext}")
+				else:
+					log.info(f"Loaded extension: {ext}")
+			log.info("Extensions loaded")
+			# Start the bot
 			await super().start(*args, **kwargs)
 
 	# On connect. Runs immediately upon connecting to Discord
