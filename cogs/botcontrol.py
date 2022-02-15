@@ -39,10 +39,10 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 			self.bot.load_extension("cogs." + cog)
 		except Exception as e:
 			await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
-			log.exception(f"Failed to load extension: {cog}.")
+			log.exception(f"Failed to load extension: {cog}")
 		else:
 			await ctx.send("**`SUCCESS`**")
-			log.info(f"Loaded extension: {cog}.")
+			log.info(f"Loaded extension: {cog}")
 			# Synchronize slash commands
 			await self.bot.sync_commands()
 			# Add the extension to the config list
@@ -62,10 +62,10 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 				self.bot.unload_extension("cogs." + cog)
 			except Exception as e:
 				await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
-				log.exception(f"Error unloading extension: {cog}.")
+				log.exception(f"Error unloading extension: {cog}")
 			else:
 				await ctx.send("**`SUCCESS`**")
-				log.info(f"Unloaded extension: {cog}.")
+				log.info(f"Unloaded extension: {cog}")
 
 				# Synchronize slash commands
 				await self.bot.sync_commands()
@@ -88,10 +88,10 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 			self.bot.reload_extension("cogs." + cog)
 		except Exception as e:
 			await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
-			log.exception(f"Failed to reload extension: {cog}.")
+			log.exception(f"Failed to reload extension: {cog}")
 		else:
 			await ctx.send("**`SUCCESS`**")
-			log.info(f"Reloaded extension: {cog}.")
+			log.info(f"Reloaded extension: {cog}")
 			# Synchronize slash commands
 			await self.bot.sync_commands()
 
