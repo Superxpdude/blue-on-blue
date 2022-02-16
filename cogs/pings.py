@@ -3,8 +3,8 @@ from discord.ext import commands
 import slash_util
 
 import asqlite
-from datetime import datetime, timezone
-from typing import Literal, List, Optional
+from datetime import datetime, timezone, timedelta
+from typing import Literal, List
 
 import blueonblue
 
@@ -768,7 +768,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 			else:
 				aliasText = ""
 
-			msg = f"You are about to delete the ping `{pingName}` (users: `{userCount}`{aliasText}). This action is **irreversible**."
+			msg = f"{ctx.author.mention}, you are about to delete the ping `{pingName}` (users: `{userCount}`{aliasText}). This action is **irreversible**."
 
 			view = PingDeleteConfirm(ctx)
 			view.message = await ctx.send(msg, view = view)
@@ -786,6 +786,58 @@ class Pings(slash_util.Cog, name = "Pings"):
 			else:
 				# Notify the user that the action timed out
 				await ctx.send("Pending ping delete has timed out", ephemeral=True)
+
+	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.describe(user_threshold = "Threshold below which pings will be subject to deletion")
+	@slash_util.describe(days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion")
+	async def pingpurge(self, ctx: slash_util.Context, user_threshold: int=5, days_since_last_use: int=30):
+		"""Purges pings that are inactive, and below a specified user count."""
+		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
+			await ctx.send("You are not authorized to use this command", ephemeral=True)
+			return
+
+		# Start our DB block
+		async with self.bot.db_connection.cursor() as cursor:
+			# Start getting a list of all pings that are old enough to be up for deletion
+			# Get a timestamp of the current time
+			timeNow = datetime.now(timezone.utc)# Get the current time in timestamp format
+			timeThreshold = timeNow - timedelta(days=days_since_last_use)
+			timeStamp = round(timeThreshold.timestamp())
+			# Use this timestamp to search for pings
+			await cursor.execute("SELECT ping_name FROM pings WHERE server_id = :server_id AND last_used_time < :time AND alias_for IS NULL",
+				{"server_id": ctx.guild.id, "time": timeStamp})
+			pingData = await cursor.fetchall()
+			pingNames = []
+			for p in pingData:
+				# Ping names cannot be null/None
+				if (await ping_count_active_users(p["ping_name"], ctx.guild, cursor) < user_threshold):
+					pingNames.append(p["ping_name"])
+			# Now that we have a list of ping names, we can continue
+			if len(pingNames) > 0:
+				# At least one ping was found
+				# Prepare our message and view
+				msg = f"{ctx.author.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago). This action is **irreversible**.\n```{', '.join(pingNames)}```"
+				view = PingDeleteConfirm(ctx) # We can re-use the delete confirmation view
+				view.message = await ctx.send(msg, view = view)
+				await view.wait()
+
+				# Handle the response
+				if view.response:
+					# Action confirmed
+					# Delete all pings that met our search criteria
+					for p in pingNames:
+						await ping_delete(p, ctx.guild, cursor)
+					await ctx.send(f"Pings have been successfully purged.")
+				elif not view.response:
+					# Action cancelled
+					await ctx.send(f"Purge action cancelled.")
+				else:
+					# Notify the user that the action timed out
+					await ctx.send("Pending ping purge has timed out", ephemeral=True)
+
+			else:
+				# Did not find any pings matching search criteria
+				await ctx.send(f"{ctx.author.mention}, there were no pings found with fewer than `{user_threshold}` users that were last used more than `{days_since_last_use}` days ago.")
 
 def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(Pings(bot))
