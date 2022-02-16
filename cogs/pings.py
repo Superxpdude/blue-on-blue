@@ -4,7 +4,7 @@ import slash_util
 
 import asqlite
 from datetime import datetime, timezone
-from typing import Literal, List
+from typing import Literal, List, Optional
 
 import blueonblue
 
@@ -166,8 +166,17 @@ async def ping_remove_user(tag: str, guild: discord.Guild, user: discord.Member,
 		await cursor.execute("DELETE FROM ping_users WHERE (ping_id = :ping AND user_id = :user_id)",
 			{"ping": ping_id, "user_id": user.id})
 		return True
-	else: # Ping does not exist. Could not add user to ping.
+	else: # Ping does not exist. Could not remove user from ping.
 		return False
+
+async def ping_remove_user_by_id(pingID: int, userID: int, cursor: asqlite.Cursor) -> bool:
+	"""Removes a user from a ping.
+	Requires a ping ID and user ID
+	Returns False if an error was encountered."""
+	# This doesn't need a server reference, since ping IDs must be globally unique.
+	await cursor.execute("DELETE FROM ping_users WHERE (ping_id = :ping AND user_id = :user_id)",
+		{"ping": pingID, "user_id": userID})
+	return True
 
 async def ping_has_user(tag: str, guild: discord.Guild, user: discord.Member, cursor: asqlite.Cursor) -> bool:
 	"""Checks if a user is already in a ping.
@@ -200,6 +209,26 @@ async def ping_count_users(tag: str, guild: discord.Guild, cursor: asqlite.Curso
 		userCount = await cursor.fetchone()
 		return userCount[0] # This entry has to be on the return. The await can't be subscripted.
 
+async def ping_count_active_users(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> int:
+	"""Returns the number of users present in a ping that are currently in the server.
+	This is slower than ping_count_users().
+	Pings that don't exist will return -1."""
+	tag = tag.casefold()
+	# Get the ID of the ping
+	ping_id = await ping_get_id(tag, guild, cursor)
+	if ping_id is None: # Ping does not exist
+		return -1
+	else: # Ping exists
+		await cursor.execute("SELECT user_id FROM ping_users WHERE ping_id = :ping", {"ping": ping_id})
+		userIDs = await cursor.fetchall()
+		userCount = 0 # Start our count
+		for u in userIDs:
+			user = guild.get_member(u["user_id"])
+			if user is not None:
+				userCount += 1 # Increment usercount by 1
+		# Return our usercount
+		return userCount
+
 async def ping_get_user_ids_by_id(id: int, cursor: asqlite.Cursor) -> list[int]:
 	"""Returns a list of user IDs present in a ping by using the ping ID.
 	Empty or invalid pings will return an empty list."""
@@ -213,52 +242,34 @@ async def ping_get_user_ids_by_id(id: int, cursor: asqlite.Cursor) -> list[int]:
 	# Return our list of userIDs
 	return userIDList
 
-# Set up views for the pingDelete and pingPurge commands
-class PingDeleteConfirm(discord.ui.View):
-	def __init__(self, bot: blueonblue.BlueOnBlueBot, ctx: slash_util.Context, tag: str):
-		self.bot = bot
-		self.ctx = ctx
-		self.tag = tag
-		self.message: discord.Message = None
-		super().__init__(timeout=30)
-
-	async def deactivate(self, timedOut: bool = False):
-		for child in self.children:
-			child.disabled = True
-		if timedOut:
-			msg: discord.Message = self.message
-			messageText = msg.content # Get message text
-			messageText += "\nTimed out"
-			await self.message.edit(messageText, view=self)
-		else:
-			await self.message.edit(view=self)
-		# Stop the view
-		self.stop()
-
+# Set up views for the pingDelete, pingMerge, and pingPurge commands
+class PingDeleteConfirm(blueonblue.views.AuthorResponseViewBase):
+	"""Confirmation view for ping delete."""
 	@discord.ui.button(label = "Delete", style = discord.ButtonStyle.danger)
-	async def delete(self, button: discord.ui.Button, interaction: discord.Interaction):
-		# Start our DB block
-		async with self.bot.db_connection.cursor() as cursor:
-			await ping_delete(self.tag, self.ctx.guild, cursor)
-			await self.bot.db_connection.commit()
-			await interaction.response.send_message(f"Ping `{self.tag}` has been deleted by {self.ctx.author.mention}.")
-			await self.deactivate()
+	async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
+		"""Red button for destructive action"""
+		self.response = True
+		await self.terminate()
 
 	@discord.ui.button(label = "Cancel", style = discord.ButtonStyle.secondary)
 	async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
-		await interaction.response.send_message(f"Deletion of ping `{self.tag}` has been cancelled")
-		await self.deactivate()
+		"""Grey button for cancellation"""
+		self.response = False
+		await self.terminate()
 
-	# Only allow the original command user to interact with the buttons
-	async def interaction_check(self, interaction: discord.Interaction) -> bool:
-		if interaction.user == self.ctx.author:
-			return True
-		else:
-			await interaction.response.send_message("This button is not for you.", ephemeral=True)
-			return False
+class PingMergeConfirm(blueonblue.views.AuthorResponseViewBase):
+	"""Confirmation view for ping merge."""
+	@discord.ui.button(label = "Merge", style = discord.ButtonStyle.danger)
+	async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
+		"""Red button for destructive action"""
+		self.response = True
+		await self.terminate()
 
-	async def on_timeout(self):
-		await self.deactivate(True) # Deactivate all buttons on timeout
+	@discord.ui.button(label = "Cancel", style = discord.ButtonStyle.secondary)
+	async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
+		"""Grey button for cancellation"""
+		self.response = False
+		await self.terminate()
 
 class Pings(slash_util.Cog, name = "Pings"):
 	"""Ping users by a tag."""
@@ -398,7 +409,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
 	@slash_util.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
-	async def pinglist(self, ctx: slash_util.Context, mode: Literal["all", "me"]):
+	async def pinglist(self, ctx: slash_util.Context, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
 		# When called with no tag, it will list all active tags.
 		# When called with a tag, it will list all users subscribed to that tag.
@@ -627,6 +638,104 @@ class Pings(slash_util.Cog, name = "Pings"):
 				else:
 					await ctx.send(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
 
+	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.describe(merge_from = "Ping that will be converted to an alias and merged")
+	@slash_util.describe(merge_to = "Ping that will be merged into")
+	async def pingmerge(self, ctx: slash_util.Context, merge_from: str, merge_to: str):
+		"""Merges two pings"""
+		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
+			await ctx.send("You are not authorized to use this command", ephemeral=True)
+			return
+
+		# Begin our DB section
+		async with self.bot.db_connection.cursor() as cursor:
+			# Get the names of the pings for our two pings
+			fromID = await ping_get_id(merge_from, ctx.guild, cursor)
+			fromName = await ping_get_name(fromID, cursor)
+
+			toID = await ping_get_id(merge_to, ctx.guild, cursor)
+			toName = await ping_get_name(toID, cursor)
+
+			# Make sure these pings exist
+			if fromName is None:
+				# "From" ping not found
+				await ctx.send(f"The ping `{merge_from}` does not exist. Please specify a valid ping to be merged.", ephemeral=True)
+				return
+			if toName is None:
+				# "To" ping not found
+				await ctx.send(f"The ping `{merge_to}` does not exist. Please specify a valid ping to merge to.", ephemeral=True)
+				return
+
+			# Get aliases and usercounts for the pings if they exist
+			fromAliases = await ping_get_alias_names(fromID, cursor)
+			fromUserCount = await ping_count_active_users(merge_from, ctx.guild, cursor)
+
+			toAliases = await ping_get_alias_names(toID, cursor)
+			toUserCount = await ping_count_active_users(merge_to, ctx.guild, cursor)
+
+			# Start preparing our message
+			# Set up our alias texts first
+			if len(fromAliases) > 0:
+				fromAliasText = f", aliases: `{', '.join(fromAliases)}`"
+			else:
+				fromAliasText = ""
+			if len(toAliases) > 0:
+				toAliasText = f", aliases: `{', '.join(toAliases)}`"
+			else:
+				toAliasText = ""
+
+			# Create our texts for the "from" and "to" pings
+			fromText = f"`{fromName}` (users: `{fromUserCount}`{fromAliasText})"
+			toText = f"`{toName}` (users: `{toUserCount}`{toAliasText})"
+
+			# Set up our message and view
+			messageText = f"{ctx.author.mention}, you are about to merge the ping {fromText} into the ping {toText}. This action is **irreversible**."
+			view = PingMergeConfirm(ctx)
+			view.message = await ctx.send(messageText, view = view)
+			# Wait for the view to finish
+			await view.wait()
+
+			# Once we have a response, continue
+			if view.response:
+				# Action confirmed
+				# We need to first clear any duplicate users from the ping to be merged
+				fromUsers = await ping_get_user_ids_by_id(fromID, cursor)
+				toUsers = await ping_get_user_ids_by_id(toID, cursor)
+				deleteUsers = []
+				# Get a list of users that need to be cleared from the "from" ping
+				for u in fromUsers:
+					if u in toUsers:
+						deleteUsers.append(u)
+				# Remove duplicate users from the "from" ping
+				for d in deleteUsers:
+					await ping_remove_user_by_id(fromID, d, cursor)
+				# Now that our duplicate users have been removed from their pings, migrate all users and aliases
+				await cursor.execute("UPDATE ping_users SET ping_id = :toID WHERE ping_id = :fromID", {"toID": toID, "fromID": fromID})
+				# Migrate existing aliases
+				await cursor.execute("UPDATE pings SET alias_for = :toID WHERE alias_for = :fromID", {"toID": toID, "fromID": fromID})
+				# Delete the old ping
+				await ping_delete(fromName, ctx.guild, cursor)
+				# Create an alias linking the old ping to the new ping
+				await ping_create_alias(fromName, toID, ctx.guild, cursor)
+
+				# Commit changes
+				await self.bot.db_connection.commit()
+
+				# Get new information about our final ping
+				toAliasesNew = await ping_get_alias_names(toID, cursor)
+				toTextNew = f"`{toName}`"
+				if len(toAliasesNew) > 0:
+					toTextNew += f" (aliases: `{', '.join(toAliasesNew)}`)"
+				# Send our confirmation
+				await ctx.send(f"Ping `{fromName}` has been successfully merged into {toTextNew}.")
+
+			elif not view.response:
+				# Action cancelled
+				await ctx.send(f"Merge action cancelled.")
+
+			else:
+				# Notify the user that the action timed out
+				await ctx.send("Pending ping merge has timed out", ephemeral=True)
 
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
@@ -650,14 +759,33 @@ class Pings(slash_util.Cog, name = "Pings"):
 			pingName = await ping_get_name(pingID, cursor)
 			# Get a list of any aliases we might have
 			aliases = await ping_get_alias_names(pingID, cursor)
+			# Get the user count in the ping
+			userCount = await ping_count_active_users(pingName, ctx.guild, cursor)
 
 			# Set up our message
-			msg = f"You are about to delete the ping `{pingName}`"
 			if len(aliases) > 0:
-				msg += f" (aliases: `{', '.join(aliases)}`)"
+				aliasText = f", aliases: `{', '.join(aliases)}`"
+			else:
+				aliasText = ""
 
-			view = PingDeleteConfirm(self.bot, ctx, tag)
+			msg = f"You are about to delete the ping `{pingName}` (users: `{userCount}`{aliasText}). This action is **irreversible**."
+
+			view = PingDeleteConfirm(ctx)
 			view.message = await ctx.send(msg, view = view)
+			await view.wait()
+
+			# Once we have a response, continue
+			if view.response:
+				# Action confirmed
+				# Pretty straightforward, just delete the ping. SQLite foreign keys should handle the rest.
+				await ping_delete(pingName, ctx.guild, cursor)
+				await ctx.send(f"The ping `{pingName}` has been permanently deleted.")
+			elif not view.response:
+				# Action cancelled
+				await ctx.send(f"Delete action cancelled.")
+			else:
+				# Notify the user that the action timed out
+				await ctx.send("Pending ping delete has timed out", ephemeral=True)
 
 def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(Pings(bot))
