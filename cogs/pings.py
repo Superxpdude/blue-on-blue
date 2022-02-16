@@ -299,11 +299,10 @@ class Pings(slash_util.Cog, name = "Pings"):
 				FOREIGN KEY (ping_id) REFERENCES pings (id) ON DELETE CASCADE)")
 			await self.bot.db_connection.commit()
 
-	@commands.command()
-	async def ping(self, ctx: commands.Context, *, tag: str=""):
-		"""Pings all users associated with a specific tag.
-		Any text on a new line will be ignored. You can use this to send a message along with a ping."""
-		tag = tag.split("\n")[0]
+	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.describe(tag = "Name of ping")
+	async def ping(self, ctx: commands.Context, tag: str):
+		"""Pings all users associated with a specific tag."""
 		san_check = sanitize_check(tag)
 		if san_check is not None: # Validate our tag first
 			await ctx.send(f"{ctx.author.mention}: {san_check}")
@@ -316,7 +315,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 			ping_id = await ping_get_id(tag, ctx.guild, cursor) # Get the ID of the ping (or none if it doesn't exist)
 			if ping_id is None:
 				# Ping does not exist
-				response = f"{ctx.author.mention} This tag does not exist. Try `{ctx.prefix}pinglist` for a list of active pings."
+				response = f"The tag `{tag}` does not exist. Try `/pinglist` for a list of active pings."
 			else:
 				# Ping exists
 				pingUserIDs = await ping_get_user_ids_by_id(ping_id, cursor)
@@ -336,7 +335,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 					response = f"{ctx.author.mention} has pinged `{tag}`: " + " ".join(pingMentions) # Create the ping message
 				else:
 					# Ping is empty
-					response = f"{ctx.author.mention} Ping `{tag}` appears to be empty. Performing cleanup." # Inform the user
+					response = f"Ping `{tag}` appears to be empty. Performing cleanup." # Inform the user
 					await ping_delete(tag, ctx.guild, cursor)
 
 			await self.bot.db_connection.commit() # Write data to the database
@@ -816,7 +815,8 @@ class Pings(slash_util.Cog, name = "Pings"):
 			if len(pingNames) > 0:
 				# At least one ping was found
 				# Prepare our message and view
-				msg = f"{ctx.author.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago). This action is **irreversible**.\n```{', '.join(pingNames)}```"
+				msg = f"{ctx.author.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago). "\
+					f"This action is **irreversible**.\n```{', '.join(pingNames)}```"
 				view = PingDeleteConfirm(ctx) # We can re-use the delete confirmation view
 				view.message = await ctx.send(msg, view = view)
 				await view.wait()
