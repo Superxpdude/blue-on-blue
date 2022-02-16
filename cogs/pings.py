@@ -121,6 +121,18 @@ async def ping_delete(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) ->
 	ping_id = await ping_get_id(tag, guild, cursor)
 	await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND id = :ping)", {"server_id": guild.id, "ping": ping_id})
 
+async def ping_create_alias(tag: str, pingID: int, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
+	"""Creates an alias for an existing ping"""
+	tag = tag.casefold()
+	await cursor.execute("INSERT OR REPLACE INTO pings (server_id, ping_name, alias_for) VALUES (:server_id, :alias, :pingID)",
+		{"server_id": guild.id, "alias": tag, "pingID": pingID})
+
+async def ping_delete_alias(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
+	"""Deletes an alias for an existing ping"""
+	tag = tag.casefold()
+	await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND ping_name = :tag AND alias_for IS NOT NULL)",
+		{"server_id": guild.id, "tag": tag})
+
 async def ping_update_time(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> bool:
 	"""Updates the "last used time" of a ping in the database."""
 	tag = tag.casefold()
@@ -220,6 +232,8 @@ class PingDeleteConfirm(discord.ui.View):
 			await self.message.edit(messageText, view=self)
 		else:
 			await self.message.edit(view=self)
+		# Stop the view
+		self.stop()
 
 	@discord.ui.button(label = "Delete", style = discord.ButtonStyle.danger)
 	async def delete(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -547,6 +561,73 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 			# Send our response
 			await ctx.send(response)
+
+	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.describe(alias = "Alias to create / destroy")
+	@slash_util.describe(tag = "Ping to tie the alias to. Leave blank to remove alias.")
+	async def pingalias(self, ctx: slash_util.Context, alias: str, tag: str = None):
+		"""Creates (or removes) an alias for a ping"""
+		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
+			await ctx.send("You are not authorized to use this command", ephemeral=True)
+			return
+
+		# Start our DB block
+		async with self.bot.db_connection.cursor() as cursor:
+			# Check if we need to create or destroy the alias
+			if tag is not None:
+				# Create an alias
+				if await ping_exists(alias, ctx.guild, cursor):
+					# Ping already exists with this tag
+					# Check if the ping is an alias
+					if await ping_is_alias(alias, ctx.guild, cursor):
+						# Ping is an alias
+						# Get the name of the primary ping
+						primaryID = await ping_get_id(alias, ctx.guild, cursor)
+						if primaryID is not None:
+							primaryName = await ping_get_name(primaryID, cursor)
+							await ctx.send(f"The alias `{alias}` already exists for the ping `{primaryName}`. Please clear the alias before trying to reassign it.", ephemeral=True)
+						else:
+							await ctx.send(f"The alias `{alias}` already exists. Please clear the alias before trying to reassign it.", ephemeral=True)
+					else:
+						# Ping is not an alias
+						await ctx.send(f"A ping already exists with the tag `{alias}`. If you want to turn this tag into an alias, the ping must be deleted first.", ephemeral=True)
+				else:
+					# Ping does not already exist with the alias tag
+					primaryID = await ping_get_id(tag, ctx.guild, cursor)
+					if primaryID is not None:
+						primaryName = await ping_get_name(primaryID, cursor)
+						await ping_create_alias(alias, primaryID, ctx.guild, cursor)
+						await self.bot.db_connection.commit() # Commit changes
+						await ctx.send(f"Alias `{alias}` created for ping `{primaryName}`")
+					else:
+						await ctx.send(f"The ping `{tag}` does not exist. Alias could not be created.", ephemeral=True)
+
+			else:
+				# Tag does not exist. Destroy alias
+				# Check if it exists first though to display an error message
+				aliasExists = await ping_is_alias(alias, ctx.guild, cursor)
+				if aliasExists:
+					# Alias exists, destroy it
+					primaryID = await ping_get_id(alias, ctx.guild, cursor)
+					await ping_delete_alias(alias, ctx.guild, cursor)
+					await self.bot.db_connection.commit() # Commit changes
+					if primaryID is not None:
+						# Primary ping identified
+						primaryName = await ping_get_name(primaryID, cursor)
+						# Get aliases for the primary ping
+						primaryAliases = await ping_get_alias_names(primaryID, cursor)
+						msg = f"Alias `{alias}` has been removed for ping `{primaryName}`"
+						if len(primaryAliases) > 0:
+							msg += f" (aliases: `{', '.join(primaryAliases)}`)"
+						await ctx.send(msg)
+					else:
+						# Primary ping unknown
+						await ctx.send(f"Alias `{alias}` has been removed")
+
+				else:
+					await ctx.send(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
+
+
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
 	@slash_util.describe(tag = "Ping to delete")
