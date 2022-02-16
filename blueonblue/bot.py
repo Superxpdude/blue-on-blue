@@ -14,7 +14,7 @@ from . import checks
 import logging
 log = logging.getLogger("blueonblue")
 
-__all__ = ["BlueOnBlueBot"]
+__all__ = ["BlueOnBlueBot", "debugServerID"]
 
 class BlueOnBlueBot(slash_util.Bot):
 	def __init__(self):
@@ -24,7 +24,8 @@ class BlueOnBlueBot(slash_util.Bot):
 		self.config.read_dict({
 			"CORE": {
 				"prefix": "$$",
-				"bot_token": None
+				"bot_token": None,
+				"debug_server": -1
 			},
 			"STEAM": {
 				"api_token": None
@@ -55,6 +56,12 @@ class BlueOnBlueBot(slash_util.Bot):
 		})
 		# Write serverconfig back to disk
 		self.write_serverConfig()
+
+		# Store our "debug server" value for slash command testing
+		self.slashDebugID = None
+		debugServerID = self.config.getint("CORE", "debug_server", fallback = -1)
+		if debugServerID > 0: # If we have an ID present
+			self.slashDebugID = debugServerID
 
 		# Database variables for type hinting
 		self.db_connection: asqlite.Connection = None
@@ -233,3 +240,15 @@ class BlueOnBlueBot(slash_util.Bot):
 		else:
 			log.exception(f"Ignoring exception in command {ctx.command}:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+# This part is needed to handle slash command guild_id values for debug use
+def _getDebugServerID () -> int | None:
+	_debugServerConfig = configparser.ConfigParser(allow_no_value=True)
+	_debugServerConfig.read("config/config.ini")
+	_serverID = _debugServerConfig.getint("CORE", "debug_server", fallback = -1)
+	if _serverID > 0:
+		return _serverID
+	else:
+		return None
+
+debugServerID = _getDebugServerID()
