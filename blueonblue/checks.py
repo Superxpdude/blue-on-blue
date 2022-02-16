@@ -1,5 +1,6 @@
 # Blue on Blue command checks
 from discord.ext import commands
+import slash_util
 
 import typing
 if typing.TYPE_CHECKING:
@@ -106,6 +107,21 @@ def in_any_channel(*items: int) -> bool:
 		raise ChannelUnauthorized(items)
 
 	return commands.check(predicate)
+
+async def slash_is_moderator(bot: slash_util.Bot, ctx: commands.Context) -> bool:
+	"""Slash command check if the user is a moderator or administrator"""
+	moderatorRoleID = bot.serverConfig.getint(str(ctx.guild.id), "role_moderator", fallback = -1)
+	moderatorRole = ctx.guild.get_role(moderatorRoleID)
+	adminRoleID = bot.serverConfig.getint(str(ctx.guild.id), "role_admin", fallback = -1)
+	adminRole = ctx.guild.get_role(adminRoleID)
+
+	isOwner = await bot.is_owner(ctx.author)
+
+	if (adminRole in ctx.author.roles) or (moderatorRole in ctx.author.roles) or isOwner:
+		return True
+	else:
+		return False
+
 
 # Error classes
 class UserUnauthorized(commands.CheckFailure):
