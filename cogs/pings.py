@@ -11,6 +11,9 @@ import blueonblue
 import logging
 log = logging.getLogger("blueonblue")
 
+# Define our ping embed colour
+PING_EMBED_COLOUR = 0xFFA500 # Orange
+
 def sanitize_check(text: str) -> str:
 	"""Checks a ping title to check for invalid characters, or excessive length.
 
@@ -242,6 +245,67 @@ async def ping_get_user_ids_by_id(id: int, cursor: asqlite.Cursor) -> list[int]:
 	# Return our list of userIDs
 	return userIDList
 
+async def create_ping_embed(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> discord.Embed | None:
+	"""Creates a "ping info" embed using the name and guild of a ping."""
+	tag = tag.casefold()
+	# Get the ID of the ping
+	pingID = await ping_get_id(tag, guild, cursor)
+	# If the ping was not found
+	if pingID is None:
+		return None
+	else:
+		# We have a ping ID
+		return await create_ping_embed_from_id(pingID, cursor)
+
+async def create_ping_embed_from_id(
+		id: int,
+		guild: discord.Guild,
+		cursor: asqlite.Cursor,
+		*,
+		title_prefix: str = None
+	) -> discord.Embed | None:
+	"""Creates a "ping info" embed using the ID of a ping.
+	"title_prefix" is an optional argument that adds a "prefix" to the title of the resulting embed."""
+	# Get the name of the ping
+	pingName = await ping_get_name(id, cursor)
+	if pingName is None:
+		return None
+	# Get user names
+	pingUserIDs = await ping_get_user_ids_by_id(id, cursor)
+	pingUserNames = []
+	for user in pingUserIDs:
+		member = guild.get_member(user)
+		if member is not None:
+			pingUserNames.append(member.display_name)
+	# Get aliases for the ping
+	pingAliases = await ping_get_alias_names(id, cursor)
+
+	# Convert pingUsers and pingAliases to the format we need for the embed
+	# This put backticks around each entry in the array
+	pingUserTexts = list(map(lambda n: f"`{n}`", pingUserNames))
+	pingAliasTexts = list(map(lambda n: f"`{n}`", pingAliases))
+
+	if title_prefix is not None:
+		# Prefix present
+		embedTitle = f"{title_prefix} Ping: `{pingName}` | Users: `{len(pingUserNames)}`"
+	else:
+		embedTitle = f"Ping: `{pingName}` | Users: `{len(pingUserNames)}`",
+
+	# Now that we have all of our info, start creating our embed
+	embed = discord.Embed(
+		colour = PING_EMBED_COLOUR,
+		title = embedTitle,
+		description = ", ".join(pingUserTexts)
+	)
+	if len(pingAliases) > 0:
+		embed.add_field(
+			name = "Aliases",
+			value = ", ".join(pingAliasTexts),
+			inline = True
+		)
+	# Return the generated embed
+	return embed
+
 # Set up views for the pingDelete, pingMerge, and pingPurge commands
 class PingDeleteConfirm(blueonblue.views.AuthorResponseViewBase):
 	"""Confirmation view for ping delete."""
@@ -422,6 +486,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 		# Begin our DB section
 		async with self.bot.db_connection.cursor() as cursor:
 			response = None
+			pingEmbed = None
 			# We need to figure out what kind of search we need to run
 			if mode == "me": # Grab a list of pings that the user is in
 				# userID matches author. Get list of ping IDs
@@ -446,9 +511,11 @@ class Pings(slash_util.Cog, name = "Pings"):
 					# Now we have a list of pings, get ready to print them
 					if len(userPings) > 0:
 						# We have at least one ping
-						#response = f"{ctx.author.mention}, you are currently subscribed to the following pings: "\
-						response = f"{ctx.author.mention}, you are currently subscribed to the following pings: "\
-							"\n```" + ", ".join(userPings) + "```"
+						pingEmbed = discord.Embed(
+							colour = PING_EMBED_COLOUR,
+							title = f"Subscribed pings for {ctx.author.display_name}",
+							description = ", ".join(map(lambda n: f"`{n}`", sorted(userPings, key=str.casefold)))
+						)
 					else:
 						# Found pings, but could not find their names
 						response = f"{ctx.author.mention}, there was an error retrieving your pings."
@@ -467,16 +534,20 @@ class Pings(slash_util.Cog, name = "Pings"):
 				# Now that we have our ping names, we can form our response
 				if len(pingResults) > 0:
 					# We have at least one ping response
-					response = f"Tag list: \n```{', '.join(pingResults)}```"
+					pingEmbed = discord.Embed(
+							colour = PING_EMBED_COLOUR,
+							title = f"Ping list for {ctx.guild.name}",
+							description = ", ".join(map(lambda n: f"`{n}`", sorted(pingResults, key=str.casefold)))
+						)
 				else:
 					# No pings defined
 					response = "There are currently no pings defined."
 
-			if response is None:
+			if (response is None) and (pingEmbed is None):
 				response = f"{ctx.author.mention} It looks like there was an error with the command `{ctx.command.name}`"
 
 			# Send our response
-			await ctx.send(response)
+			await ctx.send(response, embed = pingEmbed)
 			# We don't need to commit to the DB, since we don't write anything here
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
@@ -496,6 +567,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 			# Search to see if our ping exists
 			await cursor.execute("SELECT id, alias_for FROM pings WHERE server_id = :server_id AND ping_name = :ping", {"server_id": ctx.guild.id, "ping": tag})
 			pingInfo = await cursor.fetchone()
+			pingEmbed = None # Initialize the ping variable in case we don't set it
 			if pingInfo is not None:
 				# We found a direct match for that ping
 				alias = None
@@ -507,37 +579,20 @@ class Pings(slash_util.Cog, name = "Pings"):
 					# Ping is not an alias
 					pingID = pingInfo["id"]
 				# Retrieve a list of users subscribed to the referenced ping
-				await cursor.execute("SELECT user_id FROM ping_users WHERE ping_id = :ping", {"ping": pingID})
-				pingUserData = await cursor.fetchall()
+				pingUserData = await ping_get_user_ids_by_id(pingID, cursor)
 				pingUserNames = []
 				for p in pingUserData:
-					member = ctx.guild.get_member(p["user_id"])
+					member = ctx.guild.get_member(p)
 					if member is not None: # If we could find the user
 						pingUserNames.append(member.display_name)
 
 				# Check if we have any aliases
-				# await cursor.execute("SELECT ping_name FROM pings WHERE alias_for = :pingID", {"pingID": pingID})
-				# pingAliasData = await cursor.fetchall()
-				# pingAliasNames = []
-				# for a in pingAliasData:
-				# 	pingAliasNames.append(a["ping_name"])
 				pingAliasNames = await ping_get_alias_names(pingID, cursor)
 
 				# Check if we have any active users in the ping
 				if len(pingUserNames) > 0:
 					# We have active users in the ping
-
-					# Now that we have our display names, create our response
-					if alias is None:
-						# Not an alias
-						if len(pingAliasNames) > 0: # If we have any aliases, note them
-							response = f"Tag `{tag}` (aliases: `{', '.join(pingAliasNames)}`) mentions the following users: \n```{', '.join(pingUserNames)}```"
-						else: # No aliases
-							response = f"Tag `{tag}` mentions the following users: \n```{', '.join(pingUserNames)}```"
-							#response += f"\nTag `{tag}` has the following aliases: \n```{', '.join(pingAliasNames)}```"
-					else:
-						# Tag is an alias
-						response = f"Tag `{tag}` is an alias for `{alias}`, which mentions the following users: \n```{', '.join(pingUserNames)}```"
+					pingEmbed = await create_ping_embed_from_id(pingID, ctx.guild, cursor)
 				else:
 					# No active users in the ping
 					if alias is None:
@@ -561,16 +616,20 @@ class Pings(slash_util.Cog, name = "Pings"):
 				# Now that we have our ping names, we can form our response
 				if len(pingResults) > 0:
 					# We have at least one ping response
-					response = f"Tag search for `{tag}`: \n```{', '.join(sorted(pingResults, key=str.casefold))}```"
+					pingEmbed = discord.Embed(
+						title = f"Ping search for `{tag}`",
+						colour = PING_EMBED_COLOUR,
+						description = ", ".join(map(lambda n: f"`{n}`", sorted(pingResults, key=str.casefold)))
+					)
 				else:
 					# We did not find any search results
 					response = f"{ctx.author.mention}, there are no tags for the search term: `{tag}`"
 
-			if response is None:
+			if (response is None) and (pingEmbed is None):
 				response = f"{ctx.author.mention} It looks like there was an error with the command `{ctx.command.name}`"
 
 			# Send our response
-			await ctx.send(response)
+			await ctx.send(response, embed = pingEmbed)
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
 	@slash_util.describe(alias = "Alias to create / destroy")
@@ -684,13 +743,17 @@ class Pings(slash_util.Cog, name = "Pings"):
 				toAliasText = ""
 
 			# Create our texts for the "from" and "to" pings
-			fromText = f"`{fromName}` (users: `{fromUserCount}`{fromAliasText})"
-			toText = f"`{toName}` (users: `{toUserCount}`{toAliasText})"
+			#fromText = f"`{fromName}` (users: `{fromUserCount}`{fromAliasText})"
+			#toText = f"`{toName}` (users: `{toUserCount}`{toAliasText})"
 
 			# Set up our message and view
-			messageText = f"{ctx.author.mention}, you are about to merge the ping {fromText} into the ping {toText}. This action is **irreversible**."
+			messageText = f"{ctx.author.mention}, you are about to merge the following pings. This action is **irreversible**."
 			view = PingMergeConfirm(ctx)
-			view.message = await ctx.send(messageText, view = view)
+			pingEmbeds = [
+				await create_ping_embed_from_id(fromID, ctx.guild, cursor, title_prefix="Merge from"),
+				await create_ping_embed_from_id(toID, ctx.guild, cursor, title_prefix="Merge to")
+			]
+			view.message = await ctx.send(messageText, view = view, embeds=pingEmbeds)
 			# Wait for the view to finish
 			await view.wait()
 
