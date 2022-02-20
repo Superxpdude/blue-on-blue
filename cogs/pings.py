@@ -513,8 +513,12 @@ class Pings(slash_util.Cog, name = "Pings"):
 						# We have at least one ping
 						pingEmbed = discord.Embed(
 							colour = PING_EMBED_COLOUR,
-							title = f"Subscribed pings for {ctx.author.display_name}",
+							title = f"Subscribed pings",
 							description = ", ".join(map(lambda n: f"`{n}`", sorted(userPings, key=str.casefold)))
+						)
+						pingEmbed.set_author(
+							name = ctx.author.display_name,
+							icon_url = ctx.author.avatar.url
 						)
 					else:
 						# Found pings, but could not find their names
