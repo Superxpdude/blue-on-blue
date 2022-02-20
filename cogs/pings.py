@@ -289,7 +289,7 @@ async def create_ping_embed_from_id(
 		# Prefix present
 		embedTitle = f"{title_prefix} Ping: `{pingName}` | Users: `{len(pingUserNames)}`"
 	else:
-		embedTitle = f"Ping: `{pingName}` | Users: `{len(pingUserNames)}`",
+		embedTitle = f"Ping: `{pingName}` | Users: `{len(pingUserNames)}`"
 
 	# Now that we have all of our info, start creating our embed
 	embed = discord.Embed(
@@ -834,10 +834,11 @@ class Pings(slash_util.Cog, name = "Pings"):
 			else:
 				aliasText = ""
 
-			msg = f"{ctx.author.mention}, you are about to delete the ping `{pingName}` (users: `{userCount}`{aliasText}). This action is **irreversible**."
+			msg = f"{ctx.author.mention}, you are about to delete the following ping. This action is **irreversible**."
+			pingEmbed = await create_ping_embed_from_id(pingID, ctx.guild, cursor)
 
 			view = PingDeleteConfirm(ctx)
-			view.message = await ctx.send(msg, view = view)
+			view.message = await ctx.send(msg, embed = pingEmbed, view = view)
 			await view.wait()
 
 			# Once we have a response, continue
