@@ -85,6 +85,7 @@ class BlueOnBlueBot(slash_util.Bot):
 		self.initial_extensions = [
 			"botcontrol",
 			"users",
+			"chatfilter",
 			"pings",
 			"verify"
 		]
