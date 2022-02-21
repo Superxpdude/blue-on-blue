@@ -46,7 +46,7 @@ class ReleaseConfirm(blueonblue.views.AuthorResponseViewBase):
 class Jail(slash_util.Cog, name="Jail"):
 	"""Temporary "Jail" functions"""
 	def __init__(self, bot, *args, **kwargs):
-		super().__init__(bot, *args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.bot.loop.create_task(self.db_init())
 		self.jail_loop.start()
@@ -152,7 +152,7 @@ class Jail(slash_util.Cog, name="Jail"):
 						await ctx.send(f"User {user.mention} has been jailed.", ephemeral=True)
 						await modChannel.send(f"User {user.mention} has been jailed by {ctx.author.mention} for {timeText} {time_unit}.", allowed_mentions=None)
 					except:
-						await ctx.send(f"Failed to assign roles to jail user.")
+						await ctx.send("Failed to assign roles to jail user.")
 				else:
 					# User in jail DB. Only update release time.
 					await cursor.execute("UPDATE jail SET release_time = :releaseTime WHERE server_id = :serverID AND user_id = :userID",
@@ -161,7 +161,7 @@ class Jail(slash_util.Cog, name="Jail"):
 					await modChannel.send(f"Jail for user {user.mention} has been modified by {ctx.author.mention} to {timeText} {time_unit}.", allowed_mentions=None)
 			elif not view.response:
 				# Action cancelled
-				await ctx.send(f"Jail action cancelled.")
+				await ctx.send("Jail action cancelled.")
 			else:
 				# Notify the user that the action timed out
 				await ctx.send("Pending jail action has timed out", ephemeral=True)
@@ -239,7 +239,7 @@ class Jail(slash_util.Cog, name="Jail"):
 
 			elif not view.response:
 				# Action cancelled
-				await ctx.send(f"Release action cancelled.")
+				await ctx.send("Release action cancelled.")
 			else:
 				# Notify the user that the action timed out
 				await ctx.send("Pending release action has timed out", ephemeral=True)

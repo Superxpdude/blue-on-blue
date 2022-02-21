@@ -122,6 +122,17 @@ async def slash_is_moderator(bot: slash_util.Bot, ctx: commands.Context) -> bool
 	else:
 		return False
 
+async def slash_is_admin(bot: slash_util.Bot, ctx: commands.Context) -> bool:
+	"""Slash command check if the user is an administrator"""
+	adminRoleID = bot.serverConfig.getint(str(ctx.guild.id), "role_admin", fallback = -1)
+	adminRole = ctx.guild.get_role(adminRoleID)
+
+	isOwner = await bot.is_owner(ctx.author)
+
+	if (adminRole in ctx.author.roles) or isOwner:
+		return True
+	else:
+		return False
 
 # Error classes
 class UserUnauthorized(commands.CheckFailure):

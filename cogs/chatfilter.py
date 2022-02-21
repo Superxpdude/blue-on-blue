@@ -16,7 +16,7 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 
 	These commands can only be used by authorized users."""
 	def __init__(self, bot, *args, **kwargs):
-		super().__init__(bot, *args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		# Set up our DB
 		self.bot.loop.create_task(self.db_init())
@@ -184,7 +184,7 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 		embed = discord.Embed(
 			title = f"{message.channel.parent}: {message.channel}" if hasattr(message.channel, "parent") else message.channel.name,
 			description = message.content,
-			color = CHATFILTER_EMBED_COLOUR,
+			colour = CHATFILTER_EMBED_COLOUR,
 			timestamp = timestamp
 		)
 		embed.set_author(
@@ -198,6 +198,52 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 		logChannel = message.guild.get_channel(self.bot.serverConfig.getint(str(message.guild.id), "channel_mod_activity"))
 		if logChannel is not None:
 			await logChannel.send(embed=embed)
+
+	async def _flag_thread(self, thread: discord.Thread, before: discord.Thread = None):
+		"""Reports a user for triggering the chat filter on a thread title."""
+		guild: discord.Guild = thread.guild
+		if guild.me.guild_permissions.view_audit_log:
+			# Bot has permissions to view audit log
+			if before is None:
+				# Thread creation
+				auditLog = await guild.audit_logs(limit=1,action=discord.AuditLogAction.thread_create).flatten()
+			else:
+				# Thread update
+				auditLog = await guild.audit_logs(limit=1,action=discord.AuditLogAction.thread_update).flatten()
+			title = "Thread Title"
+			author = auditLog[0].user
+		else:
+			title = "Thread Title, check audit log for confirmation"
+			author = thread.owner
+
+		# If the author is a bot, exit
+		if author.bot:
+			return
+
+		# Create our embed
+		embed = discord.Embed(
+			title = title,
+			description = thread.name,
+			colour = CHATFILTER_EMBED_COLOUR,
+			timestamp = auditLog[0].created_at
+		)
+		embed.set_author(
+			name = author.display_name,
+			icon_url = author.avatar.url
+		)
+
+		# Log the thread
+		logChannel = guild.get_channel(self.bot.serverConfig.getint(str(guild.id), "channel_mod_activity"))
+		if logChannel is not None:
+			await logChannel.send(embed=embed)
+
+		# Act on the thread
+		if before is None:
+			# Thread creation. Edit the thread
+			await thread.edit(name=f"thread-{thread.id}")
+		else:
+			# Existing thread
+			await thread.edit(name=before.name)
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
 	@slash_util.describe(filterlist = "Chatfilter list to use")
@@ -256,6 +302,16 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 		if (after.author != self.bot.user) and (not after.is_system()) and (after.guild is not None):
 			if self._check_message(after):
 				await self._flag_message(after)
+
+	@commands.Cog.listener()
+	async def on_thread_join(self, thread: discord.Thread):
+		if self._check_thread(thread):
+			await self._flag_thread(thread)
+
+	@commands.Cog.listener()
+	async def on_thread_update(self, before: discord.Thread, after: discord.Thread):
+		if self._check_thread(after):
+			await self._flag_thread(after,before)
 
 	@commands.Cog.listener()
 	async def on_ready(self):
