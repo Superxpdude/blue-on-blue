@@ -29,6 +29,9 @@ class BlueOnBlueBot(slash_util.Bot):
 			},
 			"STEAM": {
 				"api_token": None
+			},
+			"GOOGLE": {
+				"api_file": "data/google_api.json"
 			}
 		})
 		# Read local config file
@@ -53,7 +56,9 @@ class BlueOnBlueBot(slash_util.Bot):
 				"role_gold": -1,
 				"steam_group_id": -1,
 				"group_apply_url": None,
-				"group_name": None
+				"mission_sheet_key": None,
+				"mission_worksheet": "Schedule",
+				"mission_wiki_url": None
 			}
 		})
 		# Write serverconfig back to disk
@@ -90,6 +95,7 @@ class BlueOnBlueBot(slash_util.Bot):
 			"chatfilter",
 			"gold",
 			"jail",
+			"missions",
 			"pings",
 			"verify"
 		]
