@@ -1,12 +1,11 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import tasks
 import slash_util
 
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 import blueonblue
-from .users import update_member_roles
 
 import logging
 log = logging.getLogger("blueonblue")
