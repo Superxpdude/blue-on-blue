@@ -49,6 +49,7 @@ class BlueOnBlueBot(slash_util.Bot):
 				"role_admin": -1,
 				"role_moderator": -1,
 				"role_member": -1,
+				"role_jail": -1,
 				"steam_group_id": -1,
 				"group_apply_url": None,
 				"group_name": None
@@ -86,6 +87,7 @@ class BlueOnBlueBot(slash_util.Bot):
 			"botcontrol",
 			"users",
 			"chatfilter",
+			"jail",
 			"pings",
 			"verify"
 		]

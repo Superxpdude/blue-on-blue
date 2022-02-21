@@ -410,7 +410,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 			await ctx.send(response)
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.slash_command(name = "ping_me", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(tag = "Name of ping")
 	async def pingme(self, ctx: slash_util.Context, tag: str):
 		"""Adds you to, or removes you from a ping list"""
@@ -470,7 +470,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 			await ctx.send(response)
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.slash_command(name = "ping_list", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
 	async def pinglist(self, ctx: slash_util.Context, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
@@ -554,7 +554,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 			await ctx.send(response, embed = pingEmbed)
 			# We don't need to commit to the DB, since we don't write anything here
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.slash_command(name = "ping_search", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(tag = "The ping to search for")
 	async def pingsearch(self, ctx: slash_util.Context, tag: str):
 		"""Retrieves information about a ping"""
@@ -635,7 +635,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 			# Send our response
 			await ctx.send(response, embed = pingEmbed)
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.slash_command(name = "ping_alias", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(alias = "Alias to create / destroy")
 	@slash_util.describe(tag = "Ping to tie the alias to. Leave blank to remove alias.")
 	async def pingalias(self, ctx: slash_util.Context, alias: str, tag: str = None):
@@ -700,7 +700,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 				else:
 					await ctx.send(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.slash_command(name = "ping_merge", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(merge_from = "Ping that will be converted to an alias and merged")
 	@slash_util.describe(merge_to = "Ping that will be merged into")
 	async def pingmerge(self, ctx: slash_util.Context, merge_from: str, merge_to: str):
@@ -804,7 +804,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 				await ctx.send("Pending ping merge has timed out", ephemeral=True)
 
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.slash_command(name = "ping_delete", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(tag = "Ping to delete")
 	async def pingdelete(self, ctx: slash_util.Context, tag: str):
 		"""Forcibly deletes a ping"""
@@ -854,7 +854,7 @@ class Pings(slash_util.Cog, name = "Pings"):
 				# Notify the user that the action timed out
 				await ctx.send("Pending ping delete has timed out", ephemeral=True)
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.slash_command(name = "ping_purge", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(user_threshold = "Threshold below which pings will be subject to deletion")
 	@slash_util.describe(days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion")
 	async def pingpurge(self, ctx: slash_util.Context, user_threshold: int=5, days_since_last_use: int=30):
@@ -883,10 +883,16 @@ class Pings(slash_util.Cog, name = "Pings"):
 			if len(pingNames) > 0:
 				# At least one ping was found
 				# Prepare our message and view
-				msg = f"{ctx.author.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago). "\
-					f"This action is **irreversible**.\n```{', '.join(pingNames)}```"
+				#msg = f"{ctx.author.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago). "\
+				#	f"This action is **irreversible**.\n```{', '.join(pingNames)}```"
+				msg = f"{ctx.author.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago)."
+				pingEmbed = discord.Embed(
+					title = f"Pings pending deletion",
+					colour = PING_EMBED_COLOUR,
+					description = ", ".join(map(lambda n: f"`{n}`", sorted(pingNames, key=str.casefold)))
+				)
 				view = PingDeleteConfirm(ctx) # We can re-use the delete confirmation view
-				view.message = await ctx.send(msg, view = view)
+				view.message = await ctx.send(msg, embed = pingEmbed, view = view)
 				await view.wait()
 
 				# Handle the response
