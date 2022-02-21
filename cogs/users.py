@@ -76,7 +76,7 @@ async def update_guild_roles(guild: discord.Guild, cursor: asqlite.Cursor):
 class Users(slash_util.Cog, name="Users"):
 	"""Base cog for user management"""
 	def __init__(self, bot, *args, **kwargs):
-		super().__init__(bot, *args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.bot.loop.create_task(self.db_init())
 		self.db_update_loop.start()

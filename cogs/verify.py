@@ -193,7 +193,7 @@ async def steam_throw_error(self, ctx: commands.Context, status_code: int) -> No
 class Verify(slash_util.Cog, name = "Verify"):
 	"""Verify that users are part of a steam group."""
 	def __init__(self, bot, *args, **kwargs):
-		super().__init__(bot, *args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.bot.loop.create_task(self.db_init())
 

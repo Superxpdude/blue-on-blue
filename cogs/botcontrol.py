@@ -11,7 +11,7 @@ log = logging.getLogger("blueonblue")
 class BotControl(slash_util.Cog, name = "Bot Control"):
 	"""Commands that control the bot's core functionality."""
 	def __init__(self, bot, *args, **kwargs):
-		super().__init__(bot, *args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
 	@commands.command(brief="This kills the bot")

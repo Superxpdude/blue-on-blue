@@ -338,7 +338,7 @@ class PingMergeConfirm(blueonblue.views.AuthorResponseViewBase):
 class Pings(slash_util.Cog, name = "Pings"):
 	"""Ping users by a tag."""
 	def __init__(self, bot, *args, **kwargs):
-		super().__init__(bot, *args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.bot.loop.create_task(self.db_init())
 
