@@ -1,11 +1,8 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import slash_util
 
-import aiohttp
 import asqlite
-import asyncio
-import json
 import random
 import string
 from typing import List
