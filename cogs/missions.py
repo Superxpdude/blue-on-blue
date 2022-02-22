@@ -4,6 +4,7 @@ import slash_util
 
 from datetime import datetime, timedelta
 import gspread_asyncio
+import gspread.utils
 from google.oauth2.service_account import Credentials
 
 import blueonblue
@@ -121,7 +122,7 @@ class Missions(slash_util.Cog, name = "Missions"):
 
 				if wikiURL is not None:
 					# Wiki exists
-					embedURL = wikiURL + missionName.replace(" ","_")
+					embedURL = f"{wikiURL}/wiki/" + missionName.replace(" ","_")
 				else:
 					embedURL = None
 
@@ -145,7 +146,7 @@ class Missions(slash_util.Cog, name = "Missions"):
 					colour = embedColour
 				)
 				# See if we can get the mission image
-				async with self.bot.http_session.get("https://wiki.tmtm.gg/api.php", params = {
+				async with self.bot.http_session.get(f"{wikiURL}/api.php", params = {
 					"action": "query",
 					"format": "json",
 					"prop": "pageimages",
@@ -274,6 +275,160 @@ class Missions(slash_util.Cog, name = "Missions"):
 		# Let the user know that their mission is being submitted for audit.
 		await ctx.send(f"{ctx.author.mention}, your mission `{missionfile.filename}` has been submitted for audit.")
 
+	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
+	@slash_util.describe(missionname = "Name of the mission to schedule")
+	@slash_util.describe(notes = "Optional notes to display on the schedule")
+	async def schedule(self, ctx: slash_util.Context, date: str, missionname: str, notes: str = None):
+		"""Schedules a mission to be played. Missions must be present on the audit list."""
+		# See if we can convert out date string to a datetime object
+		try:
+			dateVar = datetime.strptime(date, ISO_8601_FORMAT)
+		except:
+			await ctx.send("Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True)
+			return
+
+		# Check to make sure that the mission isn't being scheduled too far in advance
+		if (dateVar - datetime.now()) > timedelta(365):
+			await ctx.send("You cannot schedule missions more than one year in advance!", ephemeral=True)
+			return
+
+		# If we've passed our preliminary checks, defer the response
+		# This gives us time to communicate with the wiki and google sheets
+		await ctx.defer()
+
+		# Read some config values
+		missionKey = self.bot.serverConfig.get(str(ctx.guild.id), "mission_sheet_key")
+		missionWorksheetName = self.bot.serverConfig.get(str(ctx.guild.id), "mission_worksheet", fallback="Schedule")
+
+		if missionKey is None:
+			await ctx.send("Could not find the URL for the mission sheet in the config file. Please contact the bot owner.")
+
+		# Get our wiki URL
+		wikiURL = self.bot.serverConfig.get(str(ctx.guild.id), "mission_wiki_url", fallback = None)
+
+		# Start our HTTP request block
+		async with self.bot.http_session.get(f"{wikiURL}/api.php", params = {
+			"action": "parse",
+			"page": "Audited Mission List",
+			"prop": "wikitext",
+			"section": 1,
+			"format": "json"
+		}) as response:
+			if response.status == 200: # Request successful
+				responseData: dict = await response.json()
+				if "parse" in responseData:
+					responseText: str = responseData["parse"]["wikitext"]["*"]
+				else:
+					await ctx.send("Could not locate the audit list on the wiki. Please contact the bot owner.")
+					return
+			else:
+				await ctx.send(f"Could not contact the wiki to search for the audit list (Error: {response.status}). Please contact the bot owner.")
+
+		# Now that we have our text, split it up and parse it.
+		responseLines = responseText.split("\n")
+		missionData = []
+		for line in responseLines:
+			if not line.startswith("{{"):
+				# We only care about lines that start with {{
+				continue
+			# Remove the leading and trailing braces
+			line = line.replace("{","").replace("}","")
+			# Split the line by pipe
+			line = line.split("|")
+			# Delete the first value, this ends up being the wiki template name
+			del line[0]
+			# Append our line to our missionData
+			missionData.append(line)
+
+		# Now that we have our list, find the row that contains the mission in question
+		mission = None
+		for row in missionData:
+			if row[0].casefold() == missionname.casefold():
+				mission = row
+				break
+
+		# If we did not find a matching row, return an error
+		if mission is None:
+			await ctx.send(f"I could not find the mission `{missionname}` on the audit list.")
+			return
+
+		# Put a placeholder if the map name is missing
+		if mission[1] == "":
+			mission[1] = "Unknown"
+
+		# Mission row is in format:
+		# Mission, Map, Author
+
+		#Convert the date back to a string format so that we can find it on the schedule sheet
+		dateStr = dateVar.strftime(ISO_8601_FORMAT)
+
+		# Start our spreadsheet block
+		# Authorize our connection to google sheets
+		googleClient = await self.agcm.authorize()
+
+		# Get the actual mission document
+		missionDoc = await googleClient.open_by_key(missionKey)
+		missionSheet = await missionDoc.worksheet(missionWorksheetName)
+
+		# See if we can find the cell with the matching date
+		try:
+			datecell = await missionSheet.find(dateStr)
+		except:
+			datecell = None
+
+
+
+		# If we found the date cell, start writing our data
+		if datecell is not None:
+
+			# Find the mission column
+			firstRow = await missionSheet.row_values(1)
+			colMission = firstRow.index("Mission") + 1
+			colMap = firstRow.index("Map") + 1
+			colAuthor = firstRow.index("Author(s)") + 1
+			colMedical = firstRow.index("Medical") + 1
+			colWS = firstRow.index("Western Sahara") + 1
+			colNotes = firstRow.index("Notes") + 1
+
+			cellMission = await missionSheet.cell(datecell.row,colMission)
+			if cellMission.value == None:
+				# Only continue if we don't already have a mission for that date
+				cellMission.value = mission[0]
+				cellList = [cellMission]
+
+				cellMap = await missionSheet.cell(datecell.row,colMap)
+				cellMap.value = mission[1]
+				cellList.append(cellMap)
+
+				cellAuthor = await missionSheet.cell(datecell.row,colAuthor)
+				cellAuthor.value = mission[2]
+				cellList.append(cellAuthor)
+
+				cellMedical = await missionSheet.cell(datecell.row,colMedical)
+				cellMedical.value = "Basic"
+				cellList.append(cellMedical)
+
+				if mission[1] == "Sefrou-Ramal":
+					cellWS = await missionSheet.cell(datecell.row,colWS)
+					cellWS.value = True
+					cellList.append(cellWS)
+
+				if notes is not None:
+					cellNotes = await missionSheet.cell(datecell.row,colNotes)
+					cellNotes.value = notes
+					cellList.append(cellNotes)
+				# With our data set, write it back to the spreadsheet
+				await missionSheet.update_cells(cellList)
+				#await missionSheet.update(f"{datecell.address}:{secondAddr}", [rowData])
+				await ctx.send(f"The mission `{mission[0]}` has been successfully scheduled for {dateStr}`")
+			else:
+				# Mission already scheduled
+				await ctx.send(f"A mission has already been scheduled for {dateStr}")
+		else:
+			# Date not found. Send an error
+			await ctx.send("Missions can not be scheduled that far in advance at this time. "
+				"Please contact the mission master if you need to schedule a mission that far in advnace.")
 
 def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(Missions(bot))
