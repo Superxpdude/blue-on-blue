@@ -54,6 +54,10 @@ class Jail(slash_util.Cog, name="Jail"):
 	def cog_unload(self):
 		self.jail_loop.stop()
 
+	async def slash_command_error(self, ctx, error: Exception) -> None:
+		"""Redirect slash command errors to the main bot"""
+		return await self.bot.slash_command_error(ctx, error)
+
 	async def db_init(self):
 		"""Initializes the database for the cog.
 		Creates the tables if they don't exist."""
@@ -87,11 +91,9 @@ class Jail(slash_util.Cog, name="Jail"):
 	@slash_util.describe(user = "User to be jailed.")
 	@slash_util.describe(time = "Time duration for jail. Default unit is days.")
 	@slash_util.describe(time_unit = "Unit of measurement for ""time"" parameter.")
+	@blueonblue.checks.is_moderator()
 	async def jail(self, ctx: slash_util.Context, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Jails a user"""
-		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
-			await ctx.send("You are not authorized to use this command", ephemeral=True)
-			return
 
 		# Start our DB block
 		async with self.bot.db_connection.cursor() as cursor:
@@ -168,11 +170,9 @@ class Jail(slash_util.Cog, name="Jail"):
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
 	@slash_util.describe(user = "User to be released.")
+	@blueonblue.checks.is_moderator()
 	async def jail_release(self, ctx: slash_util.Context, user: discord.Member):
 		"""Releases a user from jail"""
-		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
-			await ctx.send("You are not authorized to use this command", ephemeral=True)
-			return
 
 		# Start our DB block
 		async with self.bot.db_connection.cursor() as cursor:
@@ -245,11 +245,9 @@ class Jail(slash_util.Cog, name="Jail"):
 				await ctx.send("Pending release action has timed out", ephemeral=True)
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@blueonblue.checks.is_moderator()
 	async def jail_list(self, ctx: slash_util.Context):
 		"""Lists users that are currently jailed"""
-		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
-			await ctx.send("You are not authorized to use this command", ephemeral=True)
-			return
 
 		# Start our DB block
 		async with self.bot.db_connection.cursor() as cursor:

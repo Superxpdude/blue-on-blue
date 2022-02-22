@@ -28,18 +28,6 @@ async def _check_roles(ctx: commands.Context, *roles: int) -> bool:
 	return False
 
 # Command conditions
-def has_any_role_guild(*roles: int) -> bool:
-	"""Checks if a user has one of the specified roles in a guild.
-
-	Uses the guild specified in the config file, even if the command is sent elsewhere."""
-	async def predicate(ctx: commands.Context):
-		if await _check_roles(ctx, *roles):
-			return True
-		else:
-			raise UserUnauthorized
-
-	return commands.check(predicate)
-
 def is_moderator() -> bool:
 	"""Checks if a user is part of the moderator or admin groups."""
 	async def predicate(ctx: slash_util.Context):
@@ -69,6 +57,28 @@ def is_admin() -> bool:
 			return True
 		else:
 			raise UserUnauthorized
+
+	return commands.check(predicate)
+
+def in_channel_bot() -> bool:
+	"""Checks if the command was used in the specified bot channel"""
+	async def predicate(ctx: slash_util.Context):
+		botChannelID = ctx.bot.serverConfig.getint(str(ctx.guild.id), "channel_bot", fallback = -1)
+		if ctx.channel.id == botChannelID:
+			return True
+		else:
+			raise ChannelUnauthorized([botChannelID])
+
+	return commands.check(predicate)
+
+def in_channel_checkin() -> bool:
+	"""Checks if the command was used in the specified bot channel"""
+	async def predicate(ctx: slash_util.Context):
+		botChannelID = ctx.bot.serverConfig.getint(str(ctx.guild.id), "channel_bot", fallback = -1)
+		if ctx.channel.id == botChannelID:
+			return True
+		else:
+			raise ChannelUnauthorized([botChannelID])
 
 	return commands.check(predicate)
 

@@ -38,6 +38,10 @@ class Gold(slash_util.Cog, name="Gold"):
 	def cog_unload(self):
 		self.gold_loop.stop()
 
+	async def slash_command_error(self, ctx, error: Exception) -> None:
+		"""Redirect slash command errors to the main bot"""
+		return await self.bot.slash_command_error(ctx, error)
+
 	async def db_init(self):
 		"""Initializes the database for the cog.
 		Creates the tables if they don't exist."""
@@ -55,6 +59,7 @@ class Gold(slash_util.Cog, name="Gold"):
 	@slash_util.describe(user = "User to be given TMTM gold.")
 	@slash_util.describe(time = "Time duration for TMTM Gold. Default unit is days.")
 	@slash_util.describe(time_unit = "Unit of measurement for ""time"" parameter.")
+	@blueonblue.checks.is_admin()
 	async def gold(self, ctx: slash_util.Context, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
 		if not (await blueonblue.checks.slash_is_admin(self.bot, ctx)):
@@ -135,6 +140,7 @@ class Gold(slash_util.Cog, name="Gold"):
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
 	@slash_util.describe(user = "User to have TMTM Gold removed")
+	@blueonblue.checks.is_admin()
 	async def gold_remove(self, ctx: slash_util.Context, user: discord.Member):
 		"""Removes TMTM Gold from a user"""
 		if not (await blueonblue.checks.slash_is_admin(self.bot, ctx)):
@@ -202,12 +208,9 @@ class Gold(slash_util.Cog, name="Gold"):
 
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@blueonblue.checks.is_admin()
 	async def gold_list(self, ctx: slash_util.Context):
 		"""Lists users that have TMTM Gold"""
-		if not (await blueonblue.checks.slash_is_admin(self.bot, ctx)):
-			await ctx.send("You are not authorized to use this command", ephemeral=True)
-			return
-
 		# Start our DB block
 		async with self.bot.db_connection.cursor() as cursor:
 			# Get a list of gold users in this server

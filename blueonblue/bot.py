@@ -261,6 +261,25 @@ class BlueOnBlueBot(slash_util.Bot):
 		if (isinstance(error, checks.UserUnauthorized)) or (isinstance(error, commands.NotOwner)):
 			await ctx.send(f"You are not authorized to use the command `{ctx.command}`.", ephemeral=True)
 
+		elif isinstance(error, checks.ChannelUnauthorized):
+			channels = []
+			for c in error.channels:
+				ch = ctx.guild.get_channel(c)
+				if ch is not None:
+					channels.append(ch.mention)
+
+			if len(channels) > 1:
+				message = f"The command `{ctx.command.name}` can only be used in the following channels: "
+			elif len(channels) == 1:
+				message = f"The command `{ctx.command.name}` can only be used in the following channel: "
+			else:
+				message = f"The command `{ctx.command.name}` cannot be used in this channel."
+
+			# Add the channel idenfiers to the string
+			message += ", ".join(channels)
+
+			await ctx.send(message, ephemeral=True)
+
 		# Generic handler
 		else:
 			log.exception(f"Ignoring exception in command {ctx.command.name}:")

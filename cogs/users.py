@@ -84,6 +84,10 @@ class Users(slash_util.Cog, name="Users"):
 	def cog_unload(self):
 		self.db_update_loop.stop()
 
+	async def slash_command_error(self, ctx, error: Exception) -> None:
+		"""Redirect slash command errors to the main bot"""
+		return await self.bot.slash_command_error(ctx, error)
+
 	async def db_init(self):
 		async with self.bot.db_connection.cursor() as cursor:
 			# Create the tables if they do not exist

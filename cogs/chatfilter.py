@@ -24,6 +24,10 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 		self.exclusionList = {}
 		self.filterlist = {}
 
+	async def slash_command_error(self, ctx, error: Exception) -> None:
+		"""Redirect slash command errors to the main bot"""
+		return await self.bot.slash_command_error(ctx, error)
+
 	async def db_init(self):
 		"""Initializes the database for the cog.
 		Creates the tables if they don't exist."""
@@ -249,6 +253,7 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 	@slash_util.describe(filterlist = "Chatfilter list to use")
 	@slash_util.describe(mode = "Mode of operation")
 	@slash_util.describe(string = "Text to add/remove from chatfilter list")
+	@blueonblue.checks.is_moderator()
 	async def chatfilter(self, ctx: slash_util.Context, filterlist: Literal["filter", "exclude"], mode: Literal["show", "add", "remove"], string: str = None):
 		"""Controls chat filter settings"""
 		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
@@ -289,7 +294,6 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 				description = ", ".join(map(lambda n: f"`{n}`", sorted(filterEntries, key=str.casefold)))
 			)
 			await ctx.send(embed = filterEmbed)
-
 
 	@commands.Cog.listener()
 	async def on_message(self, message: discord.Message):
