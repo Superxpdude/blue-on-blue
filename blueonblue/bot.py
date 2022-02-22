@@ -49,6 +49,7 @@ class BlueOnBlueBot(slash_util.Bot):
 				"channel_bot": -1,
 				"channel_mod_activity": -1,
 				"channel_check_in": -1,
+				"channel_mission_audit": -1,
 				"role_admin": -1,
 				"role_moderator": -1,
 				"role_member": -1,
@@ -251,6 +252,22 @@ class BlueOnBlueBot(slash_util.Bot):
 		else:
 			log.exception(f"Ignoring exception in command {ctx.command}:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+	# On slash command error
+	async def slash_command_error(self, ctx: slash_util.Context, error):
+		"""The event triggered when an error is raised while invoking a slash command.
+		ctx   : Context
+		error : Exception"""
+		if (isinstance(error, checks.UserUnauthorized)) or (isinstance(error, commands.NotOwner)):
+			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.", ephemeral=True)
+
+		# Generic handler
+		else:
+			log.exception(f"Ignoring exception in command {ctx.command}:")
+			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+
+
 
 # This part is needed to handle slash command guild_id values for debug use
 def _getDebugServerID () -> int | None:
