@@ -17,20 +17,57 @@ MISSION_EMBED_COLOUR = 0x2E86C1
 
 ISO_8601_FORMAT = "%Y-%m-%d"
 
-#def get_google_credentials(bot: blueonblue.BlueOnBlueBot):
-def get_google_credentials():
-	#accountFile = bot.config.get("GOOGLE", "api_file", fallback="data/google_api.json")
-	accountFile = "data/google_api.json"
-	scopes = ["https://spreadsheets.google.com/feeds"]
-	creds = Credentials.from_service_account_file(accountFile, scopes = scopes)
-	return creds
+def _decode_file_name(filename: str) -> dict:
+	"""Decodes the file name for a mission to collect information about it.
+	Returns a dict of parameters if successful, otherwise raises an error."""
+
+	fileList = filename.split(".")
+
+	# Check if the file name ends with ".pbo"
+	if fileList[-1:][0].casefold() != "pbo":
+		raise Exception("Missions can only be submitted in .pbo format.")
+
+	# Check if there are any erroneuous periods in the file name
+	if len(fileList) > 3:
+		raise Exception("File names can only have periods to denote the map and file extension.")
+	if len(fileList) < 3:
+		raise Exception("File name appears to be missing the map definition.")
+
+	# Get our map extension
+	mapName = fileList[-2:][0].casefold()
+
+	# Split up our map name
+	nameList = fileList[0].split("_")
+
+	# Check if the mission is a test mission
+	if nameList[0].casefold() == "test":
+		del nameList[0]
+
+	# Check the mission type
+	gameType = nameList[0].casefold()
+	if not (gameType in ["coop", "tvt", "cotvt", "zeus", "zgm", "rpg"]):
+		raise Exception(f"`{gameType}` is not a valid mission type!")
+
+	# Grab the player count
+	try:
+		playerCount = int(nameList[1])
+	except:
+		raise Exception("I could not determine the player count in your mission.")
+
+	return {"gameType": gameType, "map": mapName, "playerCount": playerCount}
 
 class Missions(slash_util.Cog, name = "Missions"):
 	"""Commands and functions used to view and schedule missions"""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
-		self.agcm = gspread_asyncio.AsyncioGspreadClientManager(get_google_credentials) # Authorization maneger for gspread
+		self.agcm = gspread_asyncio.AsyncioGspreadClientManager(self._get_google_credentials) # Authorization manager for gspread
+
+	def _get_google_credentials(self):
+		accountFile = self.bot.config.get("GOOGLE", "api_file", fallback="data/google_api.json")
+		scopes = ["https://spreadsheets.google.com/feeds"]
+		creds = Credentials.from_service_account_file(accountFile, scopes = scopes)
+		return creds
 
 	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
 	async def missions(self, ctx: slash_util.Context):
@@ -160,6 +197,82 @@ class Missions(slash_util.Cog, name = "Missions"):
 			message = None
 		# Send our response
 		await ctx.send(message, embeds=missionEmbeds)
+
+	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.describe(missionfile = "Mission file to audit. Must follow mission naming scheme.")
+	@slash_util.describe(message = "Optional message. Will be submitted with your mission.")
+	@slash_util.describe(modpreset = "Mod preset .html file")
+	async def audit(self, ctx: slash_util.Context, missionfile: discord.Attachment, message: str = None, modpreset: discord.Attachment = None):
+		"""Submits a mission for auditing"""
+		# Immediately defer this action, since this can take some time.
+		await ctx.defer()
+
+		# Check to see if we have a mod preset
+		if modpreset is not None:
+			# Check if the mod preset has an .html extension
+			if modpreset.filename.split(".")[-1].casefold() != "html":
+				await ctx.send("Mod preset files must have a `.html` extension!")
+				return
+			else:
+				# Since we have a mod preset, our mission file needs to be prefixed with "MODNIGHT"
+				if missionfile.filename.split("_",1)[0].casefold() != "modnight":
+					await ctx.send("Modnight missions must be prefixed with `modnight`!")
+					return
+				else:
+					# Mission file is prefixed with modnight
+					# Store our file name with the "modnight" removed for validation
+					missionFilename = missionfile.filename.split("_",1)[-1]
+		else:
+			# No mod preset
+			# Check to make sure that we don't have a modnight mission
+			if missionfile.filename.split("_",1)[0].casefold() == "modnight":
+				await ctx.send("Modnight missions must be submitted with a mod preset `.html` file!")
+				return
+			else:
+				missionFilename = missionfile.filename
+
+		# Validate the mission name
+		try:
+			missionInfo = _decode_file_name(missionFilename)
+		except Exception as exception:
+			await ctx.send(f"{exception.args[0]}"
+				f"\n{ctx.author.mention}, I encountered some errors when submitting your mission `{missionfile.filename}` for auditing. "
+				"Please ensure that your mission file name follows the correct naming format."
+				"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`")
+			return
+
+		# Mission has passed validation checks
+		auditChannel: discord.TextChannel = ctx.guild.get_channel(self.bot.serverConfig.getint(str(ctx.guild.id),"channel_mission_audit", fallback = -1))
+
+		if auditChannel is None:
+			await ctx.send("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
+			return
+
+		# Start creating our audit message
+		auditMessage = f"Mission submitted for audit by {ctx.author.mention}."
+		if message is not None:
+			auditMessage += f" Notes from the audit below \n```{message}```"
+
+		missionFileObject = await missionfile.to_file()
+		auditFiles = [missionFileObject]
+		if modpreset is not None:
+			auditFiles.append(await modpreset.to_file())
+
+		# Send our message to the audit channel
+		auditMessageObject = await auditChannel.send(auditMessage, files = auditFiles)
+
+		# Try to pin our message
+		try:
+			await auditMessageObject.pin()
+		except discord.Forbidden:
+			await auditChannel.send("I do not have permissions to pin this audit.")
+		except discord.NotFound:
+			await auditChannel.send("I ran into an issue pinning an audit message.")
+		except discord.HTTPException:
+			await auditChannel.send("Pinning the audit message failed. The pin list might be full!")
+
+		# Let the user know that their mission is being submitted for audit.
+		await ctx.send(f"{ctx.author.mention}, your mission `{missionfile.filename}` has been submitted for audit.")
 
 
 def setup(bot: blueonblue.BlueOnBlueBot):

@@ -41,15 +41,16 @@ def has_any_role_guild(*roles: int) -> bool:
 	return commands.check(predicate)
 
 def is_moderator() -> bool:
-	"""Checks if a user is part of the moderator or admin groups.
+	"""Checks if a user is part of the moderator or admin groups."""
+	async def predicate(ctx: slash_util.Context):
+		moderatorRoleID = ctx.bot.serverConfig.getint(str(ctx.guild.id), "role_moderator", fallback = -1)
+		moderatorRole = ctx.guild.get_role(moderatorRoleID)
+		adminRoleID = ctx.bot.serverConfig.getint(str(ctx.guild.id), "role_admin", fallback = -1)
+		adminRole = ctx.guild.get_role(adminRoleID)
 
-	Checks in the server specified in the config file, even if the command is sent elsewhere."""
-	async def predicate(ctx: commands.Context):
-		if await _check_roles(
-			ctx,
-			ctx.bot.config.getint("SERVER", "role_admin", fallback = -1),
-			ctx.bot.config.getint("SERVER", "role_moderator", fallback = -1)
-		):
+		isOwner = await ctx.bot.is_owner(ctx.author)
+
+		if (adminRole in ctx.author.roles) or (moderatorRole in ctx.author.roles) or isOwner:
 			return True
 		else:
 			raise UserUnauthorized
@@ -57,14 +58,15 @@ def is_moderator() -> bool:
 	return commands.check(predicate)
 
 def is_admin() -> bool:
-	"""Checks if a user is part of the admin group.
+	"""Checks if a user is part of the admin group."""
+	async def predicate(ctx: slash_util.Context):
+		adminRoleID = ctx.bot.serverConfig.getint(str(ctx.guild.id), "role_admin", fallback = -1)
+		adminRole = ctx.guild.get_role(adminRoleID)
 
-	Checks in the server specified in the config file, even if the command is sent elsewhere."""
-	async def predicate(ctx: commands.Context):
-		if await _check_roles(
-			ctx,
-			ctx.bot.config.getint("SERVER", "role_admin", fallback = -1)
-		):
+		#isOwner = await ctx.bot.is_owner(ctx.author)
+		isOwner = False
+
+		if (adminRole in ctx.author.roles) or isOwner:
 			return True
 		else:
 			raise UserUnauthorized
