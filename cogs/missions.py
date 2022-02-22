@@ -1,10 +1,9 @@
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 import slash_util
 
 from datetime import datetime, timedelta
 import gspread_asyncio
-import gspread.utils
 from google.oauth2.service_account import Credentials
 
 import blueonblue
@@ -63,6 +62,10 @@ class Missions(slash_util.Cog, name = "Missions"):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.agcm = gspread_asyncio.AsyncioGspreadClientManager(self._get_google_credentials) # Authorization manager for gspread
+
+	async def slash_command_error(self, ctx, error: Exception) -> None:
+		"""Redirect slash command errors to the main bot"""
+		return await self.bot.slash_command_error(ctx, error)
 
 	def _get_google_credentials(self):
 		accountFile = self.bot.config.get("GOOGLE", "api_file", fallback="data/google_api.json")
@@ -429,6 +432,91 @@ class Missions(slash_util.Cog, name = "Missions"):
 			# Date not found. Send an error
 			await ctx.send("Missions can not be scheduled that far in advance at this time. "
 				"Please contact the mission master if you need to schedule a mission that far in advnace.")
+
+	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
+	@slash_util.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
+	@blueonblue.checks.is_moderator()
+	async def schedule_cancel(self, ctx: slash_util.Context, date: str):
+		"""Removes a previously scheduled mission from the mission schedule"""
+		# See if we can convert out date string to a datetime object
+		try:
+			dateVar = datetime.strptime(date, ISO_8601_FORMAT)
+		except:
+			await ctx.send("Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True)
+			return
+
+		# If we've passed our preliminary checks, defer the response
+		# This gives us time to communicate with the google sheets
+		await ctx.defer()
+
+		#Convert the date back to a string format so that we can find it on the schedule sheet
+		dateStr = dateVar.strftime(ISO_8601_FORMAT)
+
+		# Read some config values
+		missionKey = self.bot.serverConfig.get(str(ctx.guild.id), "mission_sheet_key")
+		missionWorksheetName = self.bot.serverConfig.get(str(ctx.guild.id), "mission_worksheet", fallback="Schedule")
+
+		# Start our spreadsheet block
+		# Authorize our connection to google sheets
+		googleClient = await self.agcm.authorize()
+
+		# Get the actual mission document
+		missionDoc = await googleClient.open_by_key(missionKey)
+		missionSheet = await missionDoc.worksheet(missionWorksheetName)
+
+		# See if we can find the cell with the matching date
+		try:
+			datecell = await missionSheet.find(dateStr)
+		except:
+			datecell = None
+
+		# If we found the date cell, start writing our data
+		if datecell is not None:
+			# Find the mission column
+			firstRow = await missionSheet.row_values(1)
+			colMission = firstRow.index("Mission") + 1
+			colMap = firstRow.index("Map") + 1
+			colAuthor = firstRow.index("Author(s)") + 1
+			colMedical = firstRow.index("Medical") + 1
+			colWS = firstRow.index("Western Sahara") + 1
+			colNotes = firstRow.index("Notes") + 1
+
+			cellMission = await missionSheet.cell(datecell.row,colMission)
+			if cellMission.value != None:
+				# Only continue if we don't already have a mission for that date
+				missionName = cellMission.value
+				cellMission.value = ""
+				cellList = [cellMission]
+
+				cellMap = await missionSheet.cell(datecell.row,colMap)
+				cellMap.value = ""
+				cellList.append(cellMap)
+
+				cellAuthor = await missionSheet.cell(datecell.row,colAuthor)
+				cellAuthor.value = ""
+				cellList.append(cellAuthor)
+
+				cellMedical = await missionSheet.cell(datecell.row,colMedical)
+				cellMedical.value = ""
+				cellList.append(cellMedical)
+
+				cellWS = await missionSheet.cell(datecell.row,colWS)
+				cellWS.value = False
+				cellList.append(cellWS)
+
+				cellNotes = await missionSheet.cell(datecell.row,colNotes)
+				cellNotes.value = ""
+				cellList.append(cellNotes)
+				# With our data set, write it back to the spreadsheet
+				await missionSheet.update_cells(cellList)
+				await ctx.send(f"The mission `{missionName}` has been removed as the scheduled mission for {dateStr}.")
+			else:
+				# Mission already scheduled
+				await ctx.send(f"I could not find a mission scheduled for {dateStr}.")
+		else:
+			# Date not found. Send an error
+			await ctx.send(f"I could not find a mission scheduled for {dateStr}.")
+
 
 def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(Missions(bot))
