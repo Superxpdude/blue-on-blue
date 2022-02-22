@@ -113,14 +113,18 @@ class Missions(slash_util.Cog, name = "Missions"):
 					"format": "json",
 					"prop": "pageimages",
 					"titles": missionName,
-					"pithumbsize": "150"
+					"pithumbsize": "250"
 				}) as response:
 					if response.status == 200: # Request successful
 						responsePages: dict = (await response.json())["query"]["pages"]
 						responsePageData = responsePages[list(responsePages)[0]]
 						if "thumbnail" in responsePageData:
-							# We have a thumbnail to use
-							missionImageURL = responsePageData["thumbnail"]["source"]
+							# Check to make sure that we don't exceed any height limits
+							if responsePageData["thumbnail"]["height"] <= 141: # 2:1 is ideal, but 16:9 is acceptable
+								# We have a thumbnail to use
+								missionImageURL = responsePageData["thumbnail"]["source"]
+							else:
+								missionImageURL = None
 						else:
 							# No thumbnail for the mission
 							missionImageURL = None
