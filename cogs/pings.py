@@ -342,6 +342,10 @@ class Pings(slash_util.Cog, name = "Pings"):
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.bot.loop.create_task(self.db_init())
 
+	async def slash_command_error(self, ctx, error: Exception) -> None:
+		"""Redirect slash command errors to the main bot"""
+		return await self.bot.slash_command_error(ctx, error)
+
 	async def db_init(self):
 		"""Initializes the database for the cog.
 		Creates the tables if they don't exist."""
@@ -412,12 +416,9 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 	@slash_util.slash_command(name = "ping_me", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(tag = "Name of ping")
+	@blueonblue.checks.in_channel_bot()
 	async def pingme(self, ctx: slash_util.Context, tag: str):
 		"""Adds you to, or removes you from a ping list"""
-		botChannelID = self.bot.serverConfig.getint(str(ctx.guild.id), "channel_bot", fallback = -1)
-		if ctx.channel.id != botChannelID:
-			await ctx.send("This command cannot be used in this channel.", ephemeral=True)
-			return
 
 		# Begin command function
 		san_check = sanitize_check(tag)
@@ -472,16 +473,9 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 	@slash_util.slash_command(name = "ping_list", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
+	@blueonblue.checks.in_channel_bot()
 	async def pinglist(self, ctx: slash_util.Context, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
-		# When called with no tag, it will list all active tags.
-		# When called with a tag, it will list all users subscribed to that tag.
-		# When called with a mention to yourself, it will list all pings that you are currently subscribed to.
-		# Supports searching for tags. Entering a partial tag will return all valid matches.
-		botChannelID = self.bot.serverConfig.getint(str(ctx.guild.id), "channel_bot", fallback = -1)
-		if ctx.channel.id != botChannelID:
-			await ctx.send("This command cannot be used in this channel.", ephemeral=True)
-			return
 
 		# Begin our DB section
 		async with self.bot.db_connection.cursor() as cursor:
@@ -556,13 +550,9 @@ class Pings(slash_util.Cog, name = "Pings"):
 
 	@slash_util.slash_command(name = "ping_search", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(tag = "The ping to search for")
+	@blueonblue.checks.in_channel_bot()
 	async def pingsearch(self, ctx: slash_util.Context, tag: str):
 		"""Retrieves information about a ping"""
-		botChannelID = self.bot.serverConfig.getint(str(ctx.guild.id), "channel_bot", fallback = -1)
-		if ctx.channel.id != botChannelID:
-			await ctx.send("This command cannot be used in this channel.", ephemeral=True)
-			return
-
 		tag = tag.casefold() # String searching is case-sensitive
 
 		# Begin our DB section
@@ -638,12 +628,9 @@ class Pings(slash_util.Cog, name = "Pings"):
 	@slash_util.slash_command(name = "ping_alias", guild_id = blueonblue.debugServerID)
 	@slash_util.describe(alias = "Alias to create / destroy")
 	@slash_util.describe(tag = "Ping to tie the alias to. Leave blank to remove alias.")
+	@blueonblue.checks.is_moderator()
 	async def pingalias(self, ctx: slash_util.Context, alias: str, tag: str = None):
 		"""Creates (or removes) an alias for a ping"""
-		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
-			await ctx.send("You are not authorized to use this command", ephemeral=True)
-			return
-
 		# Start our DB block
 		async with self.bot.db_connection.cursor() as cursor:
 			# Check if we need to create or destroy the alias

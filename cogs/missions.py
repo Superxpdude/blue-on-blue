@@ -282,6 +282,7 @@ class Missions(slash_util.Cog, name = "Missions"):
 	@slash_util.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
 	@slash_util.describe(missionname = "Name of the mission to schedule")
 	@slash_util.describe(notes = "Optional notes to display on the schedule")
+	@blueonblue.checks.in_channel_bot()
 	async def schedule(self, ctx: slash_util.Context, date: str, missionname: str, notes: str = None):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
 		# See if we can convert out date string to a datetime object

@@ -14,6 +14,10 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
+	async def slash_command_error(self, ctx, error: Exception) -> None:
+		"""Redirect slash command errors to the main bot"""
+		return await self.bot.slash_command_error(ctx, error)
+
 	@commands.command(brief="This kills the bot")
 	@commands.is_owner()
 	async def logout(self, ctx: commands.Context):

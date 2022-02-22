@@ -207,9 +207,13 @@ class Verify(slash_util.Cog, name = "Verify"):
 				verified INTEGER NOT NULL DEFAULT 0)")
 			await self.bot.db_connection.commit()
 
+	async def slash_command_error(self, ctx, error: Exception) -> None:
+		"""Redirect slash command errors to the main bot"""
+		return await self.bot.slash_command_error(ctx, error)
+
 	@commands.command()
 	@commands.bot_has_permissions(manage_roles=True)
-	# This needs to be restricted to the check in channel
+	@blueonblue.checks.in_channel_checkin()
 	# This needs to have a check to make sure that the server config has a steam group
 	async def verify(self, ctx: commands.Context, *, steam_url: str=""):
 		"""Verifies a user as part of the group.
@@ -275,7 +279,7 @@ class Verify(slash_util.Cog, name = "Verify"):
 
 	@commands.command(name="checkin")
 	@commands.bot_has_permissions(manage_roles=True)
-	# This needs to be restricted to the check in channel
+	@blueonblue.checks.in_channel_checkin()
 	# This needs to have a check to make sure that the server config has a steam group
 	async def check_in(self, ctx: commands.Context):
 		"""Confirms that a user is a part of the Steam group."""
