@@ -63,8 +63,7 @@ def is_admin() -> bool:
 		adminRoleID = ctx.bot.serverConfig.getint(str(ctx.guild.id), "role_admin", fallback = -1)
 		adminRole = ctx.guild.get_role(adminRoleID)
 
-		#isOwner = await ctx.bot.is_owner(ctx.author)
-		isOwner = False
+		isOwner = await ctx.bot.is_owner(ctx.author)
 
 		if (adminRole in ctx.author.roles) or isOwner:
 			return True

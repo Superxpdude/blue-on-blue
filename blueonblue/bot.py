@@ -259,11 +259,11 @@ class BlueOnBlueBot(slash_util.Bot):
 		ctx   : Context
 		error : Exception"""
 		if (isinstance(error, checks.UserUnauthorized)) or (isinstance(error, commands.NotOwner)):
-			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.", ephemeral=True)
+			await ctx.send(f"You are not authorized to use the command `{ctx.command}`.", ephemeral=True)
 
 		# Generic handler
 		else:
-			log.exception(f"Ignoring exception in command {ctx.command}:")
+			log.exception(f"Ignoring exception in command {ctx.command.name}:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 

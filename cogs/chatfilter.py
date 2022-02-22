@@ -319,9 +319,5 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 		This needs to wait until the bot is ready, since it relies on being able to grab a list of guilds that the bot is in."""
 		await self._update_all_lists()
 
-	@commands.command()
-	async def update_list(self, ctx: commands.Context):
-		await self._update_all_lists()
-
 def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(ChatFilter(bot))
