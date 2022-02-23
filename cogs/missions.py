@@ -68,7 +68,7 @@ class Missions(slash_util.Cog, name = "Missions"):
 		return await self.bot.slash_command_error(ctx, error)
 
 	def _get_google_credentials(self):
-		accountFile = self.bot.config.get("GOOGLE", "api_file", fallback="data/google_api.json")
+		accountFile = self.bot.config.get("GOOGLE", "api_file", fallback="config/google_api.json")
 		scopes = ["https://spreadsheets.google.com/feeds"]
 		creds = Credentials.from_service_account_file(accountFile, scopes = scopes)
 		return creds
