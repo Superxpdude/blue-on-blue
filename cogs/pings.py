@@ -115,7 +115,7 @@ async def ping_create(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) ->
 	Use ping_exists() to check if the ping exists or not first."""
 	tag = tag.casefold()
 	time = round(datetime.now(timezone.utc).timestamp()) # Get the current time in timestamp format
-	await cursor.execute("INSERT OR REPLACE INTO pings (server_id, ping_name, last_used_time) VALUES (:server_id, :ping, :time)",
+	await cursor.execute("INSERT INTO pings (server_id, ping_name, last_used_time) VALUES (:server_id, :ping, :time)",
 		{"server_id": guild.id, "ping": tag, "time": time})
 
 async def ping_delete(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
@@ -127,7 +127,7 @@ async def ping_delete(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) ->
 async def ping_create_alias(tag: str, pingID: int, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
 	"""Creates an alias for an existing ping"""
 	tag = tag.casefold()
-	await cursor.execute("INSERT OR REPLACE INTO pings (server_id, ping_name, alias_for) VALUES (:server_id, :alias, :pingID)",
+	await cursor.execute("INSERT INTO pings (server_id, ping_name, alias_for) VALUES (:server_id, :alias, :pingID)",
 		{"server_id": guild.id, "alias": tag, "pingID": pingID})
 
 async def ping_delete_alias(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
