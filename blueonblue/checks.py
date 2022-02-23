@@ -74,7 +74,7 @@ def in_channel_bot() -> bool:
 def in_channel_checkin() -> bool:
 	"""Checks if the command was used in the specified bot channel"""
 	async def predicate(ctx: slash_util.Context):
-		botChannelID = ctx.bot.serverConfig.getint(str(ctx.guild.id), "channel_bot", fallback = -1)
+		botChannelID = ctx.bot.serverConfig.getint(str(ctx.guild.id), "channel_check_in", fallback = -1)
 		if ctx.channel.id == botChannelID:
 			return True
 		else:
