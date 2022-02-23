@@ -282,25 +282,25 @@ async def create_ping_embed_from_id(
 
 	# Convert pingUsers and pingAliases to the format we need for the embed
 	# This put backticks around each entry in the array
-	pingUserTexts = list(map(lambda n: f"`{n}`", pingUserNames))
-	pingAliasTexts = list(map(lambda n: f"`{n}`", pingAliases))
+	#pingUserTexts = list(map(lambda n: f"`{n}`", pingUserNames))
+	#pingAliasTexts = list(map(lambda n: f"`{n}`", pingAliases))
 
 	if title_prefix is not None:
 		# Prefix present
-		embedTitle = f"{title_prefix} Ping: `{pingName}` | Users: `{len(pingUserNames)}`"
+		embedTitle = f"{title_prefix} Ping: {pingName} | Users: {len(pingUserNames)}"
 	else:
-		embedTitle = f"Ping: `{pingName}` | Users: `{len(pingUserNames)}`"
+		embedTitle = f"Ping: {pingName} | Users: {len(pingUserNames)}"
 
 	# Now that we have all of our info, start creating our embed
 	embed = discord.Embed(
 		colour = PING_EMBED_COLOUR,
 		title = embedTitle,
-		description = ", ".join(pingUserTexts)
+		description = f"```{', '.join(pingUserNames)}```"
 	)
 	if len(pingAliases) > 0:
 		embed.add_field(
 			name = "Aliases",
-			value = ", ".join(pingAliasTexts),
+			value = f"```{', '.join(pingAliases)}```",
 			inline = True
 		)
 	# Return the generated embed
@@ -508,7 +508,8 @@ class Pings(slash_util.Cog, name = "Pings"):
 						pingEmbed = discord.Embed(
 							colour = PING_EMBED_COLOUR,
 							title = f"Subscribed pings",
-							description = ", ".join(map(lambda n: f"`{n}`", sorted(userPings, key=str.casefold)))
+							#description = ", ".join(map(lambda n: f"`{n}`", sorted(userPings, key=str.casefold)))
+							description = f"```{', '.join(sorted(userPings, key=str.casefold))}```"
 						)
 						pingEmbed.set_author(
 							name = ctx.author.display_name,
@@ -535,7 +536,8 @@ class Pings(slash_util.Cog, name = "Pings"):
 					pingEmbed = discord.Embed(
 							colour = PING_EMBED_COLOUR,
 							title = f"Ping list for {ctx.guild.name}",
-							description = ", ".join(map(lambda n: f"`{n}`", sorted(pingResults, key=str.casefold)))
+							#description = ", ".join(map(lambda n: f"`{n}`", sorted(pingResults, key=str.casefold)))
+							description = f"```{', '.join(sorted(pingResults, key=str.casefold))}```"
 						)
 				else:
 					# No pings defined
@@ -613,7 +615,9 @@ class Pings(slash_util.Cog, name = "Pings"):
 					pingEmbed = discord.Embed(
 						title = f"Ping search for `{tag}`",
 						colour = PING_EMBED_COLOUR,
-						description = ", ".join(map(lambda n: f"`{n}`", sorted(pingResults, key=str.casefold)))
+						#description = ", ".join(map(lambda n: f"`{n}`", sorted(pingResults, key=str.casefold)))
+						description = f"```{', '.join(sorted(pingResults, key=str.casefold))}```"
+
 					)
 				else:
 					# We did not find any search results
@@ -876,7 +880,8 @@ class Pings(slash_util.Cog, name = "Pings"):
 				pingEmbed = discord.Embed(
 					title = f"Pings pending deletion",
 					colour = PING_EMBED_COLOUR,
-					description = ", ".join(map(lambda n: f"`{n}`", sorted(pingNames, key=str.casefold)))
+					#description = ", ".join(map(lambda n: f"`{n}`", sorted(pingNames, key=str.casefold)))
+					description = f"```{', '.join(sorted(pingNames, key=str.casefold))}```"
 				)
 				view = PingDeleteConfirm(ctx) # We can re-use the delete confirmation view
 				view.message = await ctx.send(msg, embed = pingEmbed, view = view)
