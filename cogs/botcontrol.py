@@ -112,12 +112,5 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 
 		await msg.edit(f"Performing git pull\n```{outstr}```")
 
-	@commands.command()
-	@commands.is_owner()
-	async def br(self, ctx: commands.Context):
-		await ctx.send("Break!")
-		print("Break")
-		await ctx.send("Continue!")
-
 def setup(bot: blueonblue.BlueOnBlueBot):
 	bot.add_cog(BotControl(bot))
