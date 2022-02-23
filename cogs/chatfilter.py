@@ -36,7 +36,7 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 			# "filterlist" value determines if the string is on the filter list (0) or the exclusion list (1)
 			await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
 				server_id INTEGER NOT NULL,\
-				filterlist INTEGER NOT NULL,\
+				filter_list INTEGER NOT NULL,\
 				string TEXT NOT NULL,\
 				UNIQUE(server_id,filterlist,string))")
 			await self.bot.db_connection.commit()
