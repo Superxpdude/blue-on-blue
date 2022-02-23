@@ -31,7 +31,7 @@ class BlueOnBlueBot(slash_util.Bot):
 				"api_token": None
 			},
 			"GOOGLE": {
-				"api_file": "data/google_api.json"
+				"api_file": "config/google_api.json"
 			}
 		})
 		# Read local config file
