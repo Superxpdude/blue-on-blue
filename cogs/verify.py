@@ -171,7 +171,7 @@ async def steam_throw_error(self, ctx: commands.Context, status_code: int) -> No
 	if status_code == 400: # Bad request
 		await ctx.send(f"{ctx.author.mention} That doesn't seem to be a valid steam porofile. Please provide a link similar to this: <https://steamcommunity.com/profiles/76561198329777700>")
 	elif status_code == 403: # Unauthorized
-		await ctx.send(f"{ctx.author.mention} I ran into an issue getting data froM Steam. Please verify that your Steam profile visibility is set to 'Public'. "
+		await ctx.send(f"{ctx.author.mention} I ran into an issue getting data from Steam. Please verify that your Steam profile visibility is set to 'Public'. "
 			"If it is, please ping an admin for a role. Error `403`")
 	elif status_code == 429: # Rate limited
 		await ctx.send("I appear to be rate-limited by Steam. Please ping an admin for a role. Error `429`")
