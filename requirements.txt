@@ -1,4 +1,4 @@
-git+https://github.com/Rapptz/discord.py@g45d498c
+git+https://github.com/Rapptz/discord.py@45d498c
 slash-util>=1.3.3.1
 git+https://github.com/Rapptz/asqlite@ffc55a5
 gspread_asyncio==1.5.3
