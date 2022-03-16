@@ -1,36 +1,25 @@
+import discord
 from discord.ext import commands
-import slash_util
 
 import subprocess
 
-import logging
-
 import blueonblue
-log = logging.getLogger("blueonblue")
 
-class BotControl(slash_util.Cog, name = "Bot Control"):
+import logging
+_log = logging.getLogger("blueonblue")
+
+class BotControl(commands.Cog, name = "Bot Control"):
 	"""Commands that control the bot's core functionality."""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
-	async def slash_command_error(self, ctx, error: Exception) -> None:
-		"""Redirect slash command errors to the main bot"""
-		return await self.bot.slash_command_error(ctx, error)
-
 	@commands.command(brief="This kills the bot")
 	@commands.is_owner()
 	async def logout(self, ctx: commands.Context):
 		await ctx.send("Goodbye")
-		log.info(f"Bot terminated by {ctx.author.name}")
+		_log.info(f"Bot terminated by {ctx.author.name}")
 		await self.bot.close()
-
-	@logout.error
-	async def logout_error(self, ctx: commands.Context, error):
-		if isinstance(error, commands.CheckFailure):
-			await ctx.send("Nothing to see here, move along comrarde.")
-		else:
-			await ctx.bot.on_command_error(ctx,error,error_force=True)
 
 	@commands.command()
 	@commands.is_owner()
@@ -40,19 +29,15 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 		Cog name is case sensitive.
 		Cogs must be placed in the "cogs" folder on the bot."""
 		try:
-			self.bot.load_extension("cogs." + cog)
+			await self.bot.load_extension("cogs." + cog)
 		except Exception as e:
 			await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
-			log.exception(f"Failed to load extension: {cog}")
+			_log.exception(f"Failed to load extension: {cog}")
 		else:
 			await ctx.send("**`SUCCESS`**")
-			log.info(f"Loaded extension: {cog}")
+			_log.info(f"Loaded extension: {cog}")
 			# Synchronize slash commands
-			await self.bot.sync_commands()
-			# Add the extension to the config list
-			# if cog not in ["botcontrol","users"]:
-			# 	self.bot.config["COGS"][cog] = "True"
-			# 	self.bot.write_config()
+			await self.bot.syncAppCommands()
 
 	@commands.command()
 	@commands.is_owner()
@@ -63,21 +48,15 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 		Cogs must be placed in the "cogs" folder on the bot."""
 		if cog != "botcontrol": # Prevent unloading botcontrol
 			try:
-				self.bot.unload_extension("cogs." + cog)
+				await self.bot.unload_extension("cogs." + cog)
 			except Exception as e:
 				await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
-				log.exception(f"Error unloading extension: {cog}")
+				_log.exception(f"Error unloading extension: {cog}")
 			else:
 				await ctx.send("**`SUCCESS`**")
-				log.info(f"Unloaded extension: {cog}")
-
+				_log.info(f"Unloaded extension: {cog}")
 				# Synchronize slash commands
-				await self.bot.sync_commands()
-
-				# Disable the extension in the config
-				# if cog not in ["botcontrol","users"]:
-				# 	self.bot.config["COGS"][cog] = "False"
-				# 	self.bot.write_config()
+				await self.bot.syncAppCommands()
 		else:
 			await ctx.send(f"You cannot unload the bot control module! Try using `{ctx.prefix}cogreload` instead.")
 
@@ -89,15 +68,15 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 		Cog name is case sensitive.
 		Cogs must be placed in the "cogs" folder on the bot."""
 		try:
-			self.bot.reload_extension("cogs." + cog)
+			await self.bot.reload_extension("cogs." + cog)
 		except Exception as e:
 			await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
-			log.exception(f"Failed to reload extension: {cog}")
+			_log.exception(f"Failed to reload extension: {cog}")
 		else:
 			await ctx.send("**`SUCCESS`**")
-			log.info(f"Reloaded extension: {cog}")
+			_log.info(f"Reloaded extension: {cog}")
 			# Synchronize slash commands
-			await self.bot.sync_commands()
+			await self.bot.syncAppCommands()
 
 	@commands.command()
 	@commands.is_owner()
@@ -112,5 +91,5 @@ class BotControl(slash_util.Cog, name = "Bot Control"):
 
 		await msg.edit(f"Performing git pull\n```{outstr}```")
 
-def setup(bot: blueonblue.BlueOnBlueBot):
-	bot.add_cog(BotControl(bot))
+async def setup(bot: blueonblue.BlueOnBlueBot):
+	await bot.add_cog(BotControl(bot))
