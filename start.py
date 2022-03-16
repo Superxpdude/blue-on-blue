@@ -3,7 +3,6 @@ import sys
 import argparse
 import subprocess
 import os
-import asyncio
 
 from blueonblue.bot import BlueOnBlueBot
 
