@@ -93,7 +93,7 @@ class BlueOnBlueBot(commands.Bot):
 		# Botcontrol and users must be first and second respectively
 		self.initialExtensions = [
 			"botcontrol",
-			# "users",
+			"users",
 			# "chatfilter",
 			# "gold",
 			# "jail",
