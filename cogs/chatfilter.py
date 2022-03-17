@@ -1,6 +1,6 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
-import slash_util
 
 from typing import Literal, List
 
@@ -11,47 +11,43 @@ log = logging.getLogger("blueonblue")
 
 CHATFILTER_EMBED_COLOUR = 0xff0000
 
-class ChatFilter(slash_util.Cog, name="Chat Filter"):
+class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	"""Chat filter module.
 
 	These commands can only be used by authorized users."""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
-		# Set up our DB
-		self.bot.loop.create_task(self.db_init())
 		# Initialize our filter lists
-		self.exclusionList = {}
-		self.filterlist = {}
+		self.blockList = {}
+		self.allowList = {}
 
-	async def slash_command_error(self, ctx, error: Exception) -> None:
-		"""Redirect slash command errors to the main bot"""
-		return await self.bot.slash_command_error(ctx, error)
-
-	async def db_init(self):
+	# Async cog setup function
+	async def cog_load(self):
 		"""Initializes the database for the cog.
 		Creates the tables if they don't exist."""
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Create the tables if they do not exist
 			# "filterlist" value determines if the string is on the filter list (0) or the exclusion list (1)
 			await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
 				server_id INTEGER NOT NULL,\
 				filter_list INTEGER NOT NULL,\
 				string TEXT NOT NULL,\
-				UNIQUE(server_id,filterlist,string))")
-			await self.bot.db_connection.commit()
+				UNIQUE(server_id,filter_list,string))")
+			await self.bot.dbConnection.commit()
+		await self._update_all_lists()
 
 	async def _update_all_lists(self) -> None:
 		"""Update the chat filter lists"""
 		# Start the DB block
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Reset our existing lists from memory
 			keyList = []
 			for g in self.bot.guilds:
 				keyList.append(str(g.id))
 
-			self.exclusionList = dict.fromkeys(keyList, [])
-			self.filterlist = dict.fromkeys(keyList, [])
+			self.allowList = dict.fromkeys(keyList, [])
+			self.blockList = dict.fromkeys(keyList, [])
 
 			# Get data from the DB
 			await cursor.execute("SELECT * FROM chatfilter")
@@ -62,22 +58,22 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 					# Server is present in list
 					if f["filter_list"]:
 						# Exclusion list
-						self.exclusionList[serverStr].append(f["string"])
+						self.allowList[serverStr].append(f["string"])
 					else:
 						# Filter list
-						self.filterlist[serverStr].append(f["string"])
+						self.blockList[serverStr].append(f["string"])
 			# To ensure that we remove longer words first, we need to sort the exclusion list
-			for k in self.exclusionList:
-				self.exclusionList[k].sort(key = len, reverse=True)
+			for k in self.allowList:
+				self.allowList[k].sort(key = len, reverse=True)
 
 	async def _update_server_lists(self, guild: discord.Guild):
 		"""Update the chat filter lists for a single server"""
 		# Start the DB block
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Don't reset the entire filter lists
 			serverStr = str(guild.id)
-			self.exclusionList[serverStr] = []
-			self.filterlist[serverStr] = []
+			self.allowList[serverStr] = []
+			self.blockList[serverStr] = []
 
 			# Get data from the DB
 			await cursor.execute("SELECT filter_list, string FROM chatfilter WHERE server_id = :server_id", {"server_id": guild.id})
@@ -85,60 +81,60 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 			for f in filterData:
 				if f["filter_list"]:
 					# Exclusion list
-					self.exclusionList[serverStr].append(f["string"])
+					self.allowList[serverStr].append(f["string"])
 				else:
 					# Filter list
-					self.filterlist[serverStr].append(f["string"])
+					self.blockList[serverStr].append(f["string"])
 			# To ensure that we remove longer words first, we need to sort the exclusion list
-			self.exclusionList[serverStr].sort(key = len, reverse=True)
+			self.allowList[serverStr].sort(key = len, reverse=True)
 
 	async def _add_chatfilter_entry(self, string: str, filterlist: int|str, guild: discord.Guild) -> None:
 		"""Adds an entry to a chat filter list
-		List == 0 for the filter list, 1 for the exclusion list"""
+		List == 0 for the block list, 1 for the allow list"""
 		if type(filterlist) == str:
-			if filterlist == "filter":
+			if filterlist == "block":
 				filterlist = 0 # Filter list
 			else:
 				filterlist = 1 # Exclusion list
 
 		# Start the DB block
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Add our entry to the DB
 			await cursor.execute("INSERT OR REPLACE INTO chatfilter (server_id, filter_list, string) VALUES (:server_id, :list, :string)",
 				{"server_id": guild.id, "list": filterlist, "string": string.casefold()})
-			await self.bot.db_connection.commit()
+			await self.bot.dbConnection.commit()
 			await self._update_server_lists(guild)
 
 	async def _remove_chatfilter_entry(self, string: str, filterlist: int|str, guild: discord.Guild) -> None:
 		"""Removes an entry to a chat filter list
-		List == 0 for the filter list, 1 for the exclusion list"""
+		List == 0 for the block list, 1 for the allow list"""
 		if type(filterlist) == str:
-			if filterlist == "filter":
+			if filterlist == "block":
 				filterlist = 0 # Filter list
 			else:
 				filterlist = 1 # Exclusion list
 
 		# Start the DB block
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Remove our entry from the DB
 			await cursor.execute("DELETE FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list AND string = :string)",
 				{"server_id": guild.id, "list": filterlist, "string": string.casefold()})
-			await self.bot.db_connection.commit()
+			await self.bot.dbConnection.commit()
 			await self._update_server_lists(guild)
 
 	async def _get_chatfilterlist(self, filterlist: int|str, guild: discord.Guild) -> List[str]:
 		"""Returns the entries in a chat filter list
-		List == 0 for the filter list, 1 for the exclusion list"""
+		List == 0 for the block list, 1 for the allow list"""
 		if type(filterlist) == str:
-			if filterlist == "filter":
-				filterlist = 0 # Filter list
+			if filterlist == "block":
+				filterlist = 0 # Block list
 			else:
-				filterlist = 1 # Exclusion list
+				filterlist = 1 # Allow list
 
 		await self._update_server_lists(guild)
 
 		# Start the DB block
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Get our values from the DB
 			await cursor.execute("SELECT string FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list)",
 				{"server_id": guild.id, "list": filterlist})
@@ -152,8 +148,8 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 		"""Checks a text string against the chatfilter for a guild.
 		Returns False if no issues found. Returns True if the text violates the chatfilter."""
 		# Grab the lists for this guild
-		excludeList = self.exclusionList[str(guild.id)]
-		filterlist = self.filterlist[str(guild.id)]
+		excludeList = self.allowList[str(guild.id)]
+		filterlist = self.blockList[str(guild.id)]
 		# Remove any excluded strings from the processed text
 		processed = text
 		if any(excludeStrings in text for excludeStrings in excludeList):
@@ -249,51 +245,63 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 			# Existing thread
 			await thread.edit(name=before.name)
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
-	@slash_util.describe(filterlist = "Chatfilter list to use")
-	@slash_util.describe(mode = "Mode of operation")
-	@slash_util.describe(string = "Text to add/remove from chatfilter list")
-	@blueonblue.checks.is_moderator()
-	async def chatfilter(self, ctx: slash_util.Context, filterlist: Literal["filter", "exclude"], mode: Literal["show", "add", "remove"], string: str = None):
-		"""Controls chat filter settings"""
-		if not (await blueonblue.checks.slash_is_moderator(self.bot, ctx)):
-			await ctx.send("You are not authorized to use this command", ephemeral=True)
-			return
+	blockListGroup = app_commands.Group(name="blocklist", description="Commands to manage the chatfilter blocklist")
 
-		if (mode != "show") and (string is None):
-			await ctx.send("A string must be provided when trying to add or remove from a filter list.", ephemeral=True)
-			return
+	@blockListGroup.command(name = "show")
+	async def blockListShow(self, interaction: discord.Interaction):
+		"""Shows the block list"""
+		filterEntries = await self._get_chatfilterlist("block", interaction.guild)
+		filterEmbed = discord.Embed(
+			colour = CHATFILTER_EMBED_COLOUR,
+			title = f"{interaction.guild.name} chatfilter block list",
+			description = ", ".join(map(lambda n: f"`{n}`", sorted(filterEntries, key=str.casefold)))
+		)
+		await interaction.response.send_message(embed = filterEmbed)
 
-		if filterlist == "filter":
-			filterlist = 0
-		else:
-			filterlist = 1
+	@blockListGroup.command(name="add")
+	@app_commands.describe(string="The string to add to the list")
+	async def blockListAdd(self, interaction: discord.Interaction, string: str):
+		"""Adds an entry to the block list"""
+		# Add to list
+		await self._add_chatfilter_entry(string, "block", interaction.guild)
+		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been added to the block list.")
 
-		if filterlist == 1:
-			filterText = "exclusion"
-		else:
-			filterText = "filter"
+	@blockListGroup.command(name="remove")
+	@app_commands.describe(string="The string to remove from the list")
+	async def blockListRemove(self, interaction: discord.Interaction, string: str):
+		"""Removes an entry from the block list"""
+		# Remove from list
+		await self._remove_chatfilter_entry(string, "block", interaction.guild)
+		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been removed from the block list.")
 
-		if string is not None:
-			string = string.casefold()
+	allowListGroup = app_commands.Group(name="allowlist", description="Commands to manage the chatfilter allowlist")
 
-		if mode == "add":
-			# Add to list
-			await self._add_chatfilter_entry(string, filterlist, ctx.guild)
-			await ctx.send(f"{ctx.author.mention}, the string `{string}` has been added to the {filterText} list.")
-		elif mode == "remove":
-			# Remove from list
-			await self._remove_chatfilter_entry(string, filterlist, ctx.guild)
-			await ctx.send(f"{ctx.author.mention}, the string `{string}` has been removed from the {filterText} list.")
-		else:
-			# Show list
-			filterEntries = await self._get_chatfilterlist(filterlist, ctx.guild)
-			filterEmbed = discord.Embed(
-				colour = CHATFILTER_EMBED_COLOUR,
-				title = f"{ctx.guild.name} chatfilter {filterText} list",
-				description = ", ".join(map(lambda n: f"`{n}`", sorted(filterEntries, key=str.casefold)))
-			)
-			await ctx.send(embed = filterEmbed)
+	@allowListGroup.command(name = "show")
+	async def allowListShow(self, interaction: discord.Interaction):
+		"""Shows the allow list"""
+		filterEntries = await self._get_chatfilterlist("allow", interaction.guild)
+		filterEmbed = discord.Embed(
+			colour = CHATFILTER_EMBED_COLOUR,
+			title = f"{interaction.guild.name} chatfilter allow list",
+			description = ", ".join(map(lambda n: f"`{n}`", sorted(filterEntries, key=str.casefold)))
+		)
+		await interaction.response.send_message(embed = filterEmbed)
+
+	@allowListGroup.command(name="add")
+	@app_commands.describe(string="The string to add to the list")
+	async def allowListAdd(self, interaction: discord.Interaction, string: str):
+		"""Adds an entry to the allow list"""
+		# Add to list
+		await self._add_chatfilter_entry(string, "allow", interaction.guild)
+		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been added to the allow list.")
+
+	@allowListGroup.command(name="remove")
+	@app_commands.describe(string="The string to remove from the list")
+	async def allowListRemove(self, interaction: discord.Interaction, string: str):
+		"""Removes an entry from the allow list"""
+		# Remove from list
+		await self._remove_chatfilter_entry(string, "allow", interaction.guild)
+		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been removed from the allow list.")
 
 	@commands.Cog.listener()
 	async def on_message(self, message: discord.Message):
@@ -323,5 +331,5 @@ class ChatFilter(slash_util.Cog, name="Chat Filter"):
 		This needs to wait until the bot is ready, since it relies on being able to grab a list of guilds that the bot is in."""
 		await self._update_all_lists()
 
-def setup(bot: blueonblue.BlueOnBlueBot):
-	bot.add_cog(ChatFilter(bot))
+async def setup(bot: blueonblue.BlueOnBlueBot):
+	await bot.add_cog(ChatFilter(bot))

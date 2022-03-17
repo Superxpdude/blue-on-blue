@@ -94,7 +94,7 @@ class BlueOnBlueBot(commands.Bot):
 		self.initialExtensions = [
 			"botcontrol",
 			"users",
-			# "chatfilter",
+			"chatfilter",
 			# "gold",
 			# "jail",
 			# "missions",
@@ -123,7 +123,7 @@ class BlueOnBlueBot(commands.Bot):
 			guild = discord.Object(self.slashDebugID)
 			# Remove existing commands from the guild list
 			for type in [discord.AppCommandType.chat_input, discord.AppCommandType.user, discord.AppCommandType.message]:
-				for command in self.tree.walk_commands(guild = guild, type = type):
+				for command in self.tree.get_commands(guild = guild, type = type):
 					self.tree.remove_command(command.name, guild = guild, type = type)
 			self.tree.copy_global_to(guild = guild)
 			await self.tree.sync(guild = guild)
