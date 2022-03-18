@@ -95,7 +95,7 @@ class BlueOnBlueBot(commands.Bot):
 			"botcontrol",
 			"users",
 			"chatfilter",
-			# "gold",
+			"gold",
 			# "jail",
 			# "missions",
 			# "pings",

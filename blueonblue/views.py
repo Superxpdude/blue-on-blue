@@ -28,9 +28,10 @@ class CancelButton(discord.ui.Button):
 # Base view class for
 class AuthorResponseViewBase(discord.ui.View):
 	"""Base view class for a view that will only respond to the original user who invoked the view."""
-	def __init__(self, *, timeout: Optional[float]=120.0):
+	def __init__(self, author: discord.User|discord.Member, *, timeout: Optional[float]=120.0):
 		self.response = None
-		self.message: discord.Message = None
+		self.message: discord.InteractionMessage = None
+		self.author = author
 		super().__init__(timeout=timeout)
 
 	async def terminate(self, *, timedOut: Optional[bool]=False) -> None:
@@ -40,11 +41,11 @@ class AuthorResponseViewBase(discord.ui.View):
 		for child in self.children:
 			child.disabled = True
 		# Check if our view was timed out
-		if timedOut and (self.message is not None):
+		if timedOut:
 			# Edit our message to add "Timed Out" at the end
 			messageText = self.message.content # Get message text
 			messageText += "\nTimed out"
-			await self.message.edit(messageText, view=self)
+			await self.message.edit(messageText, view = self)
 		else:
 			# We don't need to edit the message
 			await self.message.edit(view = self)
@@ -53,7 +54,7 @@ class AuthorResponseViewBase(discord.ui.View):
 
 	# Only allow the original command user to interact with the buttons
 	async def interaction_check(self, interaction: discord.Interaction) -> bool:
-		if interaction.user == self.ctx.author:
+		if interaction.user == self.author:
 			return True
 		else:
 			await interaction.response.send_message("This button is not for you.", ephemeral=True)
