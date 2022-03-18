@@ -1,9 +1,6 @@
 import discord
-import slash_util
 
 from typing import Optional
-
-from . import bot
 
 # Subclassed buttons
 class ConfirmButton(discord.ui.Button):
@@ -31,9 +28,8 @@ class CancelButton(discord.ui.Button):
 # Base view class for
 class AuthorResponseViewBase(discord.ui.View):
 	"""Base view class for a view that will only respond to the original user who invoked the view."""
-	def __init__(self, ctx: slash_util.Context, *, timeout: Optional[float]=120.0):
+	def __init__(self, *, timeout: Optional[float]=120.0):
 		self.response = None
-		self.ctx = ctx
 		self.message: discord.Message = None
 		super().__init__(timeout=timeout)
 
@@ -72,8 +68,8 @@ class ConfirmView(AuthorResponseViewBase):
 	Creates a view with "Confirm" and "Cancel" buttons.
 	Requires a command context to be passed through on initialization.
 	Returns True for "Confirm", False for "Cancel"."""
-	def __init__(self, ctx: slash_util.Context, *, timeout: Optional[float]=120.0, confirm: Optional[str]="Confirm", cancel: Optional[str]="Cancel"):
-		super().__init__(ctx, timeout)
+	def __init__(self, *, timeout: Optional[float]=120.0, confirm: Optional[str]="Confirm", cancel: Optional[str]="Cancel"):
+		super().__init__(timeout)
 		self.add_item(ConfirmButton())
 		self.add_item(CancelButton())
 
