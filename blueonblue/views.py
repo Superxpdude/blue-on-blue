@@ -5,34 +5,41 @@ from typing import Optional
 # Subclassed buttons
 class ConfirmButton(discord.ui.Button):
 	"""Button to confirm an action"""
-	def __init__(self, *, label: Optional[str]="Confirm", style: Optional[discord.ButtonStyle]=discord.ButtonStyle.success):
-		super().__init__(label = label, style = style)
+	def __init__(self, *args, label: str="Confirm", style: discord.ButtonStyle=discord.ButtonStyle.success, **kwargs):
+		super().__init__(*args, label = label, style = style, **kwargs)
 
 	async def callback(self, interaction: discord.Interaction):
 		"""Callback function for the button"""
 		view: AuthorResponseViewBase = self.view
 		view.response = True
 		await view.terminate()
+		await interaction.response.defer()
+
+class ConfirmButtonRed(ConfirmButton):
+	"""Button to confirm an action. Red for destructive actions"""
+	def __init__(self, *args, label: str="Confirm", style: discord.ButtonStyle=discord.ButtonStyle.danger, **kwargs):
+		super().__init__(*args, label = label, style = style, **kwargs)
 
 class CancelButton(discord.ui.Button):
 	"""Button to cancel an action"""
-	def __init__(self, *, label: Optional[str]="Confirm", style: Optional[discord.ButtonStyle]=discord.ButtonStyle.success):
-		super().__init__(label = label, style = style)
+	def __init__(self, *args, label: str="Cancel", style: discord.ButtonStyle=discord.ButtonStyle.secondary, **kwargs):
+		super().__init__(*args, label = label, style = style, **kwargs)
 
 	async def callback(self, interaction: discord.Interaction):
 		"""Callback function for the button"""
 		view: AuthorResponseViewBase = self.view
 		view.response = False
 		await view.terminate()
+		await interaction.response.defer()
 
-# Base view class for
+# Base view class for a view that only responds to the author
 class AuthorResponseViewBase(discord.ui.View):
 	"""Base view class for a view that will only respond to the original user who invoked the view."""
-	def __init__(self, author: discord.User|discord.Member, *, timeout: Optional[float]=120.0):
+	def __init__(self, author: discord.User|discord.Member, *args, timeout: float=120.0, **kwargs):
 		self.response = None
 		self.message: discord.InteractionMessage = None
 		self.author = author
-		super().__init__(timeout=timeout)
+		super().__init__(*args, timeout=timeout, **kwargs)
 
 	async def terminate(self, *, timedOut: Optional[bool]=False) -> None:
 		"""Overwritten "stop" function.
@@ -69,23 +76,16 @@ class ConfirmView(AuthorResponseViewBase):
 	Creates a view with "Confirm" and "Cancel" buttons.
 	Requires a command context to be passed through on initialization.
 	Returns True for "Confirm", False for "Cancel"."""
-	def __init__(self, *, timeout: Optional[float]=120.0, confirm: Optional[str]="Confirm", cancel: Optional[str]="Cancel"):
-		super().__init__(timeout)
-		self.add_item(ConfirmButton())
-		self.add_item(CancelButton())
+	def __init__(self, *args, confirm: str="Confirm", cancel: str="Cancel", **kwargs):
+		super().__init__(*args, **kwargs)
+		self.add_item(ConfirmButton(label = confirm))
+		self.add_item(CancelButton(label = cancel))
 
-# Confirmation view for delete actions
-class ConfirmDelete(AuthorResponseViewBase):
-	"""Delete confirmation dialog
+# Confirmation view for dangerous actions
+class ConfirmViewDanger(AuthorResponseViewBase):
+	""""Danger" confirmation dialog
 	Same setup as blueonblue.views.ConfirmView, but with different button labels and colours"""
-	@discord.ui.button(label = "Delete", style = discord.ButtonStyle.danger)
-	async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
-		"""Red button for deletion"""
-		self.value = True
-		self.stop()
-
-	@discord.ui.button(label = "Cancel", style = discord.ButtonStyle.secondary)
-	async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
-		"""Grey button for cancellation"""
-		self.value = False
-		self.stop()
+	def __init__(self, *args, confirm: str="Confirm", cancel: str="Cancel", **kwargs):
+		super().__init__(*args, **kwargs)
+		self.add_item(ConfirmButtonRed(label = confirm))
+		self.add_item(CancelButton(label = cancel))

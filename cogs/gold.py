@@ -12,23 +12,6 @@ log = logging.getLogger("blueonblue")
 
 GOLD_EMBED_COLOUR = 0xFF3491
 
-# Set up views for the gold commands
-class GoldConfirm(blueonblue.views.AuthorResponseViewBase):
-	"""Confirmation view for gold."""
-	@discord.ui.button(label = "Confirm", style = discord.ButtonStyle.green)
-	async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
-		"""Green button for confirmation"""
-		self.response = True
-		await self.terminate()
-		await interaction.response.defer()
-
-	@discord.ui.button(label = "Cancel", style = discord.ButtonStyle.secondary)
-	async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
-		"""Grey button for cancellation"""
-		self.response = False
-		await self.terminate()
-		await interaction.response.defer()
-
 class Gold(app_commands.Group, commands.Cog, name="gold"):
 	"""Gold user functions"""
 	def __init__(self, bot, *args, **kwargs):
@@ -78,7 +61,7 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 			timeText = int(time) if time==int(time) else time
 
 			# Build our embed and view
-			view = GoldConfirm(interaction.user)
+			view = blueonblue.views.ConfirmView(interaction.user)
 			goldEmbed = discord.Embed(
 				title = f"Gold to be given for `{timeText} {time_unit}` until",
 				description=f"<t:{expiryTimeStamp}:F>",
@@ -151,7 +134,7 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 			expiryTimeStamp = userData["expiry_time"]
 
 			# User present in gold table. Create our embed and message.
-			view = GoldConfirm(interaction.user)
+			view = blueonblue.views.ConfirmView(interaction.user)
 			goldEmbed = discord.Embed(
 				title = f"User has TMTM Gold until",
 				description=f"<t:{expiryTimeStamp}:F>",
