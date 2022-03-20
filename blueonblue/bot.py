@@ -96,7 +96,7 @@ class BlueOnBlueBot(commands.Bot):
 			"users",
 			"chatfilter",
 			"gold",
-			# "jail",
+			"jail",
 			# "missions",
 			# "pings",
 			# "verify"
