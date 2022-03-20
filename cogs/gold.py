@@ -55,7 +55,7 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 				timeDelta = timedelta(days=time)
 
 			# Now that we have our timedelta, find the expiry time
-			expiryTimeStamp = round((datetime.now(timezone.utc) + timeDelta).timestamp())
+			expiryTimeStamp = round((discord.utils.utcnow() + timeDelta).timestamp())
 
 			# Create a "time text"
 			timeText = int(time) if time==int(time) else time
@@ -221,7 +221,7 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 		async with self.bot.dbConnection.cursor() as cursor:
 			# Get a list of users that are past their expiry time
 			# Get the current timestamp
-			timeStamp = round(datetime.now(timezone.utc).timestamp())
+			timeStamp = round(discord.utils.utcnow().timestamp())
 			# Check if any users have expired gold
 			await cursor.execute("SELECT server_id, user_id FROM gold WHERE expiry_time < :time", {"time": timeStamp})
 			expiryData = await cursor.fetchall()
