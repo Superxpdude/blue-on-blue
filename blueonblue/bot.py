@@ -98,7 +98,7 @@ class BlueOnBlueBot(commands.Bot):
 			"gold",
 			"jail",
 			"missions",
-			# "pings",
+			"pings",
 			# "verify"
 		]
 
