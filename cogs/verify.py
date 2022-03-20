@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import slash_util
 
 import asqlite
 import random
@@ -37,7 +36,7 @@ async def steam_getid64(self, url:str = "") -> str | int | None:
 			vanity = vanity[:-1]
 
 		# Make our request to the steam API
-		async with bot.http_session.get("https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/", params = {
+		async with bot.httpSession.get("https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/", params = {
 			"key": bot.config.get("STEAM","api_token", fallback = ""),
 			"vanityurl": vanity
 		}) as response:
@@ -59,7 +58,7 @@ async def steam_check_group_membership(self, ctx: commands.Context, steamID64: i
 	Returns an integer if an HTTP error was encountered."""
 	bot: blueonblue.BlueOnBlueBot = self.bot
 	# Web request block
-	async with bot.http_session.get(
+	async with bot.httpSession.get(
 		"https://api.steampowered.com/ISteamUser/GetUserGroupList/v1/",
 		params = {
 			"key": bot.config.get("STEAM","api_token", fallback = ""),
@@ -102,7 +101,7 @@ async def steam_check_token(self, ctx: commands.Context, cursor: asqlite.Cursor)
 		return None # Return none if we don't have a token
 
 	# Start our web request block
-	async with bot.http_session.get(
+	async with bot.httpSession.get(
 		"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
 		params = {
 			"key": bot.config.get("STEAM","api_token", fallback = ""),
@@ -186,18 +185,16 @@ async def steam_throw_error(self, ctx: commands.Context, status_code: int) -> No
 		await ctx.send(f"Something has gone wrong. Please ping an admin for a role. Error `{status_code}`")
 		log.warning(f"Received code {status_code} from Steam.")
 
-
-class Verify(slash_util.Cog, name = "Verify"):
+class Verify(commands.Cog, name = "Verify"):
 	"""Verify that users are part of a steam group."""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
-		self.bot.loop.create_task(self.db_init())
 
-	async def db_init(self):
+	async def cog_load(self):
 		"""Initializes the database for the cog.
 		Creates the tables if they don't exist."""
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Create the tables if they do not exist
 			# This table doesn't need a server ID, since the discord user to steam ID connection is independent of the discord server
 			await cursor.execute("CREATE TABLE if NOT EXISTS verify (\
@@ -205,11 +202,7 @@ class Verify(slash_util.Cog, name = "Verify"):
 				steam64_id INTEGER NOT NULL,\
 				token TEXT NOT NULL,\
 				verified INTEGER NOT NULL DEFAULT 0)")
-			await self.bot.db_connection.commit()
-
-	async def slash_command_error(self, ctx, error: Exception) -> None:
-		"""Redirect slash command errors to the main bot"""
-		return await self.bot.slash_command_error(ctx, error)
+			await self.bot.dbConnection.commit()
 
 	@commands.command()
 	@commands.bot_has_permissions(manage_roles=True)
@@ -233,7 +226,7 @@ class Verify(slash_util.Cog, name = "Verify"):
 
 		# At this point, we know that our steamID64 is an integer in string form
 		# Start our DB block
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Start by checking if the user is already in the DB
 			await cursor.execute("SELECT discord_id FROM verify WHERE discord_id = :id AND verified = 1", {"id": ctx.author.id})
 			userInDB = await cursor.fetchone()
@@ -265,7 +258,7 @@ class Verify(slash_util.Cog, name = "Verify"):
 			# Insert the user's data into the database
 			await cursor.execute("INSERT OR REPLACE INTO verify (discord_id, steam64_id, token) VALUES\
 				(:userID, :steamID, :token)", {"userID": ctx.author.id, "steamID": steamID64, "token": userToken})
-			await self.bot.db_connection.commit() # Commit changes
+			await self.bot.dbConnection.commit() # Commit changes
 			# Prepare the instructions
 			instructions = "Put this token into the 'real name' section of your steam profile. " \
 				f"Come back to the check in section of the discord and type in `{ctx.prefix}checkin`.\n" \
@@ -293,7 +286,7 @@ class Verify(slash_util.Cog, name = "Verify"):
 			return
 
 		# Begin our DB block
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Get the user data from the DB
 			await cursor.execute("SELECT steam64_id, token, verified FROM verify WHERE discord_id = :id", {"id": ctx.author.id})
 			userData = await cursor.fetchone()
@@ -349,7 +342,7 @@ class Verify(slash_util.Cog, name = "Verify"):
 					# Token confirmed
 					# Updated our "verified" flag to be true
 					await cursor.execute("UPDATE verify SET verified = 1 WHERE discord_id = :userID", {"userID": ctx.author.id})
-					await self.bot.db_connection.commit()
+					await self.bot.dbConnection.commit()
 
 					# User is already verified. We only need to check the steam group.
 					steamID64: int = userData["steam64_id"]
@@ -387,7 +380,7 @@ class Verify(slash_util.Cog, name = "Verify"):
 			# Only continue if we have a valid steam group ID and check in channel
 			prefix = self.bot.config.get("CORE", "prefix")
 			# Start our DB block
-			async with self.bot.db_connection.cursor() as cursor:
+			async with self.bot.dbConnection.cursor() as cursor:
 				# Get the user data from the DB
 				await cursor.execute("SELECT discord_id FROM verify WHERE discord_id = :id AND verified = 1", {"id": member.id})
 				userData = await cursor.fetchone() # This will only return users that are verified
@@ -403,7 +396,5 @@ class Verify(slash_util.Cog, name = "Verify"):
 						f"please type `{prefix}verify <link-to-your-steam-profile>`. If you are not in {member.guild.name} "
 						"at the moment, please go through the regular application process to join.")
 
-
-
-def setup(bot: blueonblue.BlueOnBlueBot):
-	bot.add_cog(Verify(bot))
+async def setup(bot: blueonblue.BlueOnBlueBot):
+	await bot.add_cog(Verify(bot))

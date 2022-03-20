@@ -99,7 +99,7 @@ class BlueOnBlueBot(commands.Bot):
 			"jail",
 			"missions",
 			"pings",
-			# "verify"
+			"verify"
 		]
 
 	def write_config(self):
