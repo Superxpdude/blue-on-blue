@@ -4,7 +4,6 @@ from discord.ext import commands
 import asqlite
 import random
 import string
-from typing import List
 
 import blueonblue
 
@@ -141,7 +140,7 @@ async def assign_roles(self, guild: discord.Guild, user: discord.Member, cursor:
 	memberRole = guild.get_role(memberRoleID)
 
 	# This needs a check if the user is jailed or dead. That will come later though...
-	userRoles: List[discord.Role] = []
+	userRoles: list[discord.Role] = []
 	# Get a list of our user roles
 	for r in roleData:
 		role = guild.get_role(r["role_id"])
