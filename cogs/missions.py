@@ -6,8 +6,6 @@ from datetime import datetime, timedelta
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
 
-from typing import List
-
 import blueonblue
 
 import logging
@@ -332,7 +330,7 @@ class Missions(commands.Cog, name = "Missions"):
 
 		# Now that we have our text, split it up and parse it.
 		responseLines = responseText.split("\n")
-		missionData: List[str] = []
+		missionData: list[str] = []
 		for line in responseLines:
 			if not line.startswith("{{"):
 				# We only care about lines that start with {{
