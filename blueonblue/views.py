@@ -47,15 +47,17 @@ class AuthorResponseViewBase(discord.ui.View):
 		# Disable all existing child items
 		for child in self.children:
 			child.disabled = True
-		# Check if our view was timed out
-		if timedOut:
-			# Edit our message to add "Timed Out" at the end
-			messageText = self.message.content # Get message text
-			messageText += "\nTimed out"
-			await self.message.edit(messageText, view = self)
-		else:
-			# We don't need to edit the message
-			await self.message.edit(view = self)
+		# Only try to edit the original message if we *have* the original message
+		if self.message is not None:
+			# Check if our view was timed out
+			if timedOut:
+				# Edit our message to add "Timed Out" at the end
+				messageText = self.message.content # Get message text
+				messageText += "\nTimed out"
+				await self.message.edit(messageText, view = self)
+			else:
+				# We don't need to edit the message
+				await self.message.edit(view = self)
 		# Actually stop the view
 		super().stop()
 
