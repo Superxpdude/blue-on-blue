@@ -8,6 +8,8 @@ from datetime import datetime
 
 import sys, traceback
 
+from . import checks
+
 import logging
 _log = logging.getLogger("blueonblue")
 
@@ -187,7 +189,7 @@ class BlueOnBlueBot(commands.Bot):
 		self.firstStart = False
 
 	# On message. Runs every time the bot receives a new message
-	async def on_message(self, message):
+	async def on_message(self, message: discord.Message):
 		# Do not execute commands sent by bots
 		if message.author.bot:
 			return
@@ -195,7 +197,7 @@ class BlueOnBlueBot(commands.Bot):
 		await self.process_commands(message)
 
 	# On command completion. Runs every time a command is completed
-	async def on_command_completion(self, ctx):
+	async def on_command_completion(self, ctx: commands.Context):
 		_log.debug(f"Command {ctx.command} invoked by {ctx.author.name}")
 
 	# On command error. Runs whenever a command fails (for any reason)
@@ -204,6 +206,25 @@ class BlueOnBlueBot(commands.Bot):
 		# Not owner of the bot
 		if isinstance(error, commands.NotOwner):
 			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.")
+
+		elif isinstance(error, checks.ChannelUnauthorized):
+			channels = []
+			for c in error.channels:
+				ch = ctx.guild.get_channel(c)
+				if ch is not None:
+					channels.append(ch.mention)
+
+			if len(channels) > 1:
+				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` can only be used in the following channels: "
+			elif len(channels) == 1:
+				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` can only be used in the following channel: "
+			else:
+				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` cannot be used in this channel."
+
+			# Add the channel idenfiers to the string
+			message += ", ".join(channels)
+
+			await ctx.send(message)
 
 		# Command not found
 		elif isinstance(error, commands.CommandNotFound):
