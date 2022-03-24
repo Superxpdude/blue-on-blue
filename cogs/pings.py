@@ -306,11 +306,13 @@ async def create_ping_embed_from_id(
 	# Return the generated embed
 	return embed
 
-class Pings(app_commands.Group, commands.Cog, name = "ping"):
+class Pings(commands.Cog, name = "ping"):
 	"""Ping users by a tag."""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
+		# Initialize our cache variable
+		self.pingCache = {}
 
 	async def cog_load(self):
 		"""Initializes the database for the cog.
@@ -333,8 +335,34 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				FOREIGN KEY (ping_id) REFERENCES pings (id) ON DELETE CASCADE)")
 			await self.bot.dbConnection.commit()
 
+			# Update the cache for all guilds
+			for guild in self.bot.guilds:
+				await self._update_ping_cache(guild, cursor)
+
+	async def _update_ping_cache(self, guild: discord.Guild, cursor: asqlite.Cursor):
+		"""Updates the bot's ping cache for a specific guild"""
+		await cursor.execute("SELECT ping_name FROM pings WHERE server_id = :server_id AND alias_for IS NULL", {"server_id": guild.id})
+		pingData = await cursor.fetchall()
+		pingResults: list[str] = []
+		for p in pingData:
+			if "ping_name" in p.keys():
+				pingResults.append(p["ping_name"])
+
+		# Set the value for the cache
+		self.pingCache[guild.id] = pingResults
+
+	async def ping_autocomplete(self, interaction: discord.Interaction, current: str):
+		"""Function to handle autocompletion of pings present in a guild"""
+		if (interaction.guild is None) or (interaction.guild.id not in self.pingCache):
+			# If the guild doesn't exist, or the cache doesn't exist return nothing
+			return []
+		else:
+			# Command called in guild, and cache exists for that guild
+			return[app_commands.Choice(name=ping, value=ping) for ping in self.pingCache[interaction.guild.id] if current.lower() in ping.lower()][:25]
+
 	@app_commands.command(name = "ping")
 	@app_commands.describe(tag = "Name of ping")
+	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def ping(self, interaction: discord.Interaction, tag: str):
 		"""Pings all users associated with a specific tag."""
 		san_check = sanitize_check(tag)
@@ -377,8 +405,9 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			# Send a response to the user.
 			await interaction.response.send_message(response)
 
-	@app_commands.command(name = "me")
+	@app_commands.command(name = "ping_me")
 	@app_commands.describe(tag = "Name of ping")
+	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingme(self, interaction: discord.Interaction, tag: str):
 		"""Adds you to, or removes you from a ping list"""
 
@@ -408,6 +437,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 					userCount = await ping_count_users(tag, interaction.guild, cursor)
 					if userCount <= 0: # No users left in ping.
 						await ping_delete(tag, interaction.guild, cursor)
+						await self._update_ping_cache(interaction.guild, cursor)
 				else:
 					# User not already in ping
 					success = await ping_add_user(tag, interaction.guild, interaction.user, cursor)
@@ -419,6 +449,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			else: # Ping does not exist
 				# We need to create the ping
 				await ping_create(tag, interaction.guild, cursor)
+				await self._update_ping_cache(interaction.guild, cursor)
 				# Add the user to the ping
 				success = await ping_add_user(tag, interaction.guild, interaction.user, cursor)
 				if success:
@@ -430,7 +461,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			# Send a response to the user.
 			await interaction.response.send_message(response)
 
-	@app_commands.command(name = "list")
+	@app_commands.command(name = "ping_list")
 	@app_commands.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
 	async def pinglist(self, interaction: discord.Interaction, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
@@ -505,8 +536,9 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			await interaction.response.send_message(response, embed = pingEmbed)
 			# We don't need to commit to the DB, since we don't write anything here
 
-	@app_commands.command(name = "search")
+	@app_commands.command(name = "ping_search")
 	@app_commands.describe(tag = "The ping to search for")
+	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingsearch(self, interaction: discord.Interaction, tag: str):
 		"""Retrieves information about a ping"""
 		tag = tag.casefold() # String searching is case-sensitive
@@ -579,9 +611,12 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			# Send our response
 			await interaction.response.send_message(response, embed = pingEmbed)
 
-	@app_commands.command(name = "alias")
+	pingManageGroup = app_commands.Group(name="ping_manage", description="Commands to manage the ping list")
+
+	@pingManageGroup.command(name = "alias")
 	@app_commands.describe(alias = "Alias to create / destroy")
 	@app_commands.describe(tag = "Ping to tie the alias to. Leave blank to remove alias.")
+	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingalias(self, interaction: discord.Interaction, alias: str, tag: str = None):
 		"""Creates (or removes) an alias for a ping"""
 		# Start our DB block
@@ -640,9 +675,11 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				else:
 					await interaction.response.send_message(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
 
-	@app_commands.command(name = "merge")
+	@pingManageGroup.command(name = "merge")
 	@app_commands.describe(merge_from = "Ping that will be converted to an alias and merged")
 	@app_commands.describe(merge_to = "Ping that will be merged into")
+	@app_commands.autocomplete(merge_from=ping_autocomplete)
+	@app_commands.autocomplete(merge_to=ping_autocomplete)
 	async def pingmerge(self, interaction: discord.Interaction, merge_from: str, merge_to: str):
 		"""Merges two pings"""
 
@@ -722,6 +759,9 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				# Create an alias linking the old ping to the new ping
 				await ping_create_alias(fromName, toID, interaction.guild, cursor)
 
+				# Update the cache
+				await self._update_ping_cache(interaction.guild, cursor)
+
 				# Commit changes
 				await self.bot.dbConnection.commit()
 
@@ -741,8 +781,9 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				# Notify the user that the action timed out
 				await interaction.followup.send("Pending ping merge has timed out", ephemeral=True)
 
-	@app_commands.command(name = "delete")
+	@pingManageGroup.command(name = "delete")
 	@app_commands.describe(tag = "Ping to delete")
+	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingdelete(self, interaction: discord.Interaction, tag: str):
 		"""Forcibly deletes a ping"""
 
@@ -772,15 +813,16 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				# Action confirmed
 				# Pretty straightforward, just delete the ping. SQLite foreign keys should handle the rest.
 				await ping_delete(pingName, interaction.guild, cursor)
-				await interaction.response.send_message(f"The ping `{pingName}` has been permanently deleted.")
+				await self._update_ping_cache(interaction.guild, cursor) # Update the cache
+				await interaction.followup.send(f"The ping `{pingName}` has been permanently deleted.")
 			elif not view.response:
 				# Action cancelled
-				await interaction.response.send_message(f"Delete action cancelled.")
+				await interaction.followup.send(f"Delete action cancelled.")
 			else:
 				# Notify the user that the action timed out
-				await interaction.response.send_message("Pending ping delete has timed out", ephemeral=True)
+				await interaction.followup.send("Pending ping delete has timed out", ephemeral=True)
 
-	@app_commands.command(name = "purge")
+	@pingManageGroup.command(name = "purge")
 	@app_commands.describe(user_threshold = "Threshold below which pings will be subject to deletion")
 	@app_commands.describe(days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion")
 	async def pingpurge(self, interaction: discord.Interaction, user_threshold: int=5, days_since_last_use: int=30):
@@ -825,6 +867,8 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 					# Delete all pings that met our search criteria
 					for p in pingNames:
 						await ping_delete(p, interaction.guild, cursor)
+					# Update the cache
+					await self._update_ping_cache(interaction.guild, cursor)
 					await interaction.followup.send(f"Pings have been successfully purged.")
 				elif not view.response:
 					# Action cancelled
@@ -836,6 +880,14 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			else:
 				# Did not find any pings matching search criteria
 				await interaction.response.send_message(f"{interaction.user.mention}, there were no pings found with fewer than `{user_threshold}` users that were last used more than `{days_since_last_use}` days ago.")
+
+	@commands.Cog.listener()
+	async def on_ready(self):
+		"""Update our ping cache on reconnection.
+		This needs to wait until the bot is ready, since it relies on being able to grab a list of guilds that the bot is in."""
+		async with self.bot.dbConnection.cursor() as cursor:
+			for guild in self.bot.guilds:
+				await self._update_ping_cache(guild, cursor)
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(Pings(bot))
