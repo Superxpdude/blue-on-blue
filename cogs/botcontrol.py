@@ -21,6 +21,13 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		_log.info(f"Bot terminated by {ctx.author.name}")
 		await self.bot.close()
 
+	@commands.command(brief="Synchronizes app commands")
+	@commands.is_owner()
+	async def sync(self, ctx: commands.Context):
+		await ctx.send("Synchronizing app commands")
+		await self.bot.syncAppCommands()
+		await ctx.send("App commands synchronized")
+
 	@commands.command()
 	@commands.is_owner()
 	async def cogload(self, ctx: commands.Context, *, cog: str):

@@ -207,7 +207,7 @@ class BlueOnBlueBot(commands.Bot):
 		if isinstance(error, commands.NotOwner):
 			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.")
 
-		elif isinstance(error, checks.ChannelUnauthorized):
+		elif isinstance(error, checks.CommandChannelUnauthorized):
 			channels = []
 			for c in error.channels:
 				ch = ctx.guild.get_channel(c)
