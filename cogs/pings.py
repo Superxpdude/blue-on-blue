@@ -306,7 +306,7 @@ async def create_ping_embed_from_id(
 	# Return the generated embed
 	return embed
 
-class Pings(commands.Cog, name = "ping"):
+class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	"""Ping users by a tag."""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -405,7 +405,7 @@ class Pings(commands.Cog, name = "ping"):
 			# Send a response to the user.
 			await interaction.response.send_message(response)
 
-	@app_commands.command(name = "ping_me")
+	@app_commands.command(name = "me")
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingme(self, interaction: discord.Interaction, tag: str):
@@ -461,7 +461,7 @@ class Pings(commands.Cog, name = "ping"):
 			# Send a response to the user.
 			await interaction.response.send_message(response)
 
-	@app_commands.command(name = "ping_list")
+	@app_commands.command(name = "list")
 	@app_commands.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
 	async def pinglist(self, interaction: discord.Interaction, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
@@ -536,7 +536,7 @@ class Pings(commands.Cog, name = "ping"):
 			await interaction.response.send_message(response, embed = pingEmbed)
 			# We don't need to commit to the DB, since we don't write anything here
 
-	@app_commands.command(name = "ping_search")
+	@app_commands.command(name = "search")
 	@app_commands.describe(tag = "The ping to search for")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingsearch(self, interaction: discord.Interaction, tag: str):
@@ -611,9 +611,9 @@ class Pings(commands.Cog, name = "ping"):
 			# Send our response
 			await interaction.response.send_message(response, embed = pingEmbed)
 
-	pingManageGroup = app_commands.Group(name="ping_manage", description="Commands to manage the ping list")
+	#pingManageGroup = app_commands.Group(name="ping_manage", description="Commands to manage the ping list")
 
-	@pingManageGroup.command(name = "alias")
+	@app_commands.command(name = "alias")
 	@app_commands.describe(alias = "Alias to create / destroy")
 	@app_commands.describe(tag = "Ping to tie the alias to. Leave blank to remove alias.")
 	@app_commands.autocomplete(tag=ping_autocomplete)
@@ -675,7 +675,7 @@ class Pings(commands.Cog, name = "ping"):
 				else:
 					await interaction.response.send_message(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
 
-	@pingManageGroup.command(name = "merge")
+	@app_commands.command(name = "merge")
 	@app_commands.describe(merge_from = "Ping that will be converted to an alias and merged")
 	@app_commands.describe(merge_to = "Ping that will be merged into")
 	@app_commands.autocomplete(merge_from=ping_autocomplete)
@@ -781,7 +781,7 @@ class Pings(commands.Cog, name = "ping"):
 				# Notify the user that the action timed out
 				await interaction.followup.send("Pending ping merge has timed out", ephemeral=True)
 
-	@pingManageGroup.command(name = "delete")
+	@app_commands.command(name = "delete")
 	@app_commands.describe(tag = "Ping to delete")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingdelete(self, interaction: discord.Interaction, tag: str):
@@ -822,7 +822,7 @@ class Pings(commands.Cog, name = "ping"):
 				# Notify the user that the action timed out
 				await interaction.followup.send("Pending ping delete has timed out", ephemeral=True)
 
-	@pingManageGroup.command(name = "purge")
+	@app_commands.command(name = "purge")
 	@app_commands.describe(user_threshold = "Threshold below which pings will be subject to deletion")
 	@app_commands.describe(days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion")
 	async def pingpurge(self, interaction: discord.Interaction, user_threshold: int=5, days_since_last_use: int=30):
