@@ -250,6 +250,9 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@blockListGroup.command(name = "show")
 	async def blockListShow(self, interaction: discord.Interaction):
 		"""Shows the block list"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
+
 		filterEntries = await self._get_chatfilterlist("block", interaction.guild)
 		filterEmbed = discord.Embed(
 			colour = CHATFILTER_EMBED_COLOUR,
@@ -262,6 +265,9 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@app_commands.describe(string="The string to add to the list")
 	async def blockListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the block list"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
+
 		# Add to list
 		await self._add_chatfilter_entry(string, "block", interaction.guild)
 		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been added to the block list.")
@@ -270,6 +276,9 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@app_commands.describe(string="The string to remove from the list")
 	async def blockListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the block list"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
+
 		# Remove from list
 		await self._remove_chatfilter_entry(string, "block", interaction.guild)
 		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been removed from the block list.")
@@ -279,6 +288,9 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@allowListGroup.command(name = "show")
 	async def allowListShow(self, interaction: discord.Interaction):
 		"""Shows the allow list"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
+
 		filterEntries = await self._get_chatfilterlist("allow", interaction.guild)
 		filterEmbed = discord.Embed(
 			colour = CHATFILTER_EMBED_COLOUR,
@@ -291,6 +303,9 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@app_commands.describe(string="The string to add to the list")
 	async def allowListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the allow list"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
+
 		# Add to list
 		await self._add_chatfilter_entry(string, "allow", interaction.guild)
 		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been added to the allow list.")
@@ -299,6 +314,9 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@app_commands.describe(string="The string to remove from the list")
 	async def allowListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the allow list"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
+
 		# Remove from list
 		await self._remove_chatfilter_entry(string, "allow", interaction.guild)
 		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been removed from the allow list.")

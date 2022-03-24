@@ -10,59 +10,143 @@ import logging
 from blueonblue import bot as blueonbluebot
 log = logging.getLogger("blueonblue")
 
+async def app_in_guild(interaction: discord.Interaction) -> bool:
+	"""Checks if a command was used in a guild"""
+	if interaction.guild is None:
+		# Command not used in a guild
+		await interaction.response.send_message("This command cannot be used in private messages", ephemeral=True)
+		return False
+	else:
+		# Command used in a guild
+		return True
 
-# Slash command error classes
-class NoPrivateMessage(app_commands.AppCommandError):
-	"""Command cannot be used in private messages"""
-	pass
+async def app_is_moderator(interaction: discord.Interaction) -> bool:
+	"""Checks if a user is part of the moderator or admin groups"""
+	bot: blueonbluebot.BlueOnBlueBot = interaction.client
+	isOwner = await bot.is_owner(interaction.user)
+	# Check if the command was executed in a server or not
+	if interaction.guild is not None:
+		# Command was used in a server
+		moderatorID = bot.serverConfig.getint(str(interaction.guild.id), "role_moderator", fallback = -1)
+		moderatorRole = interaction.guild.get_role(moderatorID)
+		adminID = bot.serverConfig.getint(str(interaction.guild.id), "role_admin", fallback = -1)
+		adminRole = interaction.guild.get_role(adminID)
 
-class UserUnauthorized(app_commands.AppCommandError):
-	"""Command can only be used by specified users"""
-	pass
-
-class ChannelUnauthorized(app_commands.AppCommandError):
-	"""Command can only be used in specified channels"""
-	def __init__(self, channels = tuple[int], *args, **kwargs):
-		super().__init__(*args, **kwargs)
-		self.channels = channels
-
-
-# Slash command check functions
-def is_moderator() -> bool:
-	"""Checks if a user is part of the moderator or admin groups."""
-	async def predicate(interaction: discord.Interaction):
-		bot: blueonbluebot.BlueOnBlueBot = interaction.client
-		isOwner = await bot.is_owner(interaction.user)
-		# Check if the command was executed in a server or not
-		if interaction.guild is not None:
-			# Command was used in a server
-			moderatorID = bot.serverConfig.getint(str(interaction.guild.id), "role_moderator", fallback = -1)
-			moderatorRole = interaction.guild.get_role(moderatorID)
-			adminID = bot.serverConfig.getint(str(interaction.guild.id), "role_admin", fallback = -1)
-			adminRole = interaction.guild.get_role(adminID)
-
-			if isOwner or (adminRole in interaction.user.roles) or (moderatorRole in interaction.user.roles):
-				# User is owner, admin, or moderator
-				return True
-			else:
-				# Not owner, admin, or moderator
-				raise UserUnauthorized
+		if isOwner or (adminRole in interaction.user.roles) or (moderatorRole in interaction.user.roles):
+			# User is owner, admin, or moderator
+			return True
 		else:
-			# Command was used in a DM
-			if isOwner:
-				# User is owner, let them use the command
-				return True
-			else:
-				# Not owner. Raise an unauthorized error.
-				raise UserUnauthorized
+			# Not owner, admin, or moderator
+			await interaction.response.send_message("You are not authorized to use this command", ephemeral=True)
+			return False
+	else:
+		# Command was used in a DM
+		if isOwner:
+			# User is owner, let them use the command
+			return True
+		else:
+			# Not owner.
+			await interaction.response.send_message("You are not authorized to use this command", ephemeral=True)
+			return False
 
-	return app_commands.check(predicate)
+async def app_is_admin(interaction: discord.Interaction) -> bool:
+	"""Checks if a user is part of the admin group"""
+	bot: blueonbluebot.BlueOnBlueBot = interaction.client
+	isOwner = await bot.is_owner(interaction.user)
+	# Check if the command was executed in a server or not
+	if interaction.guild is not None:
+		# Command was used in a server
+		adminID = bot.serverConfig.getint(str(interaction.guild.id), "role_admin", fallback = -1)
+		adminRole = interaction.guild.get_role(adminID)
 
-def no_users() -> bool:
-	async def predicate(interaction: discord.Interaction):
-		raise UserUnauthorized
+		if isOwner or (adminRole in interaction.user.roles):
+			# User is owner, admin, or moderator
+			return True
+		else:
+			# Not owner, admin, or moderator
+			await interaction.response.send_message("You are not authorized to use this command", ephemeral=True)
+			return False
+	else:
+		# Command was used in a DM
+		if isOwner:
+			# User is owner, let them use the command
+			return True
+		else:
+			# Not owner.
+			await interaction.response.send_message("You are not authorized to use this command", ephemeral=True)
+			return False
 
-	return app_commands.check(predicate)
+async def app_in_channel_bot(interaction: discord.Interaction) -> bool:
+	"""Checks if the command was used in the specified bot channel"""
+	bot: blueonbluebot.BlueOnBlueBot = interaction.client
+	# Check if the command was executed in a server or not
+	if interaction.guild is not None:
+		# Command was used in a server
+		botChannelID = bot.serverConfig.getint(str(interaction.guild.id), "channel_bot", fallback = -1)
+		if interaction.channel.id == botChannelID:
+			# Used in bot channel
+			return True
+		else:
+			# Not in bot channel
+			await interaction.response.send_message(f"This command can only be used in the `{interaction.channel.name}` channel", ephemeral=True)
+			return False
+	else:
+		# Not used in guild
+		# For this, we don't specifically care if it was used in a DM or not. If it shouldn't be used in DMs, a "app_in_guild" check should be done as well.
+		return True
+
+# # Slash command error classes
+# class NoPrivateMessage(app_commands.AppCommandError):
+# 	"""Command cannot be used in private messages"""
+# 	pass
+
+# class UserUnauthorized(app_commands.AppCommandError):
+# 	"""Command can only be used by specified users"""
+# 	pass
+
+# class ChannelUnauthorized(app_commands.AppCommandError):
+# 	"""Command can only be used in specified channels"""
+# 	def __init__(self, channels = tuple[int], *args, **kwargs):
+# 		super().__init__(*args, **kwargs)
+# 		self.channels = channels
+
+
+# # Slash command check functions
+# def is_moderator() -> bool:
+# 	"""Checks if a user is part of the moderator or admin groups."""
+# 	async def predicate(interaction: discord.Interaction):
+# 		bot: blueonbluebot.BlueOnBlueBot = interaction.client
+# 		isOwner = await bot.is_owner(interaction.user)
+# 		# Check if the command was executed in a server or not
+# 		if interaction.guild is not None:
+# 			# Command was used in a server
+# 			moderatorID = bot.serverConfig.getint(str(interaction.guild.id), "role_moderator", fallback = -1)
+# 			moderatorRole = interaction.guild.get_role(moderatorID)
+# 			adminID = bot.serverConfig.getint(str(interaction.guild.id), "role_admin", fallback = -1)
+# 			adminRole = interaction.guild.get_role(adminID)
+
+# 			if isOwner or (adminRole in interaction.user.roles) or (moderatorRole in interaction.user.roles):
+# 				# User is owner, admin, or moderator
+# 				return True
+# 			else:
+# 				# Not owner, admin, or moderator
+# 				raise UserUnauthorized
+# 		else:
+# 			# Command was used in a DM
+# 			if isOwner:
+# 				# User is owner, let them use the command
+# 				return True
+# 			else:
+# 				# Not owner. Raise an unauthorized error.
+# 				raise UserUnauthorized
+
+# 	return app_commands.check(predicate)
+
+# def no_users() -> bool:
+# 	async def predicate(interaction: discord.Interaction):
+# 		raise UserUnauthorized
+
+# 	return app_commands.check(predicate)
 
 # async def _check_roles(ctx: commands.Context, *roles: int) -> bool:
 # 	"""Checks if a user has any of the specified roles (or is an owner of the bot)."""

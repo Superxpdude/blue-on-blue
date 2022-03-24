@@ -41,6 +41,8 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 	@app_commands.describe(time_unit = "Unit of measurement for ""time"" parameter.")
 	async def add(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -119,6 +121,8 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 	@app_commands.describe(user = "User to have TMTM Gold removed")
 	async def remove(self, interaction: discord.Interaction, user: discord.Member):
 		"""Removes TMTM Gold from a user"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -184,6 +188,8 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 	@app_commands.command(name = "list")
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that have TMTM Gold"""
+		if not await blueonblue.checks.app_is_admin(interaction):
+			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:

@@ -59,6 +59,8 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 	@app_commands.describe(time_unit = "Unit of measurement for the ""time"" parameter")
 	async def jail(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Jails a user"""
+		if not await blueonblue.checks.app_is_moderator(interaction):
+			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -138,6 +140,8 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 	@app_commands.describe(user = "User to be released")
 	async def release(self, interaction: discord.Interaction, user: discord.Member):
 		"""Releases a user from jail"""
+		if not await blueonblue.checks.app_is_moderator(interaction):
+			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -213,6 +217,8 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 	@app_commands.command(name = "list")
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that are currently jailed"""
+		if not await blueonblue.checks.app_is_moderator(interaction):
+			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:

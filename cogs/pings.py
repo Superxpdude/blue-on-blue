@@ -365,6 +365,9 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def ping(self, interaction: discord.Interaction, tag: str):
 		"""Pings all users associated with a specific tag."""
+		if not await blueonblue.checks.app_in_guild(interaction):
+			return
+
 		san_check = sanitize_check(tag)
 		if san_check is not None: # Validate our tag first
 			await interaction.response.send_message(f"{interaction.user.mention}: {san_check}")
@@ -410,6 +413,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingme(self, interaction: discord.Interaction, tag: str):
 		"""Adds you to, or removes you from a ping list"""
+		if not await blueonblue.checks.app_in_channel_bot(interaction):
+			return
+		if not await blueonblue.checks.app_in_guild(interaction):
+			return
 
 		# Begin command function
 		san_check = sanitize_check(tag)
@@ -465,6 +472,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
 	async def pinglist(self, interaction: discord.Interaction, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
+		if not await blueonblue.checks.app_in_channel_bot(interaction):
+			return
+		if not await blueonblue.checks.app_in_guild(interaction):
+			return
 
 		# Begin our DB section
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -541,6 +552,11 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingsearch(self, interaction: discord.Interaction, tag: str):
 		"""Retrieves information about a ping"""
+		if not await blueonblue.checks.app_in_channel_bot(interaction):
+			return
+		if not await blueonblue.checks.app_in_guild(interaction):
+			return
+
 		tag = tag.casefold() # String searching is case-sensitive
 
 		# Begin our DB section
@@ -617,6 +633,11 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingalias(self, interaction: discord.Interaction, alias: str, tag: str = None):
 		"""Creates (or removes) an alias for a ping"""
+		if not await blueonblue.checks.app_is_moderator(interaction):
+			return
+		if not await blueonblue.checks.app_in_guild(interaction):
+			return
+
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
 			# Check if we need to create or destroy the alias
@@ -680,6 +701,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.autocomplete(merge_to=ping_autocomplete)
 	async def pingmerge(self, interaction: discord.Interaction, merge_from: str, merge_to: str):
 		"""Merges two pings"""
+		if not await blueonblue.checks.app_is_moderator(interaction):
+			return
+		if not await blueonblue.checks.app_in_guild(interaction):
+			return
 
 		# Begin our DB section
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -784,6 +809,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	async def pingdelete(self, interaction: discord.Interaction, tag: str):
 		"""Forcibly deletes a ping"""
+		if not await blueonblue.checks.app_is_moderator(interaction):
+			return
+		if not await blueonblue.checks.app_in_guild(interaction):
+			return
 
 		# We need to search for the ping
 		# Begin our DB section
@@ -825,6 +854,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.describe(days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion")
 	async def pingpurge(self, interaction: discord.Interaction, user_threshold: int=5, days_since_last_use: int=30):
 		"""Purges pings that are inactive, and below a specified user count."""
+		if not await blueonblue.checks.app_is_moderator(interaction):
+			return
+		if not await blueonblue.checks.app_in_guild(interaction):
+			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
