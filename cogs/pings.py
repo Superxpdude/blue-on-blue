@@ -611,8 +611,6 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			# Send our response
 			await interaction.response.send_message(response, embed = pingEmbed)
 
-	#pingManageGroup = app_commands.Group(name="ping_manage", description="Commands to manage the ping list")
-
 	@app_commands.command(name = "alias")
 	@app_commands.describe(alias = "Alias to create / destroy")
 	@app_commands.describe(tag = "Ping to tie the alias to. Leave blank to remove alias.")
