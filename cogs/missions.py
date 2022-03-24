@@ -1,6 +1,6 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from datetime import datetime, timedelta
 import gspread_asyncio
@@ -45,7 +45,7 @@ def _decode_file_name(filename: str) -> dict:
 
 	# Check the mission type
 	gameType = nameList[0].casefold()
-	if not (gameType in ["coop", "tvt", "cotvt", "zeus", "zgm", "rpg"]):
+	if not (gameType in ["coop", "tvt", "cotvt", "rptvt", "zeus", "zgm", "rpg"]):
 		raise Exception(f"`{gameType}` is not a valid mission type!")
 
 	# Grab the player count
@@ -62,12 +62,90 @@ class Missions(commands.Cog, name = "Missions"):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.agcm = gspread_asyncio.AsyncioGspreadClientManager(self._get_google_credentials) # Authorization manager for gspread
+		# Initialize our mission cache
+		self.missionCache = {}
+
+	async def cog_load(self):
+		self.mission_cache_update_loop.start()
+
+	async def cog_unload(self):
+		self.mission_cache_update_loop.stop()
 
 	def _get_google_credentials(self):
 		accountFile = self.bot.config.get("GOOGLE", "api_file", fallback="config/google_api.json")
 		scopes = ["https://spreadsheets.google.com/feeds"]
 		creds = Credentials.from_service_account_file(accountFile, scopes = scopes)
 		return creds
+
+	@tasks.loop(hours=1, reconnect = True)
+	async def mission_cache_update_loop(self):
+		"""Periodically updates the mission cache"""
+		log.debug("Updating mission cache")
+		await self._update_all_caches()
+		log.debug("Mission cache update complete")
+
+	@mission_cache_update_loop.before_loop
+	async def before_mission_cache_loop(self):
+		# Wait until the bot is ready
+		await self.bot.wait_until_ready()
+
+	async def _update_all_caches(self):
+		"""Updates all guild caches present on the bot.
+		Purges the existing cache before updating."""
+		self.missionCache = {}
+		for guild in self.bot.guilds:
+			await self._update_guild_cache(guild)
+
+	async def _update_guild_cache(self, guild: discord.Guild):
+		"""Updates the mission cache for a single guild"""
+		wikiURL = self.bot.serverConfig.get(str(guild.id), "mission_wiki_url", fallback = None)
+		if wikiURL is not None:
+			# Guild has a wiki URL defined
+			async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
+				"action": "parse",
+				"page": "Audited Mission List",
+				"prop": "wikitext",
+				"section": 1,
+				"format": "json"
+			}) as response:
+				if response.status != 200: # Request failed
+					return
+				# Get the data from our request
+				responseData: dict = await response.json()
+				if "parse" not in responseData: # Invalid response from wiki
+					return
+
+			responseText: str = responseData["parse"]["wikitext"]["*"]
+			responseLines = responseText.split("\n")
+			missionList: list[str] = []
+			for line in responseLines:
+				if not line.startswith("{{"):
+					# We only care if the line starts with {{
+					continue
+				# Remove the leading and trailing braces
+				line = line.replace("{","").replace("}","")
+				# Split the line by pipe
+				line = line.split("|")
+				# Delete the first value, this ends up being the wiki template name
+				del line[0]
+				# Append the mission name to the mission list
+				missionList.append(line[0])
+
+			# Set the cache from our mission list
+			self.missionCache[guild.id] = missionList
+
+		else:
+			# Guild has no wiki URL defined
+			self.missionCache[guild.id] = []
+
+	async def mission_autocomplete(self, interaction: discord.Interaction, current: str):
+		"""Function to handle autocompletion of missions present on the audit list"""
+		if (interaction.guild is None) or (interaction.guild.id not in self.missionCache):
+			# If the guild doesn't exist, or the cache doesn't exist return nothing
+			return []
+		else:
+			# Command called in guild, and cache exists for that guild
+			return[app_commands.Choice(name=mission, value=mission) for mission in self.missionCache[interaction.guild.id] if current.lower() in mission.lower()][:25]
 
 	@app_commands.command(name = "missions")
 	async def missions(self, interaction: discord.Interaction):
@@ -282,6 +360,7 @@ class Missions(commands.Cog, name = "Missions"):
 	@app_commands.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
 	@app_commands.describe(missionname = "Name of the mission to schedule")
 	@app_commands.describe(notes = "Optional notes to display on the schedule")
+	@app_commands.autocomplete(missionname=mission_autocomplete)
 	async def schedule(self, interaction: discord.Interaction, date: str, missionname: str, notes: str = None):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
 		# See if we can convert out date string to a datetime object
