@@ -306,35 +306,6 @@ async def create_ping_embed_from_id(
 	# Return the generated embed
 	return embed
 
-# Set up views for the pingDelete, pingMerge, and pingPurge commands
-class PingDeleteConfirm(blueonblue.views.AuthorResponseViewBase):
-	"""Confirmation view for ping delete."""
-	@discord.ui.button(label = "Delete", style = discord.ButtonStyle.danger)
-	async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
-		"""Red button for destructive action"""
-		self.response = True
-		await self.terminate()
-
-	@discord.ui.button(label = "Cancel", style = discord.ButtonStyle.secondary)
-	async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
-		"""Grey button for cancellation"""
-		self.response = False
-		await self.terminate()
-
-class PingMergeConfirm(blueonblue.views.AuthorResponseViewBase):
-	"""Confirmation view for ping merge."""
-	@discord.ui.button(label = "Merge", style = discord.ButtonStyle.danger)
-	async def confirm(self, button: discord.ui.Button, interaction: discord.Interaction):
-		"""Red button for destructive action"""
-		self.response = True
-		await self.terminate()
-
-	@discord.ui.button(label = "Cancel", style = discord.ButtonStyle.secondary)
-	async def cancel(self, button: discord.ui.Button, interaction: discord.Interaction):
-		"""Grey button for cancellation"""
-		self.response = False
-		await self.terminate()
-
 class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	"""Ping users by a tag."""
 	def __init__(self, bot, *args, **kwargs):
