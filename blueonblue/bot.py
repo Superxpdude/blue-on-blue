@@ -181,10 +181,6 @@ class BlueOnBlueBot(commands.Bot):
 		_log.info(f"Connected to servers: {self.guilds}")
 		_log.info("Blue on Blue ready.")
 
-		if self.firstStart:
-			# Synchronize our app commands
-			await self.syncAppCommands()
-
 		# Set our "first start" variable to False
 		self.firstStart = False
 

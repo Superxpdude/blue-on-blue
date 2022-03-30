@@ -43,8 +43,6 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		else:
 			await ctx.send("**`SUCCESS`**")
 			_log.info(f"Loaded extension: {cog}")
-			# Synchronize slash commands
-			await self.bot.syncAppCommands()
 
 	@commands.command()
 	@commands.is_owner()
@@ -62,8 +60,6 @@ class BotControl(commands.Cog, name = "Bot Control"):
 			else:
 				await ctx.send("**`SUCCESS`**")
 				_log.info(f"Unloaded extension: {cog}")
-				# Synchronize slash commands
-				await self.bot.syncAppCommands()
 		else:
 			await ctx.send(f"You cannot unload the bot control module! Try using `{ctx.prefix}cogreload` instead.")
 
@@ -82,8 +78,6 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		else:
 			await ctx.send("**`SUCCESS`**")
 			_log.info(f"Reloaded extension: {cog}")
-			# Synchronize slash commands
-			await self.bot.syncAppCommands()
 
 	@commands.command()
 	@commands.is_owner()
