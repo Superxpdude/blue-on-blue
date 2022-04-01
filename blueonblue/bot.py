@@ -88,7 +88,8 @@ class BlueOnBlueBot(commands.Bot):
 			command_prefix = commands.when_mentioned_or(self.config.get("CORE", "prefix", fallback="$$")),
 			description = "Blue on Blue",
 			case_insensitive = True,
-			intents = intents
+			intents = intents,
+			tree_cls=BlueOnBlueTree
 		)
 
 		# Define our list of initial extensions
@@ -157,6 +158,12 @@ class BlueOnBlueBot(commands.Bot):
 			else:
 				_log.info(f"Loaded extension: {ext}")
 		_log.info("Extensions loaded")
+
+		# If we have a debug ID set, copy global commands to a guild
+		if self.slashDebugID is not None:
+			# Debug ID present, synchronize commands to guild
+			guild = discord.Object(self.slashDebugID)
+			self.tree.copy_global_to(guild = guild)
 
 	# On connect. Runs immediately upon connecting to Discord
 	async def on_connect(self):
@@ -230,3 +237,64 @@ class BlueOnBlueBot(commands.Bot):
 		else:
 			_log.exception(f"Ignoring exception in command {ctx.command}:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+class BlueOnBlueTree(discord.app_commands.CommandTree):
+	"""BlueOnBlue app commands tree
+	Subclass of discord.app_commands.CommandTree used to override error handling"""
+
+	async def on_error(
+		self,
+		interaction: discord.Interaction,
+		command: discord.app_commands.Command,
+		error: discord.app_commands.AppCommandError
+	):
+		"""|coro|
+
+		Error handling function called when an error occurs in an app command."""
+
+		# Checks in this function should always occur *before* any response is sent to the interaction
+		# So we should always be able to respond using the initial response function
+
+		if isinstance(error, discord.app_commands.errors.NoPrivateMessage):
+			# Guild-only command
+			await interaction.response.send_message("This command cannot be used in private messages", ephemeral=True)
+
+		elif (
+			isinstance(error, discord.app_commands.errors.MissingRole) or
+			isinstance(error, discord.app_commands.errors.MissingAnyRole) or
+			isinstance(error, discord.app_commands.errors.MissingPermissions) or
+			isinstance(error, checks.UserUnauthorized)
+		):
+			# User not authorized to use command
+			await interaction.response.send_message("You are not authorized to use this command", ephemeral=True)
+
+		elif isinstance(error, checks.ChannelUnauthorized):
+			# Command can only be used in specified channels
+			channels = []
+			for c in error.channels:
+				ch = interaction.guild.get_channel(c)
+				if ch is not None:
+					channels.append(ch.mention)
+
+			if len(channels) > 1:
+				message = f"{interaction.user.mention}, this command can only be used in the following channels: "
+			elif len(channels) == 1:
+				message = f"{interaction.user.mention}, this command can only be used in the following channel: "
+			else:
+				message = f"{interaction.user.mention}, this command cannot be used in this channel."
+
+			# Add the channel idenfiers to the string
+			message += ", ".join(channels)
+
+			await interaction.response.send_message(message, ephemeral=True)
+
+		# If we don't have a handler for that error type, execute default error code.
+		else:
+			if command is not None:
+				_log.exception(f"Ignoring exception in app command {interaction.command}:")
+			else:
+				# Command is none
+				_log.exception(f"Ignoring exception in command tree:")
+			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+		#await super().on_error(interaction, command, error)

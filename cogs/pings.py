@@ -363,10 +363,9 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.command(name = "ping")
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
+	@blueonblue.checks.in_guild()
 	async def ping(self, interaction: discord.Interaction, tag: str):
 		"""Pings all users associated with a specific tag."""
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		san_check = sanitize_check(tag)
 		if san_check is not None: # Validate our tag first
@@ -411,12 +410,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.command(name = "me")
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.in_channel_bot()
 	async def pingme(self, interaction: discord.Interaction, tag: str):
 		"""Adds you to, or removes you from a ping list"""
-		if not await blueonblue.checks.app_in_channel_bot(interaction):
-			return
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# Begin command function
 		san_check = sanitize_check(tag)
@@ -470,12 +467,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 
 	@app_commands.command(name = "list")
 	@app_commands.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.in_channel_bot()
 	async def pinglist(self, interaction: discord.Interaction, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
-		if not await blueonblue.checks.app_in_channel_bot(interaction):
-			return
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# Begin our DB section
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -550,12 +545,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.command(name = "search")
 	@app_commands.describe(tag = "The ping to search for")
 	@app_commands.autocomplete(tag=ping_autocomplete)
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.in_channel_bot()
 	async def pingsearch(self, interaction: discord.Interaction, tag: str):
 		"""Retrieves information about a ping"""
-		if not await blueonblue.checks.app_in_channel_bot(interaction):
-			return
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		tag = tag.casefold() # String searching is case-sensitive
 
@@ -628,15 +621,15 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			await interaction.response.send_message(response, embed = pingEmbed)
 
 	@app_commands.command(name = "alias")
-	@app_commands.describe(alias = "Alias to create / destroy")
-	@app_commands.describe(tag = "Ping to tie the alias to. Leave blank to remove alias.")
+	@app_commands.describe(
+		alias = "Alias to create / destroy",
+		tag = "Ping to tie the alias to. Leave blank to remove alias."
+	)
 	@app_commands.autocomplete(tag=ping_autocomplete)
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def pingalias(self, interaction: discord.Interaction, alias: str, tag: str = None):
 		"""Creates (or removes) an alias for a ping"""
-		if not await blueonblue.checks.app_is_moderator(interaction):
-			return
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -695,16 +688,18 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 					await interaction.response.send_message(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
 
 	@app_commands.command(name = "merge")
-	@app_commands.describe(merge_from = "Ping that will be converted to an alias and merged")
-	@app_commands.describe(merge_to = "Ping that will be merged into")
-	@app_commands.autocomplete(merge_from=ping_autocomplete)
-	@app_commands.autocomplete(merge_to=ping_autocomplete)
+	@app_commands.describe(
+		merge_from = "Ping that will be converted to an alias and merged",
+		merge_to = "Ping that will be merged into"
+	)
+	@app_commands.autocomplete(
+		merge_from=ping_autocomplete,
+		merge_to=ping_autocomplete
+	)
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def pingmerge(self, interaction: discord.Interaction, merge_from: str, merge_to: str):
 		"""Merges two pings"""
-		if not await blueonblue.checks.app_is_moderator(interaction):
-			return
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# Begin our DB section
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -807,12 +802,10 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 	@app_commands.command(name = "delete")
 	@app_commands.describe(tag = "Ping to delete")
 	@app_commands.autocomplete(tag=ping_autocomplete)
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def pingdelete(self, interaction: discord.Interaction, tag: str):
 		"""Forcibly deletes a ping"""
-		if not await blueonblue.checks.app_is_moderator(interaction):
-			return
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# We need to search for the ping
 		# Begin our DB section
@@ -850,14 +843,14 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				await interaction.followup.send("Pending ping delete has timed out", ephemeral=True)
 
 	@app_commands.command(name = "purge")
-	@app_commands.describe(user_threshold = "Threshold below which pings will be subject to deletion")
-	@app_commands.describe(days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion")
+	@app_commands.describe(
+		user_threshold = "Threshold below which pings will be subject to deletion",
+		days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion"
+	)
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def pingpurge(self, interaction: discord.Interaction, user_threshold: int=5, days_since_last_use: int=30):
 		"""Purges pings that are inactive, and below a specified user count."""
-		if not await blueonblue.checks.app_is_moderator(interaction):
-			return
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:

@@ -148,10 +148,9 @@ class Missions(commands.Cog, name = "Missions"):
 			return[app_commands.Choice(name=mission, value=mission) for mission in self.missionCache[interaction.guild.id] if current.lower() in mission.lower()][:25]
 
 	@app_commands.command(name = "missions")
+	@blueonblue.checks.in_guild()
 	async def missions(self, interaction: discord.Interaction):
 		"""Displays a list of scheduled missions"""
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# Immediately defer this action, since this can take some time.
 		await interaction.response.defer()
@@ -281,13 +280,14 @@ class Missions(commands.Cog, name = "Missions"):
 		await interaction.followup.send(message, embeds=missionEmbeds)
 
 	@app_commands.command(name = "audit")
-	@app_commands.describe(missionfile = "Mission file to audit. Must follow mission naming scheme")
-	@app_commands.describe(message = "Optional message. Will be submitted with your mission")
-	@app_commands.describe(modpreset = "Mod preset .html file")
+	@app_commands.describe(
+		missionfile = "Mission file to audit. Must follow mission naming scheme",
+		message = "Optional message. Will be submitted with your mission",
+		modpreset = "Mod preset .html file"
+	)
+	@blueonblue.checks.in_guild()
 	async def audit(self, interaction: discord.Interaction, missionfile: discord.Attachment, message: str = None, modpreset: discord.Attachment = None):
 		"""Submits a mission for auditing"""
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# Immediately defer this action, since this can take some time.
 		await interaction.response.defer()
@@ -363,16 +363,16 @@ class Missions(commands.Cog, name = "Missions"):
 		await interaction.followup.send(f"{interaction.user.mention}, your mission `{missionfile.filename}` has been submitted for audit.")
 
 	@app_commands.command(name = "schedule")
-	@app_commands.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
-	@app_commands.describe(missionname = "Name of the mission to schedule")
-	@app_commands.describe(notes = "Optional notes to display on the schedule")
+	@app_commands.describe(
+		date = "ISO 8601 formatted date (YYYY-MM-DD)",
+		missionname = "Name of the mission to schedule",
+		notes = "Optional notes to display on the schedule"
+	)
 	@app_commands.autocomplete(missionname=mission_autocomplete)
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.in_channel_bot()
 	async def schedule(self, interaction: discord.Interaction, date: str, missionname: str, notes: str = None):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
-		if not await blueonblue.checks.app_in_channel_bot(interaction):
-			return
-		if not await blueonblue.checks.app_in_guild(interaction):
-			return
 
 		# See if we can convert out date string to a datetime object
 		try:
@@ -523,10 +523,10 @@ class Missions(commands.Cog, name = "Missions"):
 
 	@app_commands.command(name = "schedule_cancel")
 	@app_commands.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def schedule_cancel(self, interaction: discord.Interaction, date: str):
 		"""Removes a previously scheduled mission from the mission schedule"""
-		if not await blueonblue.checks.app_is_moderator(interaction):
-			return
 
 		# See if we can convert out date string to a datetime object
 		try:

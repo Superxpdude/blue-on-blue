@@ -54,13 +54,15 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 		self.jail_loop.stop()
 
 	@app_commands.command(name = "jail")
-	@app_commands.describe(user = "User to be jailed")
-	@app_commands.describe(time = "Time duration for jail. Default unit is days")
-	@app_commands.describe(time_unit = "Unit of measurement for the ""time"" parameter")
+	@app_commands.describe(
+		user = "User to be jailed",
+		time = "Time duration for jail. Default unit is days",
+		time_unit = "Unit of measurement for the ""time"" parameter"
+	)
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def jail(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Jails a user"""
-		if not await blueonblue.checks.app_is_moderator(interaction):
-			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -138,10 +140,10 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 
 	@app_commands.command(name = "release")
 	@app_commands.describe(user = "User to be released")
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def release(self, interaction: discord.Interaction, user: discord.Member):
 		"""Releases a user from jail"""
-		if not await blueonblue.checks.app_is_moderator(interaction):
-			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
@@ -215,10 +217,10 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 				await interaction.followup.send("Pending release action has timed out", ephemeral=True)
 
 	@app_commands.command(name = "list")
+	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that are currently jailed"""
-		if not await blueonblue.checks.app_is_moderator(interaction):
-			return
 
 		# Start our DB block
 		async with self.bot.dbConnection.cursor() as cursor:
