@@ -28,7 +28,7 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 		Creates the tables if they don't exist."""
 		async with self.bot.dbConnection.cursor() as cursor:
 			# Create the tables if they do not exist
-			# "filterlist" value determines if the string is on the filter list (0) or the exclusion list (1)
+			# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
 			await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
 				server_id INTEGER NOT NULL,\
 				filter_list INTEGER NOT NULL,\
