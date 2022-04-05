@@ -44,7 +44,7 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 			# Reset our existing lists from memory
 			keyList = []
 			for g in self.bot.guilds:
-				keyList.append(str(g.id))
+				keyList.append(g.id)
 
 			self.allowList = dict.fromkeys(keyList, [])
 			self.blockList = dict.fromkeys(keyList, [])
@@ -53,15 +53,15 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 			await cursor.execute("SELECT * FROM chatfilter")
 			filterData = await cursor.fetchall()
 			for f in filterData:
-				serverStr = str(f["server_id"])
-				if serverStr in keyList:
+				serverID = f["server_id"]
+				if serverID in keyList:
 					# Server is present in list
 					if f["filter_list"]:
 						# Exclusion list
-						self.allowList[serverStr].append(f["string"])
+						self.allowList[serverID].append(f["string"])
 					else:
 						# Filter list
-						self.blockList[serverStr].append(f["string"])
+						self.blockList[serverID].append(f["string"])
 			# To ensure that we remove longer words first, we need to sort the exclusion list
 			for k in self.allowList:
 				self.allowList[k].sort(key = len, reverse=True)
@@ -71,9 +71,8 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 		# Start the DB block
 		async with self.bot.dbConnection.cursor() as cursor:
 			# Don't reset the entire filter lists
-			serverStr = str(guild.id)
-			self.allowList[serverStr] = []
-			self.blockList[serverStr] = []
+			self.allowList[guild.id] = []
+			self.blockList[guild.id] = []
 
 			# Get data from the DB
 			await cursor.execute("SELECT filter_list, string FROM chatfilter WHERE server_id = :server_id", {"server_id": guild.id})
@@ -81,12 +80,12 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 			for f in filterData:
 				if f["filter_list"]:
 					# Exclusion list
-					self.allowList[serverStr].append(f["string"])
+					self.allowList[guild.id].append(f["string"])
 				else:
 					# Filter list
-					self.blockList[serverStr].append(f["string"])
+					self.blockList[guild.id].append(f["string"])
 			# To ensure that we remove longer words first, we need to sort the exclusion list
-			self.allowList[serverStr].sort(key = len, reverse=True)
+			self.allowList[guild.id].sort(key = len, reverse=True)
 
 	async def _add_chatfilter_entry(self, string: str, filterlist: int|str, guild: discord.Guild) -> None:
 		"""Adds an entry to a chat filter list
@@ -148,8 +147,8 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 		"""Checks a text string against the chatfilter for a guild.
 		Returns False if no issues found. Returns True if the text violates the chatfilter."""
 		# Grab the lists for this guild
-		excludeList = self.allowList[str(guild.id)]
-		filterlist = self.blockList[str(guild.id)]
+		excludeList = self.allowList[guild.id]
+		filterlist = self.blockList[guild.id]
 		# Remove any excluded strings from the processed text
 		processed = text
 		if any(excludeStrings in text for excludeStrings in excludeList):
