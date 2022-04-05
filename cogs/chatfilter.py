@@ -206,12 +206,15 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 			# Bot has permissions to view audit log
 			if before is None:
 				# Thread creation
-				auditLog = await guild.audit_logs(limit=1,action=discord.AuditLogAction.thread_create).flatten()
+				# This should only give us a single audit entry, so this shouldn't have any problems
+				async for entry in guild.audit_logs(limit=1,action=discord.AuditLogAction.thread_create):
+					auditLog = entry
 			else:
 				# Thread update
-				auditLog = await guild.audit_logs(limit=1,action=discord.AuditLogAction.thread_update).flatten()
+				async for entry in guild.audit_logs(limit=1,action=discord.AuditLogAction.thread_update):
+					auditLog = entry
 			title = "Thread Title"
-			author = auditLog[0].user
+			author = auditLog.user
 		else:
 			title = "Thread Title, check audit log for confirmation"
 			author = thread.owner
@@ -225,7 +228,7 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 			title = title,
 			description = thread.name,
 			colour = CHATFILTER_EMBED_COLOUR,
-			timestamp = auditLog[0].created_at
+			timestamp = auditLog.created_at
 		)
 		embed.set_author(
 			name = author.display_name,
@@ -334,7 +337,7 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 				await self._flag_message(after)
 
 	@commands.Cog.listener()
-	async def on_thread_join(self, thread: discord.Thread):
+	async def on_thread_create(self, thread: discord.Thread):
 		if self._check_thread(thread):
 			await self._flag_thread(thread)
 
