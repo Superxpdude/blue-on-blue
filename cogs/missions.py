@@ -56,6 +56,20 @@ def _decode_file_name(filename: str) -> dict:
 
 	return {"gameType": gameType, "map": mapName, "playerCount": playerCount}
 
+
+class MissionAuditModal(discord.ui.Modal, title = "Mission Audit Notes"):
+	audit_notes = discord.ui.TextInput(
+		label = "Please enter your audit notes here",
+		style = discord.TextStyle.long,
+		placeholder = "Ex. Added more tasks, removed some vehicles, etc.",
+		required = True,
+		max_length = 1500
+	)
+
+	async def on_submit(self, interaction: discord.Interaction):
+		# We need to respond to the modal so that it doesn't error out
+		await interaction.response.send_message("Audit received. Beginning upload.",ephemeral=True)
+
 class Missions(commands.Cog, name = "Missions"):
 	"""Commands and functions used to view and schedule missions"""
 	def __init__(self, bot, *args, **kwargs):
@@ -282,26 +296,22 @@ class Missions(commands.Cog, name = "Missions"):
 	@app_commands.command(name = "audit")
 	@app_commands.describe(
 		missionfile = "Mission file to audit. Must follow mission naming scheme",
-		message = "Optional message. Will be submitted with your mission",
 		modpreset = "Mod preset .html file"
 	)
 	@blueonblue.checks.in_guild()
-	async def audit(self, interaction: discord.Interaction, missionfile: discord.Attachment, message: str = None, modpreset: discord.Attachment = None):
+	async def audit(self, interaction: discord.Interaction, missionfile: discord.Attachment, modpreset: discord.Attachment = None):
 		"""Submits a mission for auditing"""
-
-		# Immediately defer this action, since this can take some time.
-		await interaction.response.defer()
 
 		# Check to see if we have a mod preset
 		if modpreset is not None:
 			# Check if the mod preset has an .html extension
 			if modpreset.filename.split(".")[-1].casefold() != "html":
-				await interaction.followup.send("Mod preset files must have a `.html` extension!")
+				await interaction.response.send_message("Mod preset files must have a `.html` extension!")
 				return
 			else:
 				# Since we have a mod preset, our mission file needs to be prefixed with "MODNIGHT"
 				if missionfile.filename.split("_",1)[0].casefold() != "modnight":
-					await interaction.followup.send("Modnight missions must be prefixed with `modnight`!")
+					await interaction.response.send_message("Modnight missions must be prefixed with `modnight`!")
 					return
 				else:
 					# Mission file is prefixed with modnight
@@ -311,7 +321,7 @@ class Missions(commands.Cog, name = "Missions"):
 			# No mod preset
 			# Check to make sure that we don't have a modnight mission
 			if missionfile.filename.split("_",1)[0].casefold() == "modnight":
-				await interaction.followup.send("Modnight missions must be submitted with a mod preset `.html` file!")
+				await interaction.response.send_message("Modnight missions must be submitted with a mod preset `.html` file!")
 				return
 			else:
 				missionFilename = missionfile.filename
@@ -320,7 +330,7 @@ class Missions(commands.Cog, name = "Missions"):
 		try:
 			missionInfo = _decode_file_name(missionFilename)
 		except Exception as exception:
-			await interaction.followup.send(f"{exception.args[0]}"
+			await interaction.response.send_message(f"{exception.args[0]}"
 				f"\n{interaction.user.mention}, I encountered some errors when submitting your mission `{missionfile.filename}` for auditing. "
 				"Please ensure that your mission file name follows the correct naming format."
 				"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`")
@@ -330,7 +340,16 @@ class Missions(commands.Cog, name = "Missions"):
 		auditChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
 
 		if auditChannel is None:
-			await interaction.followup.send("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
+			await interaction.response.send_message("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
+			return
+
+		# Create and send our audit notes modal
+		auditModal = MissionAuditModal(timeout=1200) # 20 minute timeout should be enough
+		await interaction.response.send_modal(auditModal)
+		await auditModal.wait()
+
+		# If we did not get a response, cancel the remainder of the command
+		if auditModal.audit_notes.value is None:
 			return
 
 		# Start creating our audit message
@@ -338,8 +357,9 @@ class Missions(commands.Cog, name = "Missions"):
 			auditMessage = f"Mission submitted for audit by {interaction.user.mention}."
 		else:
 			auditMessage = f"Modnight mission submitted for audit by {interaction.user.mention}."
-		if message is not None:
-			auditMessage += f" Notes from the audit below \n```{message}```"
+
+		# The audit message is required now, so we can append it to the end.
+		auditMessage += f" Notes from the mission maker below \n```\n{auditModal.audit_notes.value}```"
 
 		missionFileObject = await missionfile.to_file()
 		auditFiles = [missionFileObject]
