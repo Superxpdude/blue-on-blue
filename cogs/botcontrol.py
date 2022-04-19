@@ -37,6 +37,9 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		Cogs must be placed in the "cogs" folder on the bot."""
 		try:
 			await self.bot.load_extension("cogs." + cog)
+			# If we have a debug ID set, copy global commands to the guild
+			if self.bot.slashDebugID is not None:
+				self.bot.tree.copy_global_to(guild = discord.Object(self.bot.slashDebugID))
 		except Exception as e:
 			await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
 			_log.exception(f"Failed to load extension: {cog}")
@@ -54,6 +57,11 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		if cog != "botcontrol": # Prevent unloading botcontrol
 			try:
 				await self.bot.unload_extension("cogs." + cog)
+				# If we have a debug ID set, we need to update our copied commands
+				if self.bot.slashDebugID is not None:
+					guildObject = discord.Object(self.bot.slashDebugID)
+					self.bot.tree.clear_commands(guild = guildObject)
+					self.bot.tree.copy_global_to(guild = guildObject)
 			except Exception as e:
 				await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
 				_log.exception(f"Error unloading extension: {cog}")
@@ -72,6 +80,11 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		Cogs must be placed in the "cogs" folder on the bot."""
 		try:
 			await self.bot.reload_extension("cogs." + cog)
+			# If we have a debug ID set, we need to rebuild our copied commands
+			if self.bot.slashDebugID is not None:
+				guildObject = discord.Object(self.bot.slashDebugID)
+				self.bot.tree.clear_commands(guild = guildObject)
+				self.bot.tree.copy_global_to(guild = guildObject)
 		except Exception as e:
 			await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
 			_log.exception(f"Failed to reload extension: {cog}")

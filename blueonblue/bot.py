@@ -125,9 +125,7 @@ class BlueOnBlueBot(commands.Bot):
 			# Debug ID present, synchronize commands to guild
 			guild = discord.Object(self.slashDebugID)
 			# Remove existing commands from the guild list
-			for type in [discord.AppCommandType.chat_input, discord.AppCommandType.user, discord.AppCommandType.message]:
-				for command in self.tree.get_commands(guild = guild, type = type):
-					self.tree.remove_command(command.name, guild = guild, type = type)
+			self.tree.clear_commands(guild = guild)
 			self.tree.copy_global_to(guild = guild)
 			await self.tree.sync(guild = guild)
 		else:
