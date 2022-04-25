@@ -306,7 +306,7 @@ async def create_ping_embed_from_id(
 	# Return the generated embed
 	return embed
 
-class Pings(app_commands.Group, commands.Cog, name = "ping"):
+class Pings(commands.Cog, name = "ping"):
 	"""Ping users by a tag."""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -360,7 +360,11 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			# Command called in guild, and cache exists for that guild
 			return[app_commands.Choice(name=ping, value=ping) for ping in self.pingCache[interaction.guild.id] if current.lower() in ping.lower()][:25]
 
-	@app_commands.command(name = "ping")
+	# Establish app command groups
+	pingGroup = app_commands.Group(name="ping", description="Ping commands")
+	pingAdmin = app_commands.Group(name="ping_admin", description="Administrative ping commands")
+
+	@pingGroup.command(name = "ping")
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
@@ -407,7 +411,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			# Send a response to the user.
 			await interaction.response.send_message(response)
 
-	@app_commands.command(name = "me")
+	@pingGroup.command(name = "me")
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
@@ -465,7 +469,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			# Send a response to the user.
 			await interaction.response.send_message(response)
 
-	@app_commands.command(name = "list")
+	@pingGroup.command(name = "list")
 	@app_commands.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
 	@blueonblue.checks.in_guild()
 	@blueonblue.checks.in_channel_bot()
@@ -542,7 +546,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			await interaction.response.send_message(response, embed = pingEmbed)
 			# We don't need to commit to the DB, since we don't write anything here
 
-	@app_commands.command(name = "search")
+	@pingGroup.command(name = "search")
 	@app_commands.describe(tag = "The ping to search for")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
@@ -620,7 +624,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 			# Send our response
 			await interaction.response.send_message(response, embed = pingEmbed)
 
-	@app_commands.command(name = "alias")
+	@pingAdmin.command(name = "alias")
 	@app_commands.describe(
 		alias = "Alias to create / destroy",
 		tag = "Ping to tie the alias to. Leave blank to remove alias."
@@ -687,7 +691,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				else:
 					await interaction.response.send_message(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
 
-	@app_commands.command(name = "merge")
+	@pingAdmin.command(name = "merge")
 	@app_commands.describe(
 		merge_from = "Ping that will be converted to an alias and merged",
 		merge_to = "Ping that will be merged into"
@@ -799,7 +803,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				# Notify the user that the action timed out
 				await interaction.followup.send("Pending ping merge has timed out", ephemeral=True)
 
-	@app_commands.command(name = "delete")
+	@pingAdmin.command(name = "delete")
 	@app_commands.describe(tag = "Ping to delete")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
@@ -842,7 +846,7 @@ class Pings(app_commands.Group, commands.Cog, name = "ping"):
 				# Notify the user that the action timed out
 				await interaction.followup.send("Pending ping delete has timed out", ephemeral=True)
 
-	@app_commands.command(name = "purge")
+	@pingAdmin.command(name = "purge")
 	@app_commands.describe(
 		user_threshold = "Threshold below which pings will be subject to deletion",
 		days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion"
