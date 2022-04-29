@@ -14,7 +14,7 @@ log = logging.getLogger("blueonblue")
 JAIL_EMBED_COLOUR = 0xFF0000
 JAIL_BLOCK_UPDATES_KEY = "jail"
 
-class Jail(app_commands.Group, commands.Cog, name="jail"):
+class Jail(app_commands.Group, commands.Cog, name="jail", guild_only=True, default_permissions=discord.Permissions(manage_messages=True)):
 	"""Jail commands"""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -60,7 +60,6 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 		time_unit = "Unit of measurement for the ""time"" parameter"
 	)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def jail(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Jails a user"""
 
@@ -141,7 +140,6 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 	@app_commands.command(name = "release")
 	@app_commands.describe(user = "User to be released")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def release(self, interaction: discord.Interaction, user: discord.Member):
 		"""Releases a user from jail"""
 
@@ -218,7 +216,6 @@ class Jail(app_commands.Group, commands.Cog, name="jail"):
 
 	@app_commands.command(name = "list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that are currently jailed"""
 

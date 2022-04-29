@@ -12,7 +12,7 @@ log = logging.getLogger("blueonblue")
 
 GOLD_EMBED_COLOUR = 0xFF3491
 
-class Gold(app_commands.Group, commands.Cog, name="gold"):
+class Gold(app_commands.Group, commands.Cog, name="gold", guild_only=True, default_permissions=discord.Permissions(manage_guild=True)):
 	"""Gold user functions"""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -42,7 +42,6 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 		time_unit = "Unit of measurement for ""time"" parameter."
 	)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def add(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
 
@@ -122,7 +121,6 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 	@app_commands.command(name = "remove")
 	@app_commands.describe(user = "User to have TMTM Gold removed")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def remove(self, interaction: discord.Interaction, user: discord.Member):
 		"""Removes TMTM Gold from a user"""
 
@@ -189,7 +187,6 @@ class Gold(app_commands.Group, commands.Cog, name="gold"):
 
 	@app_commands.command(name = "list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that have TMTM Gold"""
 

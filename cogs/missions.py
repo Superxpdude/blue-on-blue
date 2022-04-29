@@ -162,6 +162,7 @@ class Missions(commands.Cog, name = "Missions"):
 			return[app_commands.Choice(name=mission, value=mission) for mission in self.missionCache[interaction.guild.id] if current.lower() in mission.lower()][:25]
 
 	@app_commands.command(name = "missions")
+	@app_commands.guild_only()
 	@blueonblue.checks.in_guild()
 	async def missions(self, interaction: discord.Interaction):
 		"""Displays a list of scheduled missions"""
@@ -298,6 +299,7 @@ class Missions(commands.Cog, name = "Missions"):
 		missionfile = "Mission file to audit. Must follow mission naming scheme",
 		modpreset = "Mod preset .html file"
 	)
+	@app_commands.guild_only()
 	@blueonblue.checks.in_guild()
 	async def audit(self, interaction: discord.Interaction, missionfile: discord.Attachment, modpreset: discord.Attachment = None):
 		"""Submits a mission for auditing"""
@@ -389,8 +391,8 @@ class Missions(commands.Cog, name = "Missions"):
 		notes = "Optional notes to display on the schedule"
 	)
 	@app_commands.autocomplete(missionname=mission_autocomplete)
+	@app_commands.guild_only()
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.in_channel_bot()
 	async def schedule(self, interaction: discord.Interaction, date: str, missionname: str, notes: str = None):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
 
@@ -543,8 +545,9 @@ class Missions(commands.Cog, name = "Missions"):
 
 	@app_commands.command(name = "schedule_cancel")
 	@app_commands.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
+	@app_commands.guild_only()
+	@app_commands.default_permissions(manage_messages=True)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def schedule_cancel(self, interaction: discord.Interaction, date: str):
 		"""Removes a previously scheduled mission from the mission schedule"""
 

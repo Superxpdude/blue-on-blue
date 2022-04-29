@@ -361,8 +361,17 @@ class Pings(commands.Cog, name = "ping"):
 			return[app_commands.Choice(name=ping, value=ping) for ping in self.pingCache[interaction.guild.id] if current.lower() in ping.lower()][:25]
 
 	# Establish app command groups
-	pingGroup = app_commands.Group(name="ping", description="Ping commands")
-	pingAdmin = app_commands.Group(name="ping_admin", description="Administrative ping commands")
+	pingGroup = app_commands.Group(
+		name="ping",
+		description="Ping commands",
+		guild_only=True
+	)
+	pingAdmin = app_commands.Group(
+		name="ping_admin",
+		description="Administrative ping commands",
+		guild_only=True,
+		default_permissions=discord.Permissions(manage_messages=True)
+	)
 
 	@pingGroup.command(name = "ping")
 	@app_commands.describe(tag = "Name of ping")
@@ -415,7 +424,6 @@ class Pings(commands.Cog, name = "ping"):
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.in_channel_bot()
 	async def pingme(self, interaction: discord.Interaction, tag: str):
 		"""Adds you to, or removes you from a ping list"""
 
@@ -472,7 +480,6 @@ class Pings(commands.Cog, name = "ping"):
 	@pingGroup.command(name = "list")
 	@app_commands.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.in_channel_bot()
 	async def pinglist(self, interaction: discord.Interaction, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
 
@@ -550,7 +557,6 @@ class Pings(commands.Cog, name = "ping"):
 	@app_commands.describe(tag = "The ping to search for")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.in_channel_bot()
 	async def pingsearch(self, interaction: discord.Interaction, tag: str):
 		"""Retrieves information about a ping"""
 
@@ -631,7 +637,6 @@ class Pings(commands.Cog, name = "ping"):
 	)
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def pingalias(self, interaction: discord.Interaction, alias: str, tag: str = None):
 		"""Creates (or removes) an alias for a ping"""
 
@@ -701,7 +706,6 @@ class Pings(commands.Cog, name = "ping"):
 		merge_to=ping_autocomplete
 	)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def pingmerge(self, interaction: discord.Interaction, merge_from: str, merge_to: str):
 		"""Merges two pings"""
 
@@ -807,7 +811,6 @@ class Pings(commands.Cog, name = "ping"):
 	@app_commands.describe(tag = "Ping to delete")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def pingdelete(self, interaction: discord.Interaction, tag: str):
 		"""Forcibly deletes a ping"""
 
@@ -852,7 +855,6 @@ class Pings(commands.Cog, name = "ping"):
 		days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion"
 	)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def pingpurge(self, interaction: discord.Interaction, user_threshold: int=5, days_since_last_use: int=30):
 		"""Purges pings that are inactive, and below a specified user count."""
 

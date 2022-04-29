@@ -11,7 +11,7 @@ log = logging.getLogger("blueonblue")
 
 CHATFILTER_EMBED_COLOUR = 0xff0000
 
-class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
+class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter", guild_only=True, default_permissions=discord.Permissions(manage_guild=True)):
 	"""Chat filter module.
 
 	These commands can only be used by authorized users."""
@@ -251,7 +251,6 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 
 	@blockListGroup.command(name = "show")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def blockListShow(self, interaction: discord.Interaction):
 		"""Shows the block list"""
 
@@ -266,7 +265,6 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@blockListGroup.command(name="add")
 	@app_commands.describe(string="The string to add to the list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def blockListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the block list"""
 
@@ -277,7 +275,6 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@blockListGroup.command(name="remove")
 	@app_commands.describe(string="The string to remove from the list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def blockListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the block list"""
 
@@ -289,7 +286,6 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 
 	@allowListGroup.command(name = "show")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def allowListShow(self, interaction: discord.Interaction):
 		"""Shows the allow list"""
 
@@ -304,7 +300,6 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@allowListGroup.command(name="add")
 	@app_commands.describe(string="The string to add to the list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def allowListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the allow list"""
 
@@ -315,7 +310,6 @@ class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter"):
 	@allowListGroup.command(name="remove")
 	@app_commands.describe(string="The string to remove from the list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def allowListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the allow list"""
 
