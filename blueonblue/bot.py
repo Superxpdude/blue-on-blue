@@ -266,6 +266,10 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 			# User not authorized to use command
 			await interaction.response.send_message("You are not authorized to use this command", ephemeral=True)
 
+		elif isinstance(error, discord.app_commands.errors.BotMissingPermissions):
+			# Bot is missing permissions for the command
+			await interaction.response.send_message(f"The bot is missing the following permissions to use this command: `{error.missing_permissions}`")
+
 		elif isinstance(error, checks.ChannelUnauthorized):
 			# Command can only be used in specified channels
 			channels = []
