@@ -362,8 +362,8 @@ class Pings(commands.Cog, name = "ping"):
 
 	# Establish app command groups
 	pingGroup = app_commands.Group(
-		name="ping",
-		description="Ping commands",
+		name="ping_manage",
+		description="Ping management commands",
 		guild_only=True
 	)
 	pingAdmin = app_commands.Group(
@@ -373,7 +373,7 @@ class Pings(commands.Cog, name = "ping"):
 		default_permissions=discord.Permissions(manage_messages=True)
 	)
 
-	@pingGroup.command(name = "ping")
+	@app_commands.command(name = "ping")
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
