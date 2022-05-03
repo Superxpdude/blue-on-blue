@@ -243,7 +243,6 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 	async def on_error(
 		self,
 		interaction: discord.Interaction,
-		command: discord.app_commands.Command,
 		error: discord.app_commands.AppCommandError
 	):
 		"""|coro|
@@ -292,7 +291,7 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 
 		# If we don't have a handler for that error type, execute default error code.
 		else:
-			if command is not None:
+			if interaction.command is not None:
 				_log.exception(f"Ignoring exception in app command {interaction.command}:")
 			else:
 				# Command is none
