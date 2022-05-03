@@ -11,7 +11,9 @@ log = logging.getLogger("blueonblue")
 
 CHATFILTER_EMBED_COLOUR = 0xff0000
 
-class ChatFilter(app_commands.Group, commands.Cog, name="chatfilter", guild_only=True, default_permissions=discord.Permissions(manage_guild=True)):
+@app_commands.guild_only()
+@app_commands.default_permissions(manage_guild=True)
+class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	"""Chat filter module.
 
 	These commands can only be used by authorized users."""

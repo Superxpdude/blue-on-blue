@@ -12,7 +12,9 @@ log = logging.getLogger("blueonblue")
 
 GOLD_EMBED_COLOUR = 0xFF3491
 
-class Gold(app_commands.Group, commands.Cog, name="gold", guild_only=True, default_permissions=discord.Permissions(manage_guild=True)):
+@app_commands.guild_only()
+@app_commands.default_permissions(manage_guild=True)
+class Gold(commands.GroupCog, group_name="gold"):
 	"""Gold user functions"""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)

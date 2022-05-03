@@ -14,7 +14,9 @@ log = logging.getLogger("blueonblue")
 JAIL_EMBED_COLOUR = 0xFF0000
 JAIL_BLOCK_UPDATES_KEY = "jail"
 
-class Jail(app_commands.Group, commands.Cog, name="jail", guild_only=True, default_permissions=discord.Permissions(manage_messages=True)):
+@app_commands.guild_only()
+@app_commands.default_permissions(manage_messages=True)
+class Jail(commands.GroupCog, group_name="jail"):
 	"""Jail commands"""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
