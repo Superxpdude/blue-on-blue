@@ -44,6 +44,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 		time_unit = "Unit of measurement for ""time"" parameter."
 	)
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def add(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
 
@@ -123,6 +124,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 	@app_commands.command(name = "remove")
 	@app_commands.describe(user = "User to have TMTM Gold removed")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def remove(self, interaction: discord.Interaction, user: discord.Member):
 		"""Removes TMTM Gold from a user"""
 
@@ -189,6 +191,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 	@app_commands.command(name = "list")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that have TMTM Gold"""
 

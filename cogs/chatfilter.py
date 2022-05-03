@@ -253,6 +253,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	@blockListGroup.command(name = "show")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def blockListShow(self, interaction: discord.Interaction):
 		"""Shows the block list"""
 
@@ -267,6 +268,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	@blockListGroup.command(name="add")
 	@app_commands.describe(string="The string to add to the list")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def blockListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the block list"""
 
@@ -277,6 +279,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	@blockListGroup.command(name="remove")
 	@app_commands.describe(string="The string to remove from the list")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def blockListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the block list"""
 
@@ -288,6 +291,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	@allowListGroup.command(name = "show")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def allowListShow(self, interaction: discord.Interaction):
 		"""Shows the allow list"""
 
@@ -302,6 +306,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	@allowListGroup.command(name="add")
 	@app_commands.describe(string="The string to add to the list")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def allowListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the allow list"""
 
@@ -312,6 +317,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	@allowListGroup.command(name="remove")
 	@app_commands.describe(string="The string to remove from the list")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_admin()
 	async def allowListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the allow list"""
 

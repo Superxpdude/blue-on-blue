@@ -62,6 +62,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		time_unit = "Unit of measurement for the ""time"" parameter"
 	)
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def jail(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Jails a user"""
 
@@ -142,6 +143,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 	@app_commands.command(name = "release")
 	@app_commands.describe(user = "User to be released")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def release(self, interaction: discord.Interaction, user: discord.Member):
 		"""Releases a user from jail"""
 
@@ -218,6 +220,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 
 	@app_commands.command(name = "list")
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that are currently jailed"""
 

@@ -393,6 +393,7 @@ class Missions(commands.Cog, name = "Missions"):
 	@app_commands.autocomplete(missionname=mission_autocomplete)
 	@app_commands.guild_only()
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.in_channel_bot()
 	async def schedule(self, interaction: discord.Interaction, date: str, missionname: str, notes: str = None):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
 
@@ -548,6 +549,7 @@ class Missions(commands.Cog, name = "Missions"):
 	@app_commands.guild_only()
 	@app_commands.default_permissions(manage_messages=True)
 	@blueonblue.checks.in_guild()
+	@blueonblue.checks.is_moderator()
 	async def schedule_cancel(self, interaction: discord.Interaction, date: str):
 		"""Removes a previously scheduled mission from the mission schedule"""
 
