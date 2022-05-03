@@ -149,8 +149,8 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 		"""Checks a text string against the chatfilter for a guild.
 		Returns False if no issues found. Returns True if the text violates the chatfilter."""
 		# Grab the lists for this guild
-		excludeList = self.allowList[guild.id]
-		filterlist = self.blockList[guild.id]
+		excludeList = self.allowList[guild.id] if guild.id in self.allowList else []
+		filterlist = self.blockList[guild.id] if guild.id in self.blockList else []
 		# Remove any excluded strings from the processed text
 		processed = text
 		if any(excludeStrings in text for excludeStrings in excludeList):
