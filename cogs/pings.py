@@ -376,6 +376,7 @@ class Pings(commands.Cog, name = "ping"):
 	@app_commands.command(name = "ping")
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
+	@app_commands.guild_only()
 	@blueonblue.checks.in_guild()
 	async def ping(self, interaction: discord.Interaction, tag: str):
 		"""Pings all users associated with a specific tag."""
