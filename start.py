@@ -4,8 +4,6 @@ import argparse
 import subprocess
 import os
 
-from blueonblue.bot import BlueOnBlueBot
-
 import logging
 import logging.handlers
 
@@ -13,6 +11,8 @@ def install_dependencies():
 	subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 def start_bot(args: argparse.Namespace):
+	from blueonblue.bot import BlueOnBlueBot
+
 	# Create required subfolders
 	for f in ["config", "logs", "data"]:
 		if not os.path.exists(f):
