@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands, tasks
-import slash_util
 
 import asqlite
 
@@ -73,23 +72,21 @@ async def update_guild_roles(guild: discord.Guild, cursor: asqlite.Cursor):
 	# Remove roles that are no longer present in the server
 	await cursor.executemany("DELETE FROM roles WHERE role_id IN (?)", [(i,) for i in removedRoles])
 
-class Users(slash_util.Cog, name="Users"):
+class Users(commands.Cog, name="Users"):
 	"""Base cog for user management"""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
-		self.bot.loop.create_task(self.db_init())
+
+	async def cog_load(self):
+		await self.db_init()
 		self.db_update_loop.start()
 
-	def cog_unload(self):
+	async def cog_unload(self):
 		self.db_update_loop.stop()
 
-	async def slash_command_error(self, ctx, error: Exception) -> None:
-		"""Redirect slash command errors to the main bot"""
-		return await self.bot.slash_command_error(ctx, error)
-
 	async def db_init(self):
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			# Create the tables if they do not exist
 			await cursor.execute("CREATE TABLE if NOT EXISTS users (\
 				server_id INTEGER,\
@@ -110,54 +107,54 @@ class Users(slash_util.Cog, name="Users"):
 				block_updates TEXT,\
 				UNIQUE(server_id,role_id),\
 				UNIQUE(server_id,block_updates))")
-			await self.bot.db_connection.commit()
+			await self.bot.dbConnection.commit()
 
 	@commands.Cog.listener()
 	async def on_guild_join(self, guild: discord.Guild):
 		"""Add information on all roles to the database when joining a guild."""
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			await update_guild_roles(guild, cursor)
-			await self.bot.db_connection.commit()
+			await self.bot.dbConnection.commit()
 
 	@commands.Cog.listener()
 	async def on_guild_role_create(self, role: discord.Role):
 		"""Add role information to the database on role creation."""
 		if (not role.managed) and (role != role.guild.default_role) and (role < role.guild.me.top_role): # Ignore roles that we can't add/remove
-			async with self.bot.db_connection.cursor() as cursor:
+			async with self.bot.dbConnection.cursor() as cursor:
 				await cursor.execute("INSERT INTO roles (server_id, role_id, name) VALUES (:server_id, :role_id, :name)",
 					{"server_id": role.guild.id, "role_id": role.id, "name": role.name})
-				await self.bot.db_connection.commit()
+				await self.bot.dbConnection.commit()
 
 	@commands.Cog.listener()
 	async def on_guild_role_delete(self, role: discord.Role):
 		"""Remove role information from the database on role deletion."""
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			await cursor.execute("DELETE FROM roles WHERE role_id = :role_id", {"role_id": role.id}) # Delete any roles in our DB matching the role id
-			await self.bot.db_connection.commit()
+			await self.bot.dbConnection.commit()
 
 	@commands.Cog.listener()
 	async def on_member_remove(self, member: discord.Member):
 		"""Updates member data when a member leaves the server"""
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			if (not member.bot) and (len(member.roles)>1): # Only update if the member is not a bot, and has roles assigned
 				await update_member_info(member, cursor)
 				await update_member_roles(member, cursor)
-			await self.bot.db_connection.commit()
+			await self.bot.dbConnection.commit()
 
 	async def update_members(self, *members: discord.Member):
 		"""Updates member data for a collection of members."""
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			for m in members:
 				if (not m.bot) and (len(m.roles)>1): # Only look for users that are not bots, and have at least one role assigned
 					await update_member_info(m, cursor)
 					await update_member_roles(m, cursor)
-			await self.bot.db_connection.commit()
+			await self.bot.dbConnection.commit()
 
 	@tasks.loop(hours=1, reconnect = True)
 	async def db_update_loop(self):
 		"""Periodically updates the user database"""
 		log.debug("Starting user update loop.")
-		async with self.bot.db_connection.cursor() as cursor:
+		async with self.bot.dbConnection.cursor() as cursor:
 			for g in self.bot.guilds:
 				# Update role info
 				await update_guild_roles(g, cursor)
@@ -167,7 +164,7 @@ class Users(slash_util.Cog, name="Users"):
 						await update_member_info(m, cursor)
 						await update_member_roles(m, cursor)
 
-			await self.bot.db_connection.commit()
+			await self.bot.dbConnection.commit()
 		log.debug("User update loop complete")
 
 	@db_update_loop.before_loop
@@ -175,5 +172,5 @@ class Users(slash_util.Cog, name="Users"):
 		# Wait until the bot is ready
 		await self.bot.wait_until_ready()
 
-def setup(bot: blueonblue.BlueOnBlueBot):
-	bot.add_cog(Users(bot))
+async def setup(bot: blueonblue.BlueOnBlueBot):
+	await bot.add_cog(Users(bot))

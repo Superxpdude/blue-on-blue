@@ -5,3 +5,4 @@ __pycache__
 /logs
 /data
 /config
+/cogs/test

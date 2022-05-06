@@ -1,6 +1,6 @@
 import discord
-from discord.ext import commands
-import slash_util
+from discord import app_commands
+from discord.ext import commands, tasks
 
 from datetime import datetime, timedelta
 import gspread_asyncio
@@ -45,7 +45,7 @@ def _decode_file_name(filename: str) -> dict:
 
 	# Check the mission type
 	gameType = nameList[0].casefold()
-	if not (gameType in ["coop", "tvt", "cotvt", "zeus", "zgm", "rpg"]):
+	if not (gameType in ["coop", "tvt", "cotvt", "rptvt", "zeus", "zgm", "rpg"]):
 		raise Exception(f"`{gameType}` is not a valid mission type!")
 
 	# Grab the player count
@@ -56,16 +56,34 @@ def _decode_file_name(filename: str) -> dict:
 
 	return {"gameType": gameType, "map": mapName, "playerCount": playerCount}
 
-class Missions(slash_util.Cog, name = "Missions"):
+
+class MissionAuditModal(discord.ui.Modal, title = "Mission Audit Notes"):
+	audit_notes = discord.ui.TextInput(
+		label = "Please enter your audit notes here",
+		style = discord.TextStyle.long,
+		placeholder = "Ex. Added more tasks, removed some vehicles, etc.",
+		required = True,
+		max_length = 1500
+	)
+
+	async def on_submit(self, interaction: discord.Interaction):
+		# We need to respond to the modal so that it doesn't error out
+		await interaction.response.send_message("Audit received. Beginning upload.",ephemeral=True)
+
+class Missions(commands.Cog, name = "Missions"):
 	"""Commands and functions used to view and schedule missions"""
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self.agcm = gspread_asyncio.AsyncioGspreadClientManager(self._get_google_credentials) # Authorization manager for gspread
+		# Initialize our mission cache
+		self.missionCache = {}
 
-	async def slash_command_error(self, ctx, error: Exception) -> None:
-		"""Redirect slash command errors to the main bot"""
-		return await self.bot.slash_command_error(ctx, error)
+	async def cog_load(self):
+		self.mission_cache_update_loop.start()
+
+	async def cog_unload(self):
+		self.mission_cache_update_loop.stop()
 
 	def _get_google_credentials(self):
 		accountFile = self.bot.config.get("GOOGLE", "api_file", fallback="config/google_api.json")
@@ -73,20 +91,94 @@ class Missions(slash_util.Cog, name = "Missions"):
 		creds = Credentials.from_service_account_file(accountFile, scopes = scopes)
 		return creds
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
-	async def missions(self, ctx: slash_util.Context):
+	@tasks.loop(hours=1, reconnect = True)
+	async def mission_cache_update_loop(self):
+		"""Periodically updates the mission cache"""
+		log.debug("Updating mission cache")
+		await self._update_all_caches()
+		log.debug("Mission cache update complete")
+
+	@mission_cache_update_loop.before_loop
+	async def before_mission_cache_loop(self):
+		# Wait until the bot is ready
+		await self.bot.wait_until_ready()
+
+	async def _update_all_caches(self):
+		"""Updates all guild caches present on the bot.
+		Purges the existing cache before updating."""
+		self.missionCache = {}
+		for guild in self.bot.guilds:
+			await self._update_guild_cache(guild)
+
+	async def _update_guild_cache(self, guild: discord.Guild):
+		"""Updates the mission cache for a single guild"""
+		wikiURL = self.bot.serverConfig.get(str(guild.id), "mission_wiki_url", fallback = None)
+		if wikiURL is not None:
+			# Guild has a wiki URL defined
+			async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
+				"action": "parse",
+				"page": "Audited Mission List",
+				"prop": "wikitext",
+				"section": 1,
+				"format": "json"
+			}) as response:
+				if response.status != 200: # Request failed
+					return
+				# Get the data from our request
+				responseData: dict = await response.json()
+				if "parse" not in responseData: # Invalid response from wiki
+					return
+
+			responseText: str = responseData["parse"]["wikitext"]["*"]
+			responseLines = responseText.split("\n")
+			missionList: list[str] = []
+			for line in responseLines:
+				if not line.startswith("{{"):
+					# We only care if the line starts with {{
+					continue
+				# Remove the leading and trailing braces
+				line = line.replace("{","").replace("}","")
+				# Split the line by pipe
+				line = line.split("|")
+				# Delete the first value, this ends up being the wiki template name
+				del line[0]
+				# Append the mission name to the mission list
+				missionList.append(line[0])
+
+			# Set the cache from our mission list
+			self.missionCache[guild.id] = missionList
+
+		else:
+			# Guild has no wiki URL defined
+			self.missionCache[guild.id] = []
+
+	async def mission_autocomplete(self, interaction: discord.Interaction, current: str):
+		"""Function to handle autocompletion of missions present on the audit list"""
+		if (interaction.guild is None) or (interaction.guild.id not in self.missionCache):
+			# If the guild doesn't exist, or the cache doesn't exist return nothing
+			return []
+		else:
+			# Command called in guild, and cache exists for that guild
+			return[app_commands.Choice(name=mission, value=mission) for mission in self.missionCache[interaction.guild.id] if current.lower() in mission.lower()][:25]
+
+	@app_commands.command(name = "missions")
+	@app_commands.guild_only()
+	@blueonblue.checks.in_guild()
+	async def missions(self, interaction: discord.Interaction):
 		"""Displays a list of scheduled missions"""
+
 		# Immediately defer this action, since this can take some time.
-		await ctx.defer()
+		await interaction.response.defer()
 
 		# Authorize our connection to google sheets
 		googleClient = await self.agcm.authorize()
 		# Read some config values
-		missionKey = self.bot.serverConfig.get(str(ctx.guild.id), "mission_sheet_key")
-		missionWorksheetName = self.bot.serverConfig.get(str(ctx.guild.id), "mission_worksheet", fallback="Schedule")
+		missionKey = self.bot.serverConfig.get(str(interaction.guild.id), "mission_sheet_key")
+		missionWorksheetName = self.bot.serverConfig.get(str(interaction.guild.id), "mission_worksheet", fallback="Schedule")
 
 		if missionKey is None:
-			await ctx.send("Could not find the URL for the mission sheet in the config file. Please contact the bot owner.")
+			await interaction.followup.send("Could not find the URL for the mission sheet in the config file. Please contact the bot owner.")
+			return
 
 		# Get the actual mission document
 		missionDoc = await googleClient.open_by_key(missionKey)
@@ -96,7 +188,7 @@ class Missions(slash_util.Cog, name = "Missions"):
 		sheetData = await missionSheet.get_all_records(default_blank = None)
 
 		# Get our wiki URL
-		wikiURL = self.bot.serverConfig.get(str(ctx.guild.id), "mission_wiki_url", fallback = None)
+		wikiURL = self.bot.serverConfig.get(str(interaction.guild.id), "mission_wiki_url", fallback = None)
 
 		# Get our current data
 		missionEmbeds = []
@@ -149,7 +241,7 @@ class Missions(slash_util.Cog, name = "Missions"):
 					colour = embedColour
 				)
 				# See if we can get the mission image
-				async with self.bot.http_session.get(f"{wikiURL}/api.php", params = {
+				async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
 					"action": "query",
 					"format": "json",
 					"prop": "pageimages",
@@ -200,27 +292,28 @@ class Missions(slash_util.Cog, name = "Missions"):
 		else:
 			message = None
 		# Send our response
-		await ctx.send(message, embeds=missionEmbeds)
+		await interaction.followup.send(message, embeds=missionEmbeds)
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
-	@slash_util.describe(missionfile = "Mission file to audit. Must follow mission naming scheme.")
-	@slash_util.describe(message = "Optional message. Will be submitted with your mission.")
-	@slash_util.describe(modpreset = "Mod preset .html file")
-	async def audit(self, ctx: slash_util.Context, missionfile: discord.Attachment, message: str = None, modpreset: discord.Attachment = None):
+	@app_commands.command(name = "audit")
+	@app_commands.describe(
+		missionfile = "Mission file to audit. Must follow mission naming scheme",
+		modpreset = "Mod preset .html file"
+	)
+	@app_commands.guild_only()
+	@blueonblue.checks.in_guild()
+	async def audit(self, interaction: discord.Interaction, missionfile: discord.Attachment, modpreset: discord.Attachment = None):
 		"""Submits a mission for auditing"""
-		# Immediately defer this action, since this can take some time.
-		await ctx.defer()
 
 		# Check to see if we have a mod preset
 		if modpreset is not None:
 			# Check if the mod preset has an .html extension
 			if modpreset.filename.split(".")[-1].casefold() != "html":
-				await ctx.send("Mod preset files must have a `.html` extension!")
+				await interaction.response.send_message("Mod preset files must have a `.html` extension!")
 				return
 			else:
 				# Since we have a mod preset, our mission file needs to be prefixed with "MODNIGHT"
 				if missionfile.filename.split("_",1)[0].casefold() != "modnight":
-					await ctx.send("Modnight missions must be prefixed with `modnight`!")
+					await interaction.response.send_message("Modnight missions must be prefixed with `modnight`!")
 					return
 				else:
 					# Mission file is prefixed with modnight
@@ -230,7 +323,7 @@ class Missions(slash_util.Cog, name = "Missions"):
 			# No mod preset
 			# Check to make sure that we don't have a modnight mission
 			if missionfile.filename.split("_",1)[0].casefold() == "modnight":
-				await ctx.send("Modnight missions must be submitted with a mod preset `.html` file!")
+				await interaction.response.send_message("Modnight missions must be submitted with a mod preset `.html` file!")
 				return
 			else:
 				missionFilename = missionfile.filename
@@ -239,26 +332,36 @@ class Missions(slash_util.Cog, name = "Missions"):
 		try:
 			missionInfo = _decode_file_name(missionFilename)
 		except Exception as exception:
-			await ctx.send(f"{exception.args[0]}"
-				f"\n{ctx.author.mention}, I encountered some errors when submitting your mission `{missionfile.filename}` for auditing. "
+			await interaction.response.send_message(f"{exception.args[0]}"
+				f"\n{interaction.user.mention}, I encountered some errors when submitting your mission `{missionfile.filename}` for auditing. "
 				"Please ensure that your mission file name follows the correct naming format."
 				"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`")
 			return
 
 		# Mission has passed validation checks
-		auditChannel: discord.TextChannel = ctx.guild.get_channel(self.bot.serverConfig.getint(str(ctx.guild.id),"channel_mission_audit", fallback = -1))
+		auditChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
 
 		if auditChannel is None:
-			await ctx.send("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
+			await interaction.response.send_message("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
+			return
+
+		# Create and send our audit notes modal
+		auditModal = MissionAuditModal(timeout=1200) # 20 minute timeout should be enough
+		await interaction.response.send_modal(auditModal)
+		await auditModal.wait()
+
+		# If we did not get a response, cancel the remainder of the command
+		if auditModal.audit_notes.value is None:
 			return
 
 		# Start creating our audit message
 		if modpreset is None:
-			auditMessage = f"Mission submitted for audit by {ctx.author.mention}."
+			auditMessage = f"Mission submitted for audit by {interaction.user.mention}."
 		else:
-			auditMessage = f"Modnight mission submitted for audit by {ctx.author.mention}."
-		if message is not None:
-			auditMessage += f" Notes from the audit below \n```{message}```"
+			auditMessage = f"Modnight mission submitted for audit by {interaction.user.mention}."
+
+		# The audit message is required now, so we can append it to the end.
+		auditMessage += f" Notes from the mission maker below \n```\n{auditModal.audit_notes.value}```"
 
 		missionFileObject = await missionfile.to_file()
 		auditFiles = [missionFileObject]
@@ -279,43 +382,49 @@ class Missions(slash_util.Cog, name = "Missions"):
 			await auditChannel.send("Pinning the audit message failed. The pin list might be full!")
 
 		# Let the user know that their mission is being submitted for audit.
-		await ctx.send(f"{ctx.author.mention}, your mission `{missionfile.filename}` has been submitted for audit.")
+		await interaction.followup.send(f"{interaction.user.mention}, your mission `{missionfile.filename}` has been submitted for audit.")
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
-	@slash_util.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
-	@slash_util.describe(missionname = "Name of the mission to schedule")
-	@slash_util.describe(notes = "Optional notes to display on the schedule")
+	@app_commands.command(name = "schedule")
+	@app_commands.describe(
+		date = "ISO 8601 formatted date (YYYY-MM-DD)",
+		missionname = "Name of the mission to schedule",
+		notes = "Optional notes to display on the schedule"
+	)
+	@app_commands.autocomplete(missionname=mission_autocomplete)
+	@app_commands.guild_only()
+	@blueonblue.checks.in_guild()
 	@blueonblue.checks.in_channel_bot()
-	async def schedule(self, ctx: slash_util.Context, date: str, missionname: str, notes: str = None):
+	async def schedule(self, interaction: discord.Interaction, date: str, missionname: str, notes: str = None):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
+
 		# See if we can convert out date string to a datetime object
 		try:
 			dateVar = datetime.strptime(date, ISO_8601_FORMAT)
 		except:
-			await ctx.send("Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True)
+			await interaction.response.send_message("Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True)
 			return
 
 		# Check to make sure that the mission isn't being scheduled too far in advance
 		if (dateVar - datetime.now()) > timedelta(365):
-			await ctx.send("You cannot schedule missions more than one year in advance!", ephemeral=True)
+			await interaction.response.send_message("You cannot schedule missions more than one year in advance!", ephemeral=True)
 			return
 
 		# If we've passed our preliminary checks, defer the response
 		# This gives us time to communicate with the wiki and google sheets
-		await ctx.defer()
+		await interaction.response.defer()
 
 		# Read some config values
-		missionKey = self.bot.serverConfig.get(str(ctx.guild.id), "mission_sheet_key")
-		missionWorksheetName = self.bot.serverConfig.get(str(ctx.guild.id), "mission_worksheet", fallback="Schedule")
+		missionKey = self.bot.serverConfig.get(str(interaction.guild.id), "mission_sheet_key")
+		missionWorksheetName = self.bot.serverConfig.get(str(interaction.guild.id), "mission_worksheet", fallback="Schedule")
 
 		if missionKey is None:
-			await ctx.send("Could not find the URL for the mission sheet in the config file. Please contact the bot owner.")
+			await interaction.followup.send("Could not find the URL for the mission sheet in the config file. Please contact the bot owner.")
 
 		# Get our wiki URL
-		wikiURL = self.bot.serverConfig.get(str(ctx.guild.id), "mission_wiki_url", fallback = None)
+		wikiURL = self.bot.serverConfig.get(str(interaction.guild.id), "mission_wiki_url", fallback = None)
 
 		# Start our HTTP request block
-		async with self.bot.http_session.get(f"{wikiURL}/api.php", params = {
+		async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
 			"action": "parse",
 			"page": "Audited Mission List",
 			"prop": "wikitext",
@@ -327,14 +436,14 @@ class Missions(slash_util.Cog, name = "Missions"):
 				if "parse" in responseData:
 					responseText: str = responseData["parse"]["wikitext"]["*"]
 				else:
-					await ctx.send("Could not locate the audit list on the wiki. Please contact the bot owner.")
+					await interaction.followup.send("Could not locate the audit list on the wiki. Please contact the bot owner.")
 					return
 			else:
-				await ctx.send(f"Could not contact the wiki to search for the audit list (Error: {response.status}). Please contact the bot owner.")
+				await interaction.followup.send(f"Could not contact the wiki to search for the audit list (Error: {response.status}). Please contact the bot owner.")
 
 		# Now that we have our text, split it up and parse it.
 		responseLines = responseText.split("\n")
-		missionData = []
+		missionData: list[str] = []
 		for line in responseLines:
 			if not line.startswith("{{"):
 				# We only care about lines that start with {{
@@ -357,7 +466,7 @@ class Missions(slash_util.Cog, name = "Missions"):
 
 		# If we did not find a matching row, return an error
 		if mission is None:
-			await ctx.send(f"I could not find the mission `{missionname}` on the audit list.")
+			await interaction.followup.send(f"I could not find the mission `{missionname}` on the audit list.")
 			return
 
 		# Put a placeholder if the map name is missing
@@ -383,8 +492,6 @@ class Missions(slash_util.Cog, name = "Missions"):
 			datecell = await missionSheet.find(dateStr)
 		except:
 			datecell = None
-
-
 
 		# If we found the date cell, start writing our data
 		if datecell is not None:
@@ -428,37 +535,41 @@ class Missions(slash_util.Cog, name = "Missions"):
 				# With our data set, write it back to the spreadsheet
 				await missionSheet.update_cells(cellList)
 				#await missionSheet.update(f"{datecell.address}:{secondAddr}", [rowData])
-				await ctx.send(f"The mission `{mission[0]}` has been successfully scheduled for {dateStr}`")
+				await interaction.followup.send(f"The mission `{mission[0]}` has been successfully scheduled for {dateStr}`")
 			else:
 				# Mission already scheduled
-				await ctx.send(f"A mission has already been scheduled for {dateStr}")
+				await interaction.followup.send(f"A mission has already been scheduled for {dateStr}")
 		else:
 			# Date not found. Send an error
-			await ctx.send("Missions can not be scheduled that far in advance at this time. "
+			await interaction.followup.send("Missions can not be scheduled that far in advance at this time. "
 				"Please contact the mission master if you need to schedule a mission that far in advnace.")
 
-	@slash_util.slash_command(guild_id = blueonblue.debugServerID)
-	@slash_util.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
+	@app_commands.command(name = "schedule_cancel")
+	@app_commands.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
+	@app_commands.guild_only()
+	@app_commands.default_permissions(manage_messages=True)
+	@blueonblue.checks.in_guild()
 	@blueonblue.checks.is_moderator()
-	async def schedule_cancel(self, ctx: slash_util.Context, date: str):
+	async def schedule_cancel(self, interaction: discord.Interaction, date: str):
 		"""Removes a previously scheduled mission from the mission schedule"""
+
 		# See if we can convert out date string to a datetime object
 		try:
 			dateVar = datetime.strptime(date, ISO_8601_FORMAT)
 		except:
-			await ctx.send("Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True)
+			await interaction.response.send_message("Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True)
 			return
 
 		# If we've passed our preliminary checks, defer the response
 		# This gives us time to communicate with the google sheets
-		await ctx.defer()
+		await interaction.response.defer()
 
 		#Convert the date back to a string format so that we can find it on the schedule sheet
 		dateStr = dateVar.strftime(ISO_8601_FORMAT)
 
 		# Read some config values
-		missionKey = self.bot.serverConfig.get(str(ctx.guild.id), "mission_sheet_key")
-		missionWorksheetName = self.bot.serverConfig.get(str(ctx.guild.id), "mission_worksheet", fallback="Schedule")
+		missionKey = self.bot.serverConfig.get(str(interaction.guild.id), "mission_sheet_key")
+		missionWorksheetName = self.bot.serverConfig.get(str(interaction.guild.id), "mission_worksheet", fallback="Schedule")
 
 		# Start our spreadsheet block
 		# Authorize our connection to google sheets
@@ -513,14 +624,14 @@ class Missions(slash_util.Cog, name = "Missions"):
 				cellList.append(cellNotes)
 				# With our data set, write it back to the spreadsheet
 				await missionSheet.update_cells(cellList)
-				await ctx.send(f"The mission `{missionName}` has been removed as the scheduled mission for {dateStr}.")
+				await interaction.followup.send(f"The mission `{missionName}` has been removed as the scheduled mission for {dateStr}.")
 			else:
 				# Mission already scheduled
-				await ctx.send(f"I could not find a mission scheduled for {dateStr}.")
+				await interaction.followup.send(f"I could not find a mission scheduled for {dateStr}.")
 		else:
 			# Date not found. Send an error
-			await ctx.send(f"I could not find a mission scheduled for {dateStr}.")
+			await interaction.followup.send(f"I could not find a mission scheduled for {dateStr}.")
 
 
-def setup(bot: blueonblue.BlueOnBlueBot):
-	bot.add_cog(Missions(bot))
+async def setup(bot: blueonblue.BlueOnBlueBot):
+	await bot.add_cog(Missions(bot))
