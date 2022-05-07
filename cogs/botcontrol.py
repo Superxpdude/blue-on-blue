@@ -103,7 +103,7 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		out = subprocess.run(["git", "pull"], check=True, stdout=subprocess.PIPE).stdout
 		outstr = out.decode("utf-8")
 
-		await msg.edit(f"Performing git pull\n```{outstr}```")
+		await msg.edit(content = f"Performing git pull\n```{outstr}```")
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(BotControl(bot))
