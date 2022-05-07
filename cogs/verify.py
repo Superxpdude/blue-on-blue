@@ -250,6 +250,7 @@ def steam_return_error_text(status_code: int) -> str:
 		return f"Something has gone wrong. Please ping an admin for a role. Error `{status_code}`"
 
 
+@app_commands.guild_only()
 class Verify(commands.GroupCog, group_name = "verify"):
 	"""Verify that users are part of a steam group."""
 	def __init__(self, bot, *args, **kwargs):
