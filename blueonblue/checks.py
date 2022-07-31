@@ -19,7 +19,11 @@ class ChannelUnauthorized(app_commands.AppCommandError):
 	"""Command can only be used in specified channels"""
 	def __init__(self, channels = tuple[int], *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.channels = channels
+		self.channels: tuple[int]
+		if isinstance(channels, tuple):
+			self.channels = channels
+		else:
+			self.channels = (channels,)
 
 
 # App command check functions
@@ -107,7 +111,7 @@ def in_channel_bot() -> bool:
 				return True
 			else:
 				# Not in bot channel
-				raise ChannelUnauthorized
+				raise ChannelUnauthorized(botChannelID)
 		else:
 			# Not used in guild
 			# For this, we don't specifically care if it was used in a DM or not. If it shouldn't be used in DMs, a "in_guild" check should be done as well.
