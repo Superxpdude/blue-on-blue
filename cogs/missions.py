@@ -9,7 +9,7 @@ from google.oauth2.service_account import Credentials
 import blueonblue
 
 import logging
-log = logging.getLogger("bloeonblue")
+log = logging.getLogger("blueonblue")
 
 MISSION_EMBED_WS_COLOUR = 0xC2B280
 MISSION_EMBED_ADVMED_COLOUR = 0xDF0000
