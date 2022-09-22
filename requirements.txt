@@ -1,5 +1,8 @@
-git+https://github.com/Rapptz/discord.py
+discord.py>=2.0.1
 git+https://github.com/Rapptz/asqlite
 gspread_asyncio==1.5.3
 aiohttp>=3.7.4
 parsedatetime>=2.6
+tomlkit>=0.11.4
+pboutil>=0.1.1
+armaclass>=0.2.2
