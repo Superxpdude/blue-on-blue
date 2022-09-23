@@ -5,6 +5,8 @@ from discord.ext import commands, tasks
 from datetime import datetime, timedelta
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
+import pboutil
+import armaclass
 
 import blueonblue
 
@@ -337,6 +339,32 @@ class Missions(commands.Cog, name = "Missions"):
 				"Please ensure that your mission file name follows the correct naming format."
 				"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`")
 			return
+
+		# Start doing some validation on the contents of the mission file
+		try:
+			missionPBO = pboutil.PBOFile.from_bytes(missionfile.read())
+		except:
+			await interaction.response.send_message("I encountered an error verifying the validity of your mission file."
+				"\nPlease ensure that you are submitting a mission in PBO format, exported from the Arma 3 editor.")
+			return
+
+		# PBO file is good, scan the description.ext
+		try:
+			descriptionFile: str = None
+			for f in missionPBO.filenames():
+				f: str
+				if f.lower() == "description.ext":
+					descriptionFile: str = missionPBO.file_as_bytes(f).decode()
+					break
+			if descriptionFile is None:
+				raise Exception
+		except:
+			await interaction.response.send_message("I encountered an issue reading your mission's `description.ext` file."
+				"\nPlease ensure that your mission contains a description.ext file, with a filename in all-lowercase.")
+
+		# Regex: (?<=\sbriefingName\s=\s[\"\'])[^\"\']*
+		# re.search("re", descriptionFile, re.I)
+
 
 		# Mission has passed validation checks
 		auditChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
