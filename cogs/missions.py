@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
 import pboutil
-import armaclass
+import re
 
 import blueonblue
 
@@ -361,9 +361,19 @@ class Missions(commands.Cog, name = "Missions"):
 		except:
 			await interaction.response.send_message("I encountered an issue reading your mission's `description.ext` file."
 				"\nPlease ensure that your mission contains a description.ext file, with a filename in all-lowercase.")
+			return
 
-		# Regex: (?<=\sbriefingName\s=\s[\"\'])[^\"\']*
-		# re.search("re", descriptionFile, re.I)
+		# Use a regex search to find the briefingName in the description.ext file
+		briefingMatch = re.search("(?<=^briefingName\s=\s[\"\'])[^\"\']*", descriptionFile, re.I | re.M)
+
+		if briefingMatch is None:
+			await interaction.response.send_message("I could not determine the `briefingName` of your mission from its `description.ext` file."
+				"\nPlease ensure that your mission has a `briefingName` defined.")
+			return
+
+		briefingName = briefingMatch.group()
+
+		# Now that we have the briefingName, we need to validate it.
 
 
 		# Mission has passed validation checks
