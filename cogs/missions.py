@@ -19,6 +19,8 @@ MISSION_EMBED_COLOUR = 0x2E86C1
 
 ISO_8601_FORMAT = "%Y-%m-%d"
 
+VALID_GAMETYPES = ["coop", "tvt", "cotvt", "rptvt", "zeus", "zgm", "rpg"]
+
 def _decode_file_name(filename: str) -> dict:
 	"""Decodes the file name for a mission to collect information about it.
 	Returns a dict of parameters if successful, otherwise raises an error."""
@@ -47,7 +49,7 @@ def _decode_file_name(filename: str) -> dict:
 
 	# Check the mission type
 	gameType = nameList[0].casefold()
-	if not (gameType in ["coop", "tvt", "cotvt", "rptvt", "zeus", "zgm", "rpg"]):
+	if not (gameType in VALID_GAMETYPES):
 		raise Exception(f"`{gameType}` is not a valid mission type!")
 
 	# Grab the player count
@@ -374,6 +376,26 @@ class Missions(commands.Cog, name = "Missions"):
 		briefingName = briefingMatch.group()
 
 		# Now that we have the briefingName, we need to validate it.
+		# Correct naming structure: COOP 52+2 - Daybreak v1.8
+		# Start by splitting the name into two parts
+		briefingArr1 = briefingName.split("-",1)
+		if len(briefingArr1) < 2:
+			await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
+			"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines.")
+			return
+		# This will give us an list that looks like this: "COOP 52+2", "Daybreak v1.8"
+		# Check to see if the first part is valid
+		briefingArr2 = briefingArr1[0].split(" ",1)
+		if len(briefingArr2) < 2:
+			await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
+			"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines.")
+			return
+		# We should now be able to verify that the mission type in the briefingname is valid
+		if briefingArr2[0].lower() not in VALID_GAMETYPES:
+			await interaction.response.send_message(f"The gametype `{briefingArr2[0]}` found in your `description.ext` file is not a valid gametype."
+				"\nPlease ensure that your mission is named according to the mission naming guidelines.")
+			return
+
 
 
 		# Mission has passed validation checks
