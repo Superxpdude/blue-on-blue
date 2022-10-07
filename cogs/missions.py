@@ -542,7 +542,7 @@ class Missions(commands.Cog, name = "Missions"):
 		else:
 			# Date not found. Send an error
 			await interaction.followup.send("Missions can not be scheduled that far in advance at this time. "
-				"Please contact the mission master if you need to schedule a mission that far in advnace.")
+				"Please contact the mission master if you need to schedule a mission that far in advance.")
 
 	@app_commands.command(name = "schedule_cancel")
 	@app_commands.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
