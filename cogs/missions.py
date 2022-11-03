@@ -5,6 +5,8 @@ from discord.ext import commands, tasks
 from datetime import datetime, timedelta
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
+import pboutil
+import re
 
 import blueonblue
 
@@ -16,6 +18,8 @@ MISSION_EMBED_ADVMED_COLOUR = 0xDF0000
 MISSION_EMBED_COLOUR = 0x2E86C1
 
 ISO_8601_FORMAT = "%Y-%m-%d"
+
+VALID_GAMETYPES = ["coop", "tvt", "cotvt", "rptvt", "zeus", "zgm", "rpg"]
 
 def _decode_file_name(filename: str) -> dict:
 	"""Decodes the file name for a mission to collect information about it.
@@ -45,7 +49,7 @@ def _decode_file_name(filename: str) -> dict:
 
 	# Check the mission type
 	gameType = nameList[0].casefold()
-	if not (gameType in ["coop", "tvt", "cotvt", "rptvt", "zeus", "zgm", "rpg"]):
+	if not (gameType in VALID_GAMETYPES):
 		raise Exception(f"`{gameType}` is not a valid mission type!")
 
 	# Grab the player count
@@ -337,6 +341,67 @@ class Missions(commands.Cog, name = "Missions"):
 				"Please ensure that your mission file name follows the correct naming format."
 				"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`")
 			return
+
+		# Start doing some validation on the contents of the mission file
+		try:
+			missionFileBytes = await missionfile.read()
+			missionPBO = pboutil.PBOFile.from_bytes(missionFileBytes)
+		except:
+			await interaction.response.send_message("I encountered an error verifying the validity of your mission file."
+				"\nPlease ensure that you are submitting a mission in PBO format, exported from the Arma 3 editor.")
+			return
+
+		# PBO file is good, scan the description.ext
+		try:
+			descriptionFile: str = None
+			for f in missionPBO.filenames():
+				f: str
+				if f.lower() == "description.ext":
+					descriptionFile: str = missionPBO.file_as_bytes(f).decode()
+					break
+			if descriptionFile is None:
+				raise Exception
+		except:
+			await interaction.response.send_message("I encountered an issue reading your mission's `description.ext` file."
+				"\nPlease ensure that your mission contains a description.ext file, with a filename in all-lowercase.")
+			return
+
+		# Use a regex search to find the briefingName in the description.ext file
+		briefingMatch = re.search("(?<=^briefingName\s=\s[\"\'])[^\"\']*", descriptionFile, re.I | re.M)
+
+		if briefingMatch is None:
+			await interaction.response.send_message("I could not determine the `briefingName` of your mission from its `description.ext` file."
+				"\nPlease ensure that your mission has a `briefingName` defined.")
+			return
+
+		briefingName = briefingMatch.group()
+
+		# Now that we have the briefingName, we need to validate it.
+		# Correct naming structure: COOP 52+2 - Daybreak v1.8
+		# Start by splitting the name into two parts
+		briefingArr1 = briefingName.split("-",1)
+		# Remove this temporarily for now. To be replaced with regEx at some point in the future.
+		#if len(briefingArr1) < 2:
+		#	await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
+		#	"\nYour `briefingName` entry may be missing a `-` between the player count and mission name."
+		#	"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.")
+		#	return
+		# This will give us an list that looks like this: "COOP 52+2", "Daybreak v1.8"
+		# Check to see if the first part is valid
+		briefingArr2 = briefingArr1[0].split(" ",1)
+		if len(briefingArr2) < 2:
+			await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
+				"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
+			return
+		# We should now be able to verify that the mission type in the briefingname is valid
+		if briefingArr2[0].lower() not in VALID_GAMETYPES:
+			await interaction.response.send_message(f"The gametype `{briefingArr2[0]}` found in the `briefingName` entry in your `description.ext` file is not a valid gametype."
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
+			return
+
+
 
 		# Mission has passed validation checks
 		auditChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
