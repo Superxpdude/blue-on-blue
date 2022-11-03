@@ -344,7 +344,8 @@ class Missions(commands.Cog, name = "Missions"):
 
 		# Start doing some validation on the contents of the mission file
 		try:
-			missionPBO = pboutil.PBOFile.from_bytes(missionfile.read())
+			missionFileBytes = await missionfile.read()
+			missionPBO = pboutil.PBOFile.from_bytes(missionFileBytes)
 		except:
 			await interaction.response.send_message("I encountered an error verifying the validity of your mission file."
 				"\nPlease ensure that you are submitting a mission in PBO format, exported from the Arma 3 editor.")
@@ -379,21 +380,25 @@ class Missions(commands.Cog, name = "Missions"):
 		# Correct naming structure: COOP 52+2 - Daybreak v1.8
 		# Start by splitting the name into two parts
 		briefingArr1 = briefingName.split("-",1)
-		if len(briefingArr1) < 2:
-			await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
-			"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines.")
-			return
+		# Remove this temporarily for now. To be replaced with regEx at some point in the future.
+		#if len(briefingArr1) < 2:
+		#	await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
+		#	"\nYour `briefingName` entry may be missing a `-` between the player count and mission name."
+		#	"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.")
+		#	return
 		# This will give us an list that looks like this: "COOP 52+2", "Daybreak v1.8"
 		# Check to see if the first part is valid
 		briefingArr2 = briefingArr1[0].split(" ",1)
 		if len(briefingArr2) < 2:
 			await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
-			"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines.")
+				"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
 			return
 		# We should now be able to verify that the mission type in the briefingname is valid
 		if briefingArr2[0].lower() not in VALID_GAMETYPES:
-			await interaction.response.send_message(f"The gametype `{briefingArr2[0]}` found in your `description.ext` file is not a valid gametype."
-				"\nPlease ensure that your mission is named according to the mission naming guidelines.")
+			await interaction.response.send_message(f"The gametype `{briefingArr2[0]}` found in the `briefingName` entry in your `description.ext` file is not a valid gametype."
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
 			return
 
 
