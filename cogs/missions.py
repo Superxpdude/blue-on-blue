@@ -367,7 +367,7 @@ class Missions(commands.Cog, name = "Missions"):
 			return
 
 		# Use a regex search to find the briefingName in the description.ext file
-		briefingMatch = re.search("(?<=^briefingName\s=\s[\"\'])[^\"\']*", descriptionFile, re.I | re.M)
+		briefingMatch = re.search(r"(?<=^briefingName\s=\s[\"\'])[^\"\']*", descriptionFile, re.I | re.M)
 
 		if briefingMatch is None:
 			await interaction.response.send_message("I could not determine the `briefingName` of your mission from its `description.ext` file."
@@ -376,32 +376,100 @@ class Missions(commands.Cog, name = "Missions"):
 
 		briefingName = briefingMatch.group()
 
+		# # Now that we have the briefingName, we need to validate it.
+		# # Correct naming structure: COOP 52+2 - Daybreak v1.8
+		# # Start by splitting the name into two parts
+		# briefingArr1 = briefingName.split("-",1)
+		# # Remove this temporarily for now. To be replaced with regEx at some point in the future.
+		# #if len(briefingArr1) < 2:
+		# #	await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
+		# #	"\nYour `briefingName` entry may be missing a `-` between the player count and mission name."
+		# #	"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.")
+		# #	return
+		# # This will give us an list that looks like this: "COOP 52+2", "Daybreak v1.8"
+		# # Check to see if the first part is valid
+		# briefingArr2 = briefingArr1[0].split(" ",1)
+		# if len(briefingArr2) < 2:
+		# 	await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
+		# 		"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+		# 		ephemeral = True)
+		# 	return
+		# # We should now be able to verify that the mission type in the briefingname is valid
+		# if briefingArr2[0].lower() not in VALID_GAMETYPES:
+		# 	await interaction.response.send_message(f"The gametype `{briefingArr2[0]}` found in the `briefingName` entry in your `description.ext` file is not a valid gametype."
+		# 		"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+		# 		ephemeral = True)
+		# 	return
+
 		# Now that we have the briefingName, we need to validate it.
 		# Correct naming structure: COOP 52+2 - Daybreak v1.8
-		# Start by splitting the name into two parts
-		briefingArr1 = briefingName.split("-",1)
-		# Remove this temporarily for now. To be replaced with regEx at some point in the future.
-		#if len(briefingArr1) < 2:
-		#	await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
-		#	"\nYour `briefingName` entry may be missing a `-` between the player count and mission name."
-		#	"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.")
-		#	return
-		# This will give us an list that looks like this: "COOP 52+2", "Daybreak v1.8"
-		# Check to see if the first part is valid
-		briefingArr2 = briefingArr1[0].split(" ",1)
-		if len(briefingArr2) < 2:
-			await interaction.response.send_message("Error parsing `briefingName` from `description.ext` file."
-				"\nPlease ensure that your `briefingName` entry follows the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
-				ephemeral = True)
-			return
-		# We should now be able to verify that the mission type in the briefingname is valid
-		if briefingArr2[0].lower() not in VALID_GAMETYPES:
-			await interaction.response.send_message(f"The gametype `{briefingArr2[0]}` found in the `briefingName` entry in your `description.ext` file is not a valid gametype."
+		# Start by setting up a regex match for the briefing name
+		briefingRe = re.compile(
+			r"^(?P<modnight>modnight )?(?:(?P<gametype>[a-zA-Z]+) )?" \
+			r"(?P<playercount>\d+)?(?:\+(?P<extracount>\d*))? ?(?:\- *)?(?P<name>.*?)" \
+			r"(?: v?(?P<version>\d+(?:\.\d+)?))?$",
+			re.MULTILINE + re.IGNORECASE
+		)
+
+		# Scan the briefing name to extract information
+		briefingNameMatch = briefingRe.fullmatch(briefingName)
+
+		# If the briefingName did not follow the format specified by the regex
+		if briefingNameMatch is None:
+			await interaction.response.send_message(f"The `briefingName` entry in your `description.ext` file does not appear to follow the mission naming guidelines."
 				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
 				ephemeral = True)
 			return
 
+		bModnight = briefingNameMatch.group("modnight")
+		bGametype = briefingNameMatch.group("gametype")
+		bPlayerCount = briefingNameMatch.group("playercount")
+		bExtraCount = briefingNameMatch.group("extracount")
+		bName = briefingNameMatch.group("name")
+		bVersion = briefingNameMatch.group("version")
 
+		# briefingName exists, check to make sure that we have detected a gametype, playercont, name, and version
+		if (modpreset is not None) and (bModnight is None):
+			await interaction.response.send_message("Modnight missions must have their `briefingName` entries in `description.ext` prefixed with \"MODNIGHT\"."
+				f"\nDetected `briefingName` was: `{briefingNameMatch}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
+			return
+
+		if bGametype is None:
+			await interaction.response.send_message("Could not determine your mission's gametype from the `briefingName` entry in your `description.ext` file."
+				f"\nDetected `briefingName` was: `{briefingNameMatch}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
+			return
+
+		if bPlayerCount is None:
+			await interaction.response.send_message("Could not determine your mission's player count from the `briefingName` entry in your `description.ext` file."
+				f"\nDetected `briefingName` was: `{briefingNameMatch}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
+			return
+
+		if bName is None:
+			await interaction.response.send_message("Could not determine your mission's name from the `briefingName` entry in your `description.ext` file."
+				f"\nDetected `briefingName` was: `{briefingNameMatch}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
+			return
+
+		if bVersion is None:
+			await interaction.response.send_message("Could not determine your mission's version from the `briefingName` entry in your `description.ext` file."
+				f"\nDetected `briefingName` was: `{briefingNameMatch}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
+			return
+
+		if bGametype.casefold() not in VALID_GAMETYPES:
+			await interaction.response.send_message(f"The gametype `{bGametype}` found in the `briefingName` entry in your `description.ext` file is not a valid gametype."
+				f"\nDetected `briefingName` was: `{briefingNameMatch}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral = True)
+			return
 
 		# Mission has passed validation checks
 		auditChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
