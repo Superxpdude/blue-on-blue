@@ -459,7 +459,7 @@ class Missions(commands.Cog, name = "Missions"):
 		await auditModal.wait()
 
 		# If we did not get a response, cancel the remainder of the command
-		if auditModal.audit_notes.value is None:
+		if (auditModal.audit_notes.value is None) or (auditModal.audit_notes.value == ""):
 			return
 
 		# Start creating our audit message
