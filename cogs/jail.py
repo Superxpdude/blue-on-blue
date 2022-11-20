@@ -96,7 +96,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 				icon_url = user.avatar.url
 			)
 			await interaction.response.send_message(f"{interaction.user.mention}, you are about to jail the following user.", view = view, embed=jailEmbed)
-			view.message = await interaction.original_message()
+			view.message = await interaction.original_response()
 			# Wait for the view to finish
 			await view.wait()
 
@@ -173,7 +173,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 			)
 
 			await interaction.response.send_message(f"{interaction.user.mention}, you are about to release the following user.", view = view, embed=jailEmbed)
-			view.message = await interaction.original_message()
+			view.message = await interaction.original_response()
 			# Wait for the view to finish
 			await view.wait()
 

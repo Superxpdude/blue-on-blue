@@ -764,7 +764,7 @@ class Pings(commands.Cog, name = "ping"):
 				await create_ping_embed_from_id(toID, interaction.guild, cursor, title_prefix="Merge to")
 			]
 			await interaction.response.send_message(messageText, view = view, embeds=pingEmbeds)
-			view.message = await interaction.original_message()
+			view.message = await interaction.original_response()
 			# Wait for the view to finish
 			await view.wait()
 
@@ -839,7 +839,7 @@ class Pings(commands.Cog, name = "ping"):
 
 			view = blueonblue.views.ConfirmViewDanger(interaction.user, confirm="Delete")
 			await interaction.response.send_message(msg, embed = pingEmbed, view = view)
-			view.message = await interaction.original_message()
+			view.message = await interaction.original_response()
 			await view.wait()
 
 			# Once we have a response, continue
@@ -896,7 +896,7 @@ class Pings(commands.Cog, name = "ping"):
 				)
 				view = blueonblue.views.ConfirmViewDanger(interaction.user, confirm="Purge")
 				await interaction.response.send_message(msg, embed = pingEmbed, view = view)
-				view.message = await interaction.original_message()
+				view.message = await interaction.original_response()
 				await view.wait()
 
 				# Handle the response

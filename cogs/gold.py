@@ -78,7 +78,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 				icon_url = user.avatar.url
 			)
 			await interaction.response.send_message(f"{interaction.user.mention}, you are about to give TMTM Gold to the following user.", view = view, embed=goldEmbed)
-			view.message = await interaction.original_message()
+			view.message = await interaction.original_response()
 			# Wait for the view to finish
 			await view.wait()
 
@@ -153,7 +153,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 				icon_url = user.avatar.url
 			)
 			await interaction.response.send_message(f"{interaction.user.mention}, you are about to remove TMTM Gold from the following user.", view = view, embed=goldEmbed)
-			view.message = await interaction.original_message()
+			view.message = await interaction.original_response()
 			# Wait for the view to finish
 			await view.wait()
 
