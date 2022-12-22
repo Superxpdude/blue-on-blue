@@ -1,5 +1,7 @@
 {
 	"editor.insertSpaces": false,
 	"editor.detectIndentation": false,
-	"python.formatting.provider": "yapf"
+	"python.formatting.provider": "yapf",
+	"python.analysis.typeCheckingMode": "off",
+	"editor.formatOnSave": false
 }
