@@ -40,7 +40,7 @@ def start_bot(args: argparse.Namespace):
 
 	bot = BlueOnBlueBot()
 
-	botToken = bot.config.get("CORE", "bot_token", fallback = None)
+	botToken = bot.config.bot_token
 
 	if botToken is None:
 		logging.error("No Discord API token found in config file.")

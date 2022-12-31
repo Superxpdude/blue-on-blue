@@ -90,7 +90,7 @@ class Missions(commands.Cog, name = "Missions"):
 		self.mission_cache_update_loop.stop()
 
 	def _get_google_credentials(self):
-		accountFile = self.bot.config.get("GOOGLE", "api_file", fallback="config/google_api.json")
+		accountFile = self.bot.config.google_api_file
 		scopes = ["https://spreadsheets.google.com/feeds"]
 		creds = Credentials.from_service_account_file(accountFile, scopes = scopes)
 		return creds

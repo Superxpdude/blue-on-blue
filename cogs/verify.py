@@ -48,7 +48,7 @@ async def steam_getID64(bot: blueonblue.BlueOnBlueBot, url: str) -> str | int | 
 
 		# Make our request to the steam API
 		async with bot.httpSession.get("https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/", params = {
-			"key": bot.config.get("STEAM","api_token", fallback = ""),
+			"key": bot.config.steam_api_token,
 			"vanityurl": vanity
 		}) as response:
 			if response.status == 200: # Request successful
@@ -86,7 +86,7 @@ async def steam_check_group_membership(bot: blueonblue.BlueOnBlueBot, guildID: i
 	async with bot.httpSession.get(
 		"https://api.steampowered.com/ISteamUser/GetUserGroupList/v1/",
 		params = {
-			"key": bot.config.get("STEAM","api_token", fallback = ""),
+			"key": bot.config.steam_api_token,
 			"steamid": steamID64
 		}
 	) as response:
@@ -140,7 +140,7 @@ async def steam_check_token(bot: blueonblue.BlueOnBlueBot, userID: int) -> bool 
 	async with bot.httpSession.get(
 		"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
 		params = {
-			"key": bot.config.get("STEAM","api_token", fallback = ""),
+			"key": bot.config.steam_api_token,
 			"steamids": tokenData["steam64_id"]
 		}
 	) as response:

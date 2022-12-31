@@ -6,9 +6,12 @@ import asqlite
 import configparser
 from datetime import datetime
 
+from typing import Optional
+
 import sys, traceback
 
 from . import checks
+from . import config
 
 import logging
 _log = logging.getLogger("blueonblue")
@@ -20,25 +23,7 @@ class BlueOnBlueBot(commands.Bot):
 	Subclass of discord.ext.commands.Bot"""
 	def __init__(self):
 		# Set up our core config
-		self.config = configparser.ConfigParser(allow_no_value=True)
-		# Set default values
-		self.config.read_dict({
-			"CORE": {
-				"prefix": "$$",
-				"bot_token": None,
-				"debug_server": -1
-			},
-			"STEAM": {
-				"api_token": None
-			},
-			"GOOGLE": {
-				"api_file": "config/google_api.json"
-			}
-		})
-		# Read local config file
-		self.config.read("config/config.ini")
-		# Write config back to disk
-		self.write_config()
+		self.config = config.BotConfig("config/config.toml")
 
 		# Set up our server config
 		self.serverConfig = configparser.ConfigParser(allow_no_value=True)
@@ -67,8 +52,8 @@ class BlueOnBlueBot(commands.Bot):
 		self.write_serverConfig()
 
 		# Store our "debug server" value for slash command testing
-		self.slashDebugID = None
-		debugServerID = self.config.getint("CORE", "debug_server", fallback = -1)
+		self.slashDebugID: Optional[int] = None
+		debugServerID = self.config.debug_server
 		if debugServerID > 0: # If we have an ID present
 			self.slashDebugID = debugServerID
 
@@ -85,7 +70,7 @@ class BlueOnBlueBot(commands.Bot):
 
 		# Call the commands.Bot init
 		super().__init__(
-			command_prefix = commands.when_mentioned_or(self.config.get("CORE", "prefix", fallback="$$")),
+			command_prefix = commands.when_mentioned_or(self.config.prefix),
 			description = "Blue on Blue",
 			case_insensitive = True,
 			intents = intents,
@@ -105,11 +90,6 @@ class BlueOnBlueBot(commands.Bot):
 			"utils",
 			"verify"
 		]
-
-	def write_config(self):
-		"""Write the current bot config to disk"""
-		with open("config/config.ini", "w") as configFile:
-			self.config.write(configFile)
 
 	def write_serverConfig(self):
 		"""Write the current server configs to disk"""
