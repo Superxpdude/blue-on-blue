@@ -21,6 +21,13 @@ __all__ = ["BlueOnBlueBot"]
 class BlueOnBlueBot(commands.Bot):
 	"""Blue on Blue bot class.
 	Subclass of discord.ext.commands.Bot"""
+	# Class variable type hinting
+	dbConnection: asqlite.Connection
+	httpSession: aiohttp.ClientSession
+	startTime: datetime
+	firstStart: bool
+
+
 	def __init__(self):
 		# Set up our core config
 		self.config = config.BotConfig("config/config.toml")
@@ -58,10 +65,7 @@ class BlueOnBlueBot(commands.Bot):
 			self.slashDebugID = debugServerID
 
 		# Set up variables for type hinting
-		self.dbConnection: asqlite.Connection = None
-		self.httpSession: aiohttp.ClientSession = None
-		self.startTime: datetime = None
-		self.firstStart: bool = True
+		self.firstStart = True
 
 		# Set up our intents
 		intents = discord.Intents.default()
@@ -189,25 +193,6 @@ class BlueOnBlueBot(commands.Bot):
 		if isinstance(error, commands.NotOwner):
 			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.")
 
-		elif isinstance(error, checks.CommandChannelUnauthorized):
-			channels = []
-			for c in error.channels:
-				ch = ctx.guild.get_channel(c)
-				if ch is not None:
-					channels.append(ch.mention)
-
-			if len(channels) > 1:
-				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` can only be used in the following channels: "
-			elif len(channels) == 1:
-				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` can only be used in the following channel: "
-			else:
-				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` cannot be used in this channel."
-
-			# Add the channel idenfiers to the string
-			message += ", ".join(channels)
-
-			await ctx.send(message)
-
 		# Command not found
 		elif isinstance(error, commands.CommandNotFound):
 			await ctx.send(f"{ctx.author.mention} Unknown command. This bot has migrated to slash commands. Try typing a `/` to see the list of commands.")
@@ -252,6 +237,7 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 
 		elif isinstance(error, checks.ChannelUnauthorized):
 			# Command can only be used in specified channels
+			assert isinstance(interaction.guild, discord.Guild)
 			channels = []
 			for c in error.channels:
 				ch = interaction.guild.get_channel(c)
