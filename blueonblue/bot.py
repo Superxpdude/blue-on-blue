@@ -15,7 +15,7 @@ from . import config
 from . import db
 
 import logging
-_log = logging.getLogger("blueonblue")
+log = logging.getLogger(__name__)
 
 __all__ = ["BlueOnBlueBot"]
 
@@ -26,7 +26,6 @@ class BlueOnBlueBot(commands.Bot):
 	httpSession: aiohttp.ClientSession
 	startTime: datetime
 	firstStart: bool
-
 
 	def __init__(self):
 		# Set up our core config
@@ -130,11 +129,9 @@ class BlueOnBlueBot(commands.Bot):
 		await self.db.migrate_version()
 
 		async with aiohttp.ClientSession() as session:
-			async with asqlite.connect("data/blueonblue.sqlite3") as connection:
-				self.httpSession = session
-				self.dbConnection = connection
-				self.startTime = discord.utils.utcnow()
-				await super().start(*args, **kwargs)
+			self.httpSession = session
+			self.startTime = discord.utils.utcnow()
+			await super().start(*args, **kwargs)
 
 	# Setup hook function to load extensions
 	async def setup_hook(self):
@@ -143,10 +140,10 @@ class BlueOnBlueBot(commands.Bot):
 			try:
 				await self.load_extension("cogs." + ext)
 			except Exception as e:
-				_log.exception(f"Failed to load extension: {ext}")
+				log.exception(f"Failed to load extension: {ext}")
 			else:
-				_log.info(f"Loaded extension: {ext}")
-		_log.info("Extensions loaded")
+				log.info(f"Loaded extension: {ext}")
+		log.info("Extensions loaded")
 
 		# If we have a debug ID set, copy global commands to a guild
 		if self.slashDebugID is not None:
@@ -158,7 +155,7 @@ class BlueOnBlueBot(commands.Bot):
 	async def on_connect(self):
 		# Make sure we're on our first connection
 		if self.firstStart:
-			_log.info("Connected to Discord")
+			log.info("Connected to Discord")
 
 	# On ready. Runs when the bot connects to discord, and has received server info.
 	# Can run multiple times if the bot is disconnected at any point
@@ -174,8 +171,8 @@ class BlueOnBlueBot(commands.Bot):
 			self.write_serverConfig()
 
 		# Make some log messages
-		_log.info(f"Connected to servers: {self.guilds}")
-		_log.info("Blue on Blue ready.")
+		log.info(f"Connected to servers: {self.guilds}")
+		log.info("Blue on Blue ready.")
 
 		# Set our "first start" variable to False
 		self.firstStart = False
@@ -190,7 +187,7 @@ class BlueOnBlueBot(commands.Bot):
 
 	# On command completion. Runs every time a command is completed
 	async def on_command_completion(self, ctx: commands.Context):
-		_log.debug(f"Command {ctx.command} invoked by {ctx.author.name}")
+		log.debug(f"Command {ctx.command} invoked by {ctx.author.name}")
 
 	# On command error. Runs whenever a command fails (for any reason)
 	async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
@@ -205,7 +202,7 @@ class BlueOnBlueBot(commands.Bot):
 
 		# If we don't have a handler for that error type, execute default error code.
 		else:
-			_log.exception(f"Ignoring exception in command {ctx.command}:")
+			log.exception(f"Ignoring exception in command {ctx.command}:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 class BlueOnBlueTree(discord.app_commands.CommandTree):
@@ -265,10 +262,10 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 		# If we don't have a handler for that error type, execute default error code.
 		else:
 			if interaction.command is not None:
-				_log.exception(f"Ignoring exception in app command {interaction.command}:")
+				log.exception(f"Ignoring exception in app command {interaction.command}:")
 			else:
 				# Command is none
-				_log.exception(f"Ignoring exception in command tree:")
+				log.exception(f"Ignoring exception in command tree:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 		#await super().on_error(interaction, command, error)

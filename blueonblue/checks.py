@@ -10,7 +10,7 @@ from typing import (
 import logging
 
 from blueonblue import bot as blueonbluebot
-log = logging.getLogger("blueonblue")
+log = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
