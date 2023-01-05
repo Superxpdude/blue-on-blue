@@ -4,6 +4,8 @@ import argparse
 import subprocess
 import os
 
+from .bot import BlueOnBlueBot
+
 import logging
 import logging.handlers
 
@@ -11,8 +13,6 @@ def install_dependencies():
 	subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 def start_bot(args: argparse.Namespace):
-	from blueonblue.bot import BlueOnBlueBot
-
 	# Create required subfolders
 	for f in ["config", "logs", "data"]:
 		if not os.path.exists(f):
@@ -22,7 +22,7 @@ def start_bot(args: argparse.Namespace):
 	logLevel = logging.DEBUG if args.debug else logging.INFO
 
 	rootLog = logging.getLogger()
-	logFormat = logging.Formatter("%(asctime)s [%(levelname)s]  %(message)s")
+	logFormat = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 	logFile = logging.handlers.TimedRotatingFileHandler("logs/blueonblue.log",when="midnight",backupCount=30)
 	logFile.setFormatter(logFormat)
 	rootLog.addHandler(logFile)
@@ -61,8 +61,8 @@ def main():
 	args = parser.parse_args()
 
 	# Check python version
-	if (sys.version_info < (3,8,0,"final")):
-		print("Python 3.8.0 or higher is required to run this bot." \
+	if (sys.version_info < (3,10,0,"final")):
+		print("Python 3.10.0 or higher is required to run this bot." \
 		f"You are using version {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
 		input("Press ENTER to continue...")
 		exit()

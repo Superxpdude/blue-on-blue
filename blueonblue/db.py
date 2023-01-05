@@ -48,11 +48,11 @@ class DB():
 				schema_version = 0
 				while schema_version != DBVERSION:
 					schema_version = (await (await cursor.execute("PRAGMA user_version")).fetchone())["user_version"]
-					logging.info(f"Database Schema Version: {schema_version}")
+					log.info(f"Database Schema Version: {schema_version}")
 
 					# Database is newly created
 					if schema_version == 0:
-						logging.info("Initializing database")
+						log.info("Initializing database")
 						# Chat Filter table
 						# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
 						await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
@@ -120,9 +120,9 @@ class DB():
 							verified INTEGER NOT NULL DEFAULT 0)")
 
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
-						logging.info(f"Database initialized to version: {DBVERSION}")
+						log.info(f"Database initialized to version: {DBVERSION}")
 
 						await db.commit()
 
 				# Database is on the correct version
-				logging.info("Database initialization finished")
+				log.info("Database initialization finished")

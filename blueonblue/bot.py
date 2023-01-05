@@ -128,10 +128,19 @@ class BlueOnBlueBot(commands.Bot):
 		# Validate our DB version
 		await self.db.migrate_version()
 
-		async with aiohttp.ClientSession() as session:
-			self.httpSession = session
-			self.startTime = discord.utils.utcnow()
-			await super().start(*args, **kwargs)
+		#async with aiohttp.ClientSession() as session:
+		#self.httpSession = session
+		self.httpSession = aiohttp.ClientSession()
+		self.startTime = discord.utils.utcnow()
+		await super().start(*args, **kwargs)
+
+	async def close(self):
+		"""|coro|
+
+		Overwritten close function to stop the bot.
+		Closes down the HTTP session when the bot is stopped."""
+		await self.httpSession.close()
+		await super().close()
 
 	# Setup hook function to load extensions
 	async def setup_hook(self):
