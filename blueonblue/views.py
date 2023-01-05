@@ -1,7 +1,5 @@
 import discord
 
-from typing import Optional
-
 # Base view class for a view that only responds to the author
 class AuthorResponseViewBase(discord.ui.View):
 	"""Base view class for a view that will only respond to the original user who invoked the view."""
@@ -11,7 +9,7 @@ class AuthorResponseViewBase(discord.ui.View):
 		self.author = author
 		super().__init__(*args, timeout=timeout, **kwargs)
 
-	async def terminate(self, *, timedOut: Optional[bool]=False) -> None:
+	async def terminate(self, *, timedOut: bool | None = False) -> None:
 		"""Overwritten "stop" function.
 		Automatically deactivates all child items when the view is stopped."""
 		# Disable all existing child items
