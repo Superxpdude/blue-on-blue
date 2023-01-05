@@ -12,6 +12,7 @@ import sys, traceback
 
 from . import checks
 from . import config
+from . import db
 
 import logging
 _log = logging.getLogger("blueonblue")
@@ -22,7 +23,6 @@ class BlueOnBlueBot(commands.Bot):
 	"""Blue on Blue bot class.
 	Subclass of discord.ext.commands.Bot"""
 	# Class variable type hinting
-	dbConnection: asqlite.Connection
 	httpSession: aiohttp.ClientSession
 	startTime: datetime
 	firstStart: bool
@@ -31,6 +31,9 @@ class BlueOnBlueBot(commands.Bot):
 	def __init__(self):
 		# Set up our core config
 		self.config = config.BotConfig("config/config.toml")
+
+		# Set up our DB
+		self.db = db.DB("data/blueonblue.sqlite3")
 
 		# Set up our server config
 		self.serverConfig = configparser.ConfigParser(allow_no_value=True)
@@ -123,6 +126,9 @@ class BlueOnBlueBot(commands.Bot):
 
 		Overwritten start function to run the bot.
 		Sets up the HTTP client and DB connections, then starts the bot."""
+		# Validate our DB version
+		await self.db.migrate_version()
+
 		async with aiohttp.ClientSession() as session:
 			async with asqlite.connect("data/blueonblue.sqlite3") as connection:
 				self.httpSession = session
