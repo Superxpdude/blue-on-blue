@@ -24,7 +24,7 @@ class BotConfig:
 		self.toml.setdefault("bot_token", "")
 		self.toml.setdefault("debug_server", -1)
 		self.toml.setdefault("steam_api_token", "")
-		self.toml.setdefault("google_api_file", "data/google_api.json")
+		self.toml.setdefault("google_api_file", "config/google_api.json")
 
 		# Write any missing values back to the config file
 		with open(configFile, "w") as file:
