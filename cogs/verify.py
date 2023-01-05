@@ -257,20 +257,6 @@ class Verify(commands.GroupCog, group_name = "verify"):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
-	async def cog_load(self):
-		"""Initializes the database for the cog.
-		Creates the tables if they don't exist."""
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Create the tables if they do not exist
-			# This table doesn't need a server ID, since the discord user to steam ID connection is independent of the discord server
-			await cursor.execute("CREATE TABLE if NOT EXISTS verify (\
-				discord_id INTEGER PRIMARY KEY,\
-				steam64_id INTEGER NOT NULL,\
-				token TEXT NOT NULL,\
-				verified INTEGER NOT NULL DEFAULT 0)")
-			await self.bot.dbConnection.commit()
-
-
 	@app_commands.command(name = "steam")
 	@app_commands.guild_only()
 	@app_commands.checks.bot_has_permissions(manage_roles=True)
