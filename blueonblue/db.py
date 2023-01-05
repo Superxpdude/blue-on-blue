@@ -124,5 +124,5 @@ class DB():
 
 						await db.commit()
 
-				# Database is on the correct version
-				log.info("Database initialization finished")
+		# Database is on the correct version
+		log.info("Database initialization finished")

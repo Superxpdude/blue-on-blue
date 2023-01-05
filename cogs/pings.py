@@ -318,7 +318,6 @@ class Pings(commands.Cog, name = "ping"):
 		"""Initializes the cache for the cog"""
 		async with self.bot.db as db:
 			async with db.cursor() as cursor:
-
 				# Update the cache for all guilds
 				for guild in self.bot.guilds:
 					await self._update_ping_cache(guild, cursor)
@@ -919,6 +918,7 @@ class Pings(commands.Cog, name = "ping"):
 			async with db.cursor() as cursor:
 				for guild in self.bot.guilds:
 					await self._update_ping_cache(guild, cursor)
+		print("Ping on ready cursor closed")
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(Pings(bot))
