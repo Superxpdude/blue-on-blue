@@ -1,7 +1,6 @@
 import aiohttp
 import discord
 from discord.ext import commands
-import asqlite
 
 import configparser
 from datetime import datetime
