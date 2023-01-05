@@ -128,9 +128,10 @@ async def steam_check_token(bot: blueonblue.BlueOnBlueBot, userID: int) -> bool 
 		Int if we encountered an HTTP error.
 	"""
 	# Start by querying in the database to see if we have a token we can use.
-	async with bot.dbConnection.cursor() as cursor:
-		await cursor.execute("SELECT steam64_id, token FROM verify WHERE discord_id = :userID", {"userID": userID})
-		tokenData = await cursor.fetchone() # We should only ever have one value for a given discord ID
+	async with bot.db as db:
+		async with db.cursor() as cursor:
+			await cursor.execute("SELECT steam64_id, token FROM verify WHERE discord_id = :userID", {"userID": userID})
+			tokenData = await cursor.fetchone() # We should only ever have one value for a given discord ID
 
 	# Check to see if we retrieved a token
 	if tokenData["token"] is None:
@@ -186,9 +187,10 @@ async def assign_roles(bot: blueonblue.BlueOnBlueBot, guild: discord.Guild, user
 		True/False if the roles were assigned successfully.
 	"""
 	# Start by querying the database to see if the user has any roles stored.
-	async with bot.dbConnection.cursor() as cursor:
-		await cursor.execute("SELECT server_id, user_id, role_id FROM user_roles WHERE server_id = :server_id AND user_id = :user_id", {"server_id": guild.id, "user_id": user.id})
-		roleData = await cursor.fetchall()
+	async with bot.db as db:
+		async with db.cursor() as cursor:
+			await cursor.execute("SELECT server_id, user_id, role_id FROM user_roles WHERE server_id = :server_id AND user_id = :user_id", {"server_id": guild.id, "user_id": user.id})
+			roleData = await cursor.fetchall()
 
 	# This needs a check if the user is jailed.
 	userRoles: list[discord.Role] = []
@@ -295,36 +297,37 @@ class Verify(commands.GroupCog, group_name = "verify"):
 			# User in group
 			# Check if the user already exists in our DB
 			# Start our DB block.
-			async with self.bot.dbConnection.cursor() as cursor:
-				# Start by checking if the user is already in the DB
-				await cursor.execute("SELECT discord_id FROM verify WHERE discord_id = :id AND verified = 1", {"id": interaction.user.id})
-				userInDB = await cursor.fetchone()
+			async with self.bot.db as db:
+				async with db.cursor() as cursor:
+					# Start by checking if the user is already in the DB
+					await cursor.execute("SELECT discord_id FROM verify WHERE discord_id = :id AND verified = 1", {"id": interaction.user.id})
+					userInDB = await cursor.fetchone()
 
-				if userInDB is not None:
-					messageText = "It looks like you're already in our systems, but I'll send you your token and instructions once more.\n"
-				else:
-					messageText = ""
+					if userInDB is not None:
+						messageText = "It looks like you're already in our systems, but I'll send you your token and instructions once more.\n"
+					else:
+						messageText = ""
 
-				# Append our message to the text, then send it.
-				messageText += "Check successful. I'll DM what you need to do from here."
+					# Append our message to the text, then send it.
+					messageText += "Check successful. I'll DM what you need to do from here."
 
-				await interaction.followup.send(messageText)
+					await interaction.followup.send(messageText)
 
-				# Generate a random token
-				userToken = "".join(random.sample(string.ascii_letters, 10))
-				# Insert the user's data into the database
-				await cursor.execute("INSERT OR REPLACE INTO verify (discord_id, steam64_id, token) VALUES\
-					(:userID, :steamID, :token)", {"userID": interaction.user.id, "steamID": steamID64, "token": userToken})
-				await self.bot.dbConnection.commit() # Commit changes
-				# Prepare the instructions
-				instructions = "Put this token into the 'real name' section of your steam profile. " \
-					f"Come back to the check in section of the discord and type in `/verify checkin`.\n" \
-					f"```{userToken}```"
+					# Generate a random token
+					userToken = "".join(random.sample(string.ascii_letters, 10))
+					# Insert the user's data into the database
+					await cursor.execute("INSERT OR REPLACE INTO verify (discord_id, steam64_id, token) VALUES\
+						(:userID, :steamID, :token)", {"userID": interaction.user.id, "steamID": steamID64, "token": userToken})
+					await db.commit() # Commit changes
+					# Prepare the instructions
+					instructions = "Put this token into the 'real name' section of your steam profile. " \
+						f"Come back to the check in section of the discord and type in `/verify checkin`.\n" \
+						f"```{userToken}```"
 
-				try: # Try to send the user a DM
-					await interaction.user.send(instructions)
-				except: # If that fails, send the instructions to the check in channel
-					await interaction.followup.send("I was unable to DM you your instructions. I have sent them here instead.\n" + instructions)
+					try: # Try to send the user a DM
+						await interaction.user.send(instructions)
+					except: # If that fails, send the instructions to the check in channel
+						await interaction.followup.send("I was unable to DM you your instructions. I have sent them here instead.\n" + instructions)
 
 		else:
 			# User not in group
@@ -351,70 +354,20 @@ class Verify(commands.GroupCog, group_name = "verify"):
 			return
 
 		# Begin our DB block
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Get the user data from the DB
-			await cursor.execute("SELECT steam64_id, token, verified FROM verify WHERE discord_id = :id", {"id": interaction.user.id})
-			userData = await cursor.fetchone()
+		async with self.bot.db as db:
+			async with db.cursor() as cursor:
+				# Get the user data from the DB
+				await cursor.execute("SELECT steam64_id, token, verified FROM verify WHERE discord_id = :id", {"id": interaction.user.id})
+				userData = await cursor.fetchone()
 
-			if userData is None:
-				# User not found in database
-				await interaction.response.send_message("You need to use the `/verify steam` command before you can check in!")
+				if userData is None:
+					# User not found in database
+					await interaction.response.send_message("You need to use the `/verify steam` command before you can check in!")
 
-			elif userData["verified"]:
-				# User is already verified. We only need to check the steam group.
-				# Defer the response since we need to make web requests.
-				await interaction.response.defer()
-				steamID64: int = userData["steam64_id"]
-				# Check group membership
-				groupMembership = await steam_check_group_membership(self.bot, interaction.guild.id, steamID64)
-				if type(groupMembership) is int:
-					# HTTP error
-					await interaction.followup.send(steam_return_error_text(groupMembership))
-					return
-
-				elif groupMembership:
-					# User in group
-					if await assign_roles(self.bot, interaction.guild, interaction.user):
-						await interaction.followup.send(f"Verification complete, welcome to {interaction.guild.name}.")
-					else:
-						await interaction.followup.send(f"{interaction.user.mention}, your verification is complete, but I encountered an error "
-							"when assigning your roles. Please ping an admin for your roles.")
-
-				else:
-					# User not in group
-					applyUrl = self.bot.serverConfig.get(str(interaction.guild.id), "group_apply_url", fallback = None)
-					if applyUrl is not None:
-						msg = "The Steam account that I have on file does not appear to be a part of this group. " \
-							f"You're free to apply at {applyUrl} \n" \
-							"If you need to use a different Steam account, please use " \
-							f"`/verify steam <link-to-your-steam-profile> to get a new user token."
-					else:
-						msg = "The Steam account that I have on file does not appear to be a part of this group. " \
-							"If you need to use a different Steam account, please use " \
-							f"`/verify steam <link-to-your-steam-profile> to get a new user token."
-					await interaction.followup.send(msg)
-
-			else:
-				# User not verified
-				# Defer the response since we need to make web requests.
-				await interaction.response.defer()
-
-				verified = await steam_check_token(self.bot, interaction.user.id) # Check if the stored token matches the steam profile
-				# Handle the verified check
-				if type(verified) is int:
-					# Status code returned from an HTTP error
-					await interaction.followup.send(steam_return_error_text(verified))
-				elif verified is None:
-					# Did not find any results for that Steam ID
-					await interaction.followup.send("I was unable to check for the token on your Steam profile. "
-						"Please verify that your Steam profile visibility is set to 'Public'.")
-				elif verified:
-					# Token confirmed
-					# Updated our "verified" flag to be true
-					await cursor.execute("UPDATE verify SET verified = 1 WHERE discord_id = :userID", {"userID": interaction.user.id})
-					await self.bot.dbConnection.commit()
-
+				elif userData["verified"]:
 					# User is already verified. We only need to check the steam group.
+					# Defer the response since we need to make web requests.
+					await interaction.response.defer()
 					steamID64: int = userData["steam64_id"]
 					# Check group membership
 					groupMembership = await steam_check_group_membership(self.bot, interaction.guild.id, steamID64)
@@ -422,6 +375,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 						# HTTP error
 						await interaction.followup.send(steam_return_error_text(groupMembership))
 						return
+
 					elif groupMembership:
 						# User in group
 						if await assign_roles(self.bot, interaction.guild, interaction.user):
@@ -433,14 +387,64 @@ class Verify(commands.GroupCog, group_name = "verify"):
 					else:
 						# User not in group
 						applyUrl = self.bot.serverConfig.get(str(interaction.guild.id), "group_apply_url", fallback = None)
-						msg = "Your token matches, but it doesn't seem like you're a part of this group."
 						if applyUrl is not None:
-							msg += f" You're free to apply at {applyUrl}."
+							msg = "The Steam account that I have on file does not appear to be a part of this group. " \
+								f"You're free to apply at {applyUrl} \n" \
+								"If you need to use a different Steam account, please use " \
+								f"`/verify steam <link-to-your-steam-profile> to get a new user token."
+						else:
+							msg = "The Steam account that I have on file does not appear to be a part of this group. " \
+								"If you need to use a different Steam account, please use " \
+								f"`/verify steam <link-to-your-steam-profile> to get a new user token."
 						await interaction.followup.send(msg)
+
 				else:
-					# Profile found. Token not present.
-					await interaction.followup.send("Sorry, the token does not match what is on your Steam profile. "
-						f"You can use `/verify steam` with your Steam profile URL if you need a new token.")
+					# User not verified
+					# Defer the response since we need to make web requests.
+					await interaction.response.defer()
+
+					verified = await steam_check_token(self.bot, interaction.user.id) # Check if the stored token matches the steam profile
+					# Handle the verified check
+					if type(verified) is int:
+						# Status code returned from an HTTP error
+						await interaction.followup.send(steam_return_error_text(verified))
+					elif verified is None:
+						# Did not find any results for that Steam ID
+						await interaction.followup.send("I was unable to check for the token on your Steam profile. "
+							"Please verify that your Steam profile visibility is set to 'Public'.")
+					elif verified:
+						# Token confirmed
+						# Updated our "verified" flag to be true
+						await cursor.execute("UPDATE verify SET verified = 1 WHERE discord_id = :userID", {"userID": interaction.user.id})
+						await db.commit()
+
+						# User is already verified. We only need to check the steam group.
+						steamID64: int = userData["steam64_id"]
+						# Check group membership
+						groupMembership = await steam_check_group_membership(self.bot, interaction.guild.id, steamID64)
+						if type(groupMembership) is int:
+							# HTTP error
+							await interaction.followup.send(steam_return_error_text(groupMembership))
+							return
+						elif groupMembership:
+							# User in group
+							if await assign_roles(self.bot, interaction.guild, interaction.user):
+								await interaction.followup.send(f"Verification complete, welcome to {interaction.guild.name}.")
+							else:
+								await interaction.followup.send(f"{interaction.user.mention}, your verification is complete, but I encountered an error "
+									"when assigning your roles. Please ping an admin for your roles.")
+
+						else:
+							# User not in group
+							applyUrl = self.bot.serverConfig.get(str(interaction.guild.id), "group_apply_url", fallback = None)
+							msg = "Your token matches, but it doesn't seem like you're a part of this group."
+							if applyUrl is not None:
+								msg += f" You're free to apply at {applyUrl}."
+							await interaction.followup.send(msg)
+					else:
+						# Profile found. Token not present.
+						await interaction.followup.send("Sorry, the token does not match what is on your Steam profile. "
+							f"You can use `/verify steam` with your Steam profile URL if you need a new token.")
 
 
 	@commands.Cog.listener()
@@ -451,21 +455,22 @@ class Verify(commands.GroupCog, group_name = "verify"):
 		if (guildSteamGroupID > 0) and (channel is not None):
 			# Only continue if we have a valid steam group ID and check in channel
 			# Start our DB block
-			async with self.bot.dbConnection.cursor() as cursor:
-				# Get the user data from the DB
-				await cursor.execute("SELECT discord_id FROM verify WHERE discord_id = :id AND verified = 1", {"id": member.id})
-				userData = await cursor.fetchone() # This will only return users that are verified
-				# Check if we have any data in the DB
-				if userData is not None:
-					# User is already verified
-					await channel.send(f"Welcome to {member.guild.name} {member.mention}. It looks like you have been here before. "
-						f"Use `/verify checkin` to gain access to the server, or `/verify steam` if you need to use a "
-						"different steam account.")
-				else:
-					# User not already verified
-					await channel.send(f"Welcome to {member.guild.name} {member.mention}. To gain access to this server, "
-						f"please type `/verify steam <link-to-your-steam-profile>`. If you are not in {member.guild.name} "
-						"at the moment, please go through the regular application process to join.")
+			async with self.bot.db as db:
+				async with db.cursor() as cursor:
+					# Get the user data from the DB
+					await cursor.execute("SELECT discord_id FROM verify WHERE discord_id = :id AND verified = 1", {"id": member.id})
+					userData = await cursor.fetchone() # This will only return users that are verified
+					# Check if we have any data in the DB
+					if userData is not None:
+						# User is already verified
+						await channel.send(f"Welcome to {member.guild.name} {member.mention}. It looks like you have been here before. "
+							f"Use `/verify checkin` to gain access to the server, or `/verify steam` if you need to use a "
+							"different steam account.")
+					else:
+						# User not already verified
+						await channel.send(f"Welcome to {member.guild.name} {member.mention}. To gain access to this server, "
+							f"please type `/verify steam <link-to-your-steam-profile>`. If you are not in {member.guild.name} "
+							"at the moment, please go through the regular application process to join.")
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(Verify(bot))
