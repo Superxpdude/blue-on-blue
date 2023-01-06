@@ -32,7 +32,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	async def _update_all_lists(self) -> None:
 		"""Update the chat filter lists"""
 		# Start the DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Reset our existing lists from memory
 				keyList = []
@@ -62,7 +62,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	async def _update_server_lists(self, guild: discord.Guild):
 		"""Update the chat filter lists for a single server"""
 		# Start the DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Don't reset the entire filter lists
 				self.allowList[guild.id] = []
@@ -91,7 +91,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 				filterlist = 1 # Exclusion list
 
 		# Start the DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Add our entry to the DB
 				await cursor.execute("INSERT OR REPLACE INTO chatfilter (server_id, filter_list, string) VALUES (:server_id, :list, :string)",
@@ -109,7 +109,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 				filterlist = 1 # Exclusion list
 
 		# Start the DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Remove our entry from the DB
 				await cursor.execute("DELETE FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list AND string = :string)",
@@ -129,7 +129,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 		await self._update_server_lists(guild)
 
 		# Start the DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get our values from the DB
 				await cursor.execute("SELECT string FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list)",

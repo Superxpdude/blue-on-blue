@@ -316,7 +316,7 @@ class Pings(commands.Cog, name = "ping"):
 
 	async def cog_load(self):
 		"""Initializes the cache for the cog"""
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Update the cache for all guilds
 				for guild in self.bot.guilds:
@@ -371,7 +371,7 @@ class Pings(commands.Cog, name = "ping"):
 		tag = tag.casefold() # String searching is case-sensitive
 
 		# Begin our DB section
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				response = None
 				ping_id = await ping_get_id(tag, interaction.guild, cursor) # Get the ID of the ping (or none if it doesn't exist)
@@ -421,7 +421,7 @@ class Pings(commands.Cog, name = "ping"):
 		tag = tag.casefold() # String searching is case-sensitive
 
 		# Begin our DB section
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				response = None
 				# Check if the user in in that ping list
@@ -472,7 +472,7 @@ class Pings(commands.Cog, name = "ping"):
 		"""Lists information about pings"""
 
 		# Begin our DB section
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				response = None
 				pingEmbed = None
@@ -553,7 +553,7 @@ class Pings(commands.Cog, name = "ping"):
 		tag = tag.casefold() # String searching is case-sensitive
 
 		# Begin our DB section
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				response = None
 				# Search to see if our ping exists
@@ -633,7 +633,7 @@ class Pings(commands.Cog, name = "ping"):
 		"""Creates (or removes) an alias for a ping"""
 
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Check if we need to create or destroy the alias
 				if tag is not None:
@@ -704,7 +704,7 @@ class Pings(commands.Cog, name = "ping"):
 		"""Merges two pings"""
 
 		# Begin our DB section
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get the names of the pings for our two pings
 				fromID = await ping_get_id(merge_from, interaction.guild, cursor)
@@ -812,7 +812,7 @@ class Pings(commands.Cog, name = "ping"):
 
 		# We need to search for the ping
 		# Begin our DB section
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get our ping ID
 				pingID = await ping_get_id(tag, interaction.guild, cursor)
@@ -857,7 +857,7 @@ class Pings(commands.Cog, name = "ping"):
 		"""Purges pings that are inactive, and below a specified user count."""
 
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Start getting a list of all pings that are old enough to be up for deletion
 				# Get a timestamp of the specified time
@@ -914,11 +914,11 @@ class Pings(commands.Cog, name = "ping"):
 	async def on_ready(self):
 		"""Update our ping cache on reconnection.
 		This needs to wait until the bot is ready, since it relies on being able to grab a list of guilds that the bot is in."""
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
+				# Update the cache for all guilds
 				for guild in self.bot.guilds:
 					await self._update_ping_cache(guild, cursor)
-		print("Ping on ready cursor closed")
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(Pings(bot))

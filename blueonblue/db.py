@@ -11,15 +11,16 @@ import logging
 log = logging.getLogger(__name__)
 
 __all__ = [
-	"DB"
+	"DB",
+	"DBConnection"
 ]
 
 DBVERSION = 1
 
-class DB():
-	"""Database class to initialize a connection to the bot's database
+class DBConnection():
+	"""BlueonBlue database connection class.
 
-	Only to be used in an async context manager"""
+	Used to manage a custom asqlite connection context manager so that the database file only needs to be defined once."""
 	connection: asqlite.Connection
 
 	def __init__(self, dbFile: str):
@@ -37,13 +38,26 @@ class DB():
 	) -> None:
 		await self.connection.close()
 
+
+class DB():
+	"""Database class to initialize a connection to the bot's database
+
+	Only to be used in an async context manager"""
+	connection: asqlite.Connection
+
+	def __init__(self, dbFile: str):
+		self._dbFile = dbFile
+
+	def connect(self) -> DBConnection:
+		return DBConnection(self._dbFile)
+
 	# WIP. Will Write migration code in here for future versions
 	async def migrate_version(self) -> None:
 		"""Migrates the database to the latest schema version.
 
 		Does nothing if the database is already up to date.
 		"""
-		async with self as db:
+		async with self.connect() as db:
 			async with db.cursor() as cursor:
 				schema_version = 0
 				while schema_version != DBVERSION:

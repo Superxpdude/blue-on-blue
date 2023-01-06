@@ -26,7 +26,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 	async def cog_load(self):
 		"""Initializes the database for the cog.
 		Creates the tables if they don't exist."""
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Iterate through our serverConfig to set the "block_updates" flag on the jail role
 				for guildID in self.bot.serverConfig.sections():
@@ -63,7 +63,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		"""Jails a user"""
 
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get our timedelta
 				if time_unit == "minutes":
@@ -145,7 +145,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		"""Releases a user from jail"""
 
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Check if the user is already jailed
 				await cursor.execute("SELECT user_id, release_time FROM jail WHERE server_id = :serverID AND user_id = :userID",
@@ -223,7 +223,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		"""Lists users that are currently jailed"""
 
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get a list of jailed users in this server
 				await cursor.execute("SELECT user_id, release_time FROM jail WHERE server_id = :serverID", {"serverID": interaction.guild.id})
@@ -256,7 +256,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		"""Checks if users need to be released from jail"""
 		log.debug("Starting jail release check loop")
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get a list of users that are past their release time
 				# Get the current timestamp

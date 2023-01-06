@@ -297,7 +297,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 			# User in group
 			# Check if the user already exists in our DB
 			# Start our DB block.
-			async with self.bot.db as db:
+			async with self.bot.db.connect() as db:
 				async with db.cursor() as cursor:
 					# Start by checking if the user is already in the DB
 					await cursor.execute("SELECT discord_id FROM verify WHERE discord_id = :id AND verified = 1", {"id": interaction.user.id})
@@ -354,7 +354,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 			return
 
 		# Begin our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get the user data from the DB
 				await cursor.execute("SELECT steam64_id, token, verified FROM verify WHERE discord_id = :id", {"id": interaction.user.id})
@@ -455,7 +455,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 		if (guildSteamGroupID > 0) and (channel is not None):
 			# Only continue if we have a valid steam group ID and check in channel
 			# Start our DB block
-			async with self.bot.db as db:
+			async with self.bot.db.connect() as db:
 				async with db.cursor() as cursor:
 					# Get the user data from the DB
 					await cursor.execute("SELECT discord_id FROM verify WHERE discord_id = :id AND verified = 1", {"id": member.id})

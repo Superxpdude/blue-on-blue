@@ -87,7 +87,7 @@ class Users(commands.Cog, name="Users"):
 	@commands.Cog.listener()
 	async def on_guild_join(self, guild: discord.Guild):
 		"""Add information on all roles to the database when joining a guild."""
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				await update_guild_roles(guild, cursor)
 				await db.commit()
@@ -96,7 +96,7 @@ class Users(commands.Cog, name="Users"):
 	async def on_guild_role_create(self, role: discord.Role):
 		"""Add role information to the database on role creation."""
 		if (not role.managed) and (role != role.guild.default_role) and (role < role.guild.me.top_role): # Ignore roles that we can't add/remove
-			async with self.bot.db as db:
+			async with self.bot.db.connect() as db:
 				async with db.cursor() as cursor:
 					await cursor.execute("INSERT INTO roles (server_id, role_id, name) VALUES (:server_id, :role_id, :name)",
 						{"server_id": role.guild.id, "role_id": role.id, "name": role.name})
@@ -105,7 +105,7 @@ class Users(commands.Cog, name="Users"):
 	@commands.Cog.listener()
 	async def on_guild_role_delete(self, role: discord.Role):
 		"""Remove role information from the database on role deletion."""
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				await cursor.execute("DELETE FROM roles WHERE role_id = :role_id", {"role_id": role.id}) # Delete any roles in our DB matching the role id
 				await db.commit()
@@ -113,7 +113,7 @@ class Users(commands.Cog, name="Users"):
 	@commands.Cog.listener()
 	async def on_member_remove(self, member: discord.Member):
 		"""Updates member data when a member leaves the server"""
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				if (not member.bot) and (len(member.roles)>1): # Only update if the member is not a bot, and has roles assigned
 					await update_member_info(member, cursor)
@@ -122,7 +122,7 @@ class Users(commands.Cog, name="Users"):
 
 	async def update_members(self, *members: discord.Member):
 		"""Updates member data for a collection of members."""
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				for m in members:
 					if (not m.bot) and (len(m.roles)>1): # Only look for users that are not bots, and have at least one role assigned
@@ -134,7 +134,7 @@ class Users(commands.Cog, name="Users"):
 	async def db_update_loop(self):
 		"""Periodically updates the user database"""
 		log.debug("Starting user update loop.")
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				for g in self.bot.guilds:
 					# Update role info

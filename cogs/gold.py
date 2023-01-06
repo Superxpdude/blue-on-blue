@@ -37,7 +37,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 	async def add(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get our timedelta
 				if time_unit == "minutes":
@@ -118,7 +118,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 		"""Removes TMTM Gold from a user"""
 
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Check if the user is already jailed
 				await cursor.execute("SELECT user_id, expiry_time FROM gold WHERE server_id = :serverID AND user_id = :userID",
@@ -186,7 +186,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 		"""Lists users that have TMTM Gold"""
 
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get a list of gold users in this server
 				await cursor.execute("SELECT user_id, expiry_time FROM gold WHERE server_id = :serverID", {"serverID": interaction.guild.id})
@@ -219,7 +219,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 		"""Checks if gold for a user has expired"""
 		log.debug("Starting gold expiry check loop")
 		# Start our DB block
-		async with self.bot.db as db:
+		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Get a list of users that are past their expiry time
 				# Get the current timestamp
