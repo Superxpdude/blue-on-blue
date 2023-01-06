@@ -128,7 +128,7 @@ async def steam_check_token(bot: blueonblue.BlueOnBlueBot, userID: int) -> bool 
 		Int if we encountered an HTTP error.
 	"""
 	# Start by querying in the database to see if we have a token we can use.
-	async with bot.db as db:
+	async with bot.db.connect() as db:
 		async with db.cursor() as cursor:
 			await cursor.execute("SELECT steam64_id, token FROM verify WHERE discord_id = :userID", {"userID": userID})
 			tokenData = await cursor.fetchone() # We should only ever have one value for a given discord ID
@@ -187,7 +187,7 @@ async def assign_roles(bot: blueonblue.BlueOnBlueBot, guild: discord.Guild, user
 		True/False if the roles were assigned successfully.
 	"""
 	# Start by querying the database to see if the user has any roles stored.
-	async with bot.db as db:
+	async with bot.db.connect() as db:
 		async with db.cursor() as cursor:
 			await cursor.execute("SELECT server_id, user_id, role_id FROM user_roles WHERE server_id = :server_id AND user_id = :user_id", {"server_id": guild.id, "user_id": user.id})
 			roleData = await cursor.fetchall()
