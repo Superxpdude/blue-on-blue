@@ -5,6 +5,7 @@ import subprocess
 import os
 
 from .bot import BlueOnBlueBot
+from .log import setup_logging
 
 import logging
 import logging.handlers
@@ -20,23 +21,8 @@ def start_bot(args: argparse.Namespace):
 
 	# Set up logging
 	logLevel = logging.DEBUG if args.debug else logging.INFO
-
-	rootLog = logging.getLogger()
-	logFormat = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-	logFile = logging.handlers.TimedRotatingFileHandler("logs/blueonblue.log",when="midnight",backupCount=30)
-	logFile.setFormatter(logFormat)
-	rootLog.addHandler(logFile)
-
+	setup_logging(level = logLevel)
 	log = logging.getLogger("blueonblue")
-	logConsole = logging.StreamHandler(sys.stdout)
-	logConsole.setFormatter(logFormat)
-	log.addHandler(logConsole)
-
-	log.setLevel(logLevel)
-
-	# Discord logging
-	discordLog = logging.getLogger("discord")
-	discordLog.setLevel(logging.WARNING)
 
 	bot = BlueOnBlueBot()
 
