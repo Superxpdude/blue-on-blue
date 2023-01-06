@@ -70,7 +70,3 @@ def setup_logging(
 	log.addHandler(consoleHandler)
 
 	log.setLevel(level)
-
-
-
-
