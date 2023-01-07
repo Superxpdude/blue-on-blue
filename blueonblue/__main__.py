@@ -36,7 +36,7 @@ def start_bot(args: argparse.Namespace):
 
 	# Start the bot
 	log.info("Starting Blue on Blue")
-	bot.run(botToken, reconnect=True)
+	bot.run(botToken, reconnect=True, log_handler = None)
 
 def main():
 	# Argument setup
