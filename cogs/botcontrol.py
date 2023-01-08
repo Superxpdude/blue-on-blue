@@ -6,7 +6,7 @@ import subprocess
 import blueonblue
 
 import logging
-_log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 class BotControl(commands.Cog, name = "Bot Control"):
 	"""Commands that control the bot's core functionality."""

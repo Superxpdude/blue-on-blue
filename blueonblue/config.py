@@ -2,7 +2,7 @@ import tomlkit
 from tomlkit import items
 
 import logging
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 __all__ = [
 	"BotConfig"
@@ -16,7 +16,7 @@ class BotConfig:
 	def __init__(self, configFile: str):
 		# Read our existing config file
 		with open(configFile, "r") as file:
-			log.debug(f"Reading config file: {configFile}")
+			_log.debug(f"Reading config file: {configFile}")
 			self.toml = tomlkit.parse(file.read())
 
 		# Set default values for our parameters

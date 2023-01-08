@@ -9,7 +9,7 @@ from typing import Literal, List
 import blueonblue
 
 import logging
-log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 # Define our ping embed colour
 PING_EMBED_COLOUR = 0xFFA500 # Orange

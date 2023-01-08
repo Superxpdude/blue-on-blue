@@ -8,7 +8,7 @@ from typing import Literal
 import blueonblue
 
 import logging
-log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 GOLD_EMBED_COLOUR = 0xFF3491
 
@@ -217,7 +217,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 	@tasks.loop(minutes=1, reconnect=True)
 	async def gold_loop(self):
 		"""Checks if gold for a user has expired"""
-		log.debug("Starting gold expiry check loop")
+		_log.debug("Starting gold expiry check loop")
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -229,7 +229,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 				expiryData = await cursor.fetchall()
 				# Iterate through our expiry list
 				for userData in expiryData:
-					log.debug(f"Gold expired for user {userData['user_id']} in server {userData['server_id']}.")
+					_log.debug(f"Gold expired for user {userData['user_id']} in server {userData['server_id']}.")
 					guild = self.bot.get_guild(userData["server_id"])
 					if guild is not None:
 						# Make sure that we can find the guild
@@ -247,7 +247,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 									await modChannel.send(f"TMTM Gold has expired for user {user.mention}.", allowed_mentions=discord.AllowedMentions.none())
 								except:
 									await modChannel.send(f"Error removing expired TMTM Gold from user {user.display_name}. The user may no longer present in the server.", allowed_mentions=discord.AllowedMentions.none())
-									log.warning(f"Failed to remove expired TMTM Gold role from user. Guild: [{guild.id}]. User: [{user.id}].")
+									_log.warning(f"Failed to remove expired TMTM Gold role from user. Guild: [{guild.id}]. User: [{user.id}].")
 							else:
 								# Could not find the user
 								if modChannel is not None:

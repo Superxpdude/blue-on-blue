@@ -11,7 +11,7 @@ import re
 import blueonblue
 
 import logging
-log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 MISSION_EMBED_WS_COLOUR = 0xC2B280
 MISSION_EMBED_ADVMED_COLOUR = 0xDF0000
@@ -98,9 +98,9 @@ class Missions(commands.Cog, name = "Missions"):
 	@tasks.loop(hours=1, reconnect = True)
 	async def mission_cache_update_loop(self):
 		"""Periodically updates the mission cache"""
-		log.debug("Updating mission cache")
+		_log.debug("Updating mission cache")
 		await self._update_all_caches()
-		log.debug("Mission cache update complete")
+		_log.debug("Mission cache update complete")
 
 	@mission_cache_update_loop.before_loop
 	async def before_mission_cache_loop(self):

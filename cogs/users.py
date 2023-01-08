@@ -6,7 +6,7 @@ import asqlite
 import blueonblue
 
 import logging
-log = logging.getLogger("bloeonblue")
+_log = logging.getLogger(__name__)
 
 async def update_member_info(member: discord.Member, cursor: asqlite.Cursor):
 	"""Updates user info a single member.
@@ -133,7 +133,7 @@ class Users(commands.Cog, name="Users"):
 	@tasks.loop(hours=1, reconnect = True)
 	async def db_update_loop(self):
 		"""Periodically updates the user database"""
-		log.debug("Starting user update loop.")
+		_log.debug("Starting user update loop.")
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				for g in self.bot.guilds:
@@ -146,7 +146,7 @@ class Users(commands.Cog, name="Users"):
 							await update_member_roles(m, cursor)
 
 				await db.commit()
-		log.debug("User update loop complete")
+		_log.debug("User update loop complete")
 
 	@db_update_loop.before_loop
 	async def before_db_update_loop(self):

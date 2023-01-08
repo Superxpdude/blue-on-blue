@@ -1,7 +1,7 @@
 import discord
 
 import logging
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 # Base view class for a view that only responds to the author
 class AuthorResponseViewBase(discord.ui.View):

@@ -8,7 +8,6 @@ from .bot import BlueOnBlueBot
 from .log import setup_logging
 
 import logging
-import logging.handlers
 
 def install_dependencies():
 	subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])

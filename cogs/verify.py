@@ -9,7 +9,7 @@ import string
 import blueonblue
 
 import logging
-log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 
 async def steam_getID64(bot: blueonblue.BlueOnBlueBot, url: str) -> str | int | None:
@@ -239,16 +239,16 @@ def steam_return_error_text(status_code: int) -> str:
 		return "I ran into an issue getting data from Steam. Please verify that your Steam profile visibility is set to 'Public'. " \
 			"If it is, please ping an admin for a role. Error `403`"
 	elif status_code == 429: # Rate limited
-		log.warning("Received code 429 from Steam.")
+		_log.warning("Received code 429 from Steam.")
 		return "I appear to be rate-limited by Steam. Please ping an admin for a role. Error `429`"
 	elif status_code == 500: # Server error
-		log.warning("Received code 500 from Steam.")
+		_log.warning("Received code 500 from Steam.")
 		return "Steam appears to be having some issues. Please ping an admin for a role. Error `500`"
 	elif status_code == 503:
-		log.warning("Received code 503 from Steam.")
+		_log.warning("Received code 503 from Steam.")
 		return "Steam appears to be having some issues. Please ping an admin for a role. Error `503`"
 	else:
-		log.warning(f"Received code {status_code} from Steam.")
+		_log.warning(f"Received code {status_code} from Steam.")
 		return f"Something has gone wrong. Please ping an admin for a role. Error `{status_code}`"
 
 

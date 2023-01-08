@@ -8,7 +8,7 @@ from typing import (
 from types import TracebackType
 
 import logging
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 __all__ = [
 	"DB",
@@ -62,11 +62,11 @@ class DB():
 				schema_version = 0
 				while schema_version != DBVERSION:
 					schema_version = (await (await cursor.execute("PRAGMA user_version")).fetchone())["user_version"]
-					log.info(f"Database Schema Version: {schema_version}")
+					_log.info(f"Database Schema Version: {schema_version}")
 
 					# Database is newly created
 					if schema_version == 0:
-						log.info("Initializing database")
+						_log.info("Initializing database")
 						# Chat Filter table
 						# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
 						await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
@@ -132,9 +132,9 @@ class DB():
 							steam64_id INTEGER NOT NULL UNIQUE)")
 
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
-						log.info(f"Database initialized to version: {DBVERSION}")
+						_log.info(f"Database initialized to version: {DBVERSION}")
 
 						await db.commit()
 
 		# Database is on the correct version
-		log.info("Database initialization finished")
+		_log.info("Database initialization finished")

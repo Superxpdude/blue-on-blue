@@ -9,7 +9,7 @@ import blueonblue
 from .users import update_member_roles
 
 import logging
-log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 JAIL_EMBED_COLOUR = 0xFF0000
 JAIL_BLOCK_UPDATES_KEY = "jail"
@@ -207,7 +207,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 						await modChannel.send(f"User {user.mention} has been released from jail by {interaction.user.mention}", allowed_mentions=discord.AllowedMentions.none())
 					except:
 						await modChannel.send(f"Error assigning roles when releasing user {user.mention} from jail. Please assign roles manually.", allowed_mentions=discord.AllowedMentions.none())
-						log.warning(f"Failed to assign roles to release user from jail. User: [{user.id}] Roles: [{userRoles}]")
+						_log.warning(f"Failed to assign roles to release user from jail. User: [{user.id}] Roles: [{userRoles}]")
 
 				elif not view.response:
 					# Action cancelled
@@ -254,7 +254,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 	@tasks.loop(minutes=1, reconnect=True)
 	async def jail_loop(self):
 		"""Checks if users need to be released from jail"""
-		log.debug("Starting jail release check loop")
+		_log.debug("Starting jail release check loop")
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -266,7 +266,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 				releaseData = await cursor.fetchall()
 				# Iterate through our release list
 				for userData in releaseData:
-					log.debug(f"Releasing user {userData['user_id']} from server {userData['server_id']}.")
+					_log.debug(f"Releasing user {userData['user_id']} from server {userData['server_id']}.")
 					guild = self.bot.get_guild(userData["server_id"])
 					if guild is not None:
 						# Make sure that we can find the guild
@@ -293,7 +293,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 								await modChannel.send(f"User {user.mention} has been released from jail due to timeout expiry.", allowed_mentions=None)
 							except:
 								await modChannel.send(f"Error assigning roles when releasing user {user.display_name} from jail.", allowed_mentions=None)
-								log.warning(f"Failed to assign roles to release user from jail. Guild: [{guild.id}]. User: [{user.id}]. Roles: {userRoles}")
+								_log.warning(f"Failed to assign roles to release user from jail. Guild: [{guild.id}]. User: [{user.id}]. Roles: {userRoles}")
 						else:
 							# Could not find the user
 							if modChannel is not None:
