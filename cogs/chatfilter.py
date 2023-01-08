@@ -28,7 +28,6 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	async def cog_load(self):
 		"""Initializes the database for the cog."""
 		await self._update_all_lists()
-		_log.info("Chat filter loaded")
 
 	async def _update_all_lists(self) -> None:
 		"""Update the chat filter lists"""
