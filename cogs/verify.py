@@ -78,6 +78,8 @@ class VerifyButton(discord.ui.Button):
 		# User is now confirmed to be verified, set the data in the DB
 		async with self.view.bot.db.connect() as db:
 			async with db.cursor() as cursor:
+				# Clean up any other matching steamID entries
+				await cursor.execute("UPDATE verify SET steam64_id = NULL WHERE steam64_id = :steamID", {"steamID": int(self.view.steamID)})
 				await cursor.execute("INSERT OR REPLACE INTO verify (discord_id, steam64_id) VALUES\
 					(:userID, :steamID)", {"userID": interaction.user.id, "steamID": int(self.view.steamID)})
 				await db.commit() # Commit changes
@@ -440,6 +442,9 @@ class Verify(commands.GroupCog, group_name = "verify"):
 			if error.status not in [400, 403]:
 				_log.warning(f"Received response code [{error.status}] from the Steam API when checking steam URL")
 			await interaction.followup.send(steam_return_error_text(error.status))
+			return
+		except InvalidSteamURL:
+			await interaction.followup.send("Invalid Steam URL format. Please use the *full* URL to your Steam profile.")
 			return
 		except:
 			_log.exception("Error getting Steam64ID")

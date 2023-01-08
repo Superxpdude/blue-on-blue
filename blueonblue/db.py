@@ -129,7 +129,7 @@ class DB():
 						# Verify module tables
 						await cursor.execute("CREATE TABLE if NOT EXISTS verify (\
 							discord_id INTEGER PRIMARY KEY,\
-							steam64_id INTEGER NOT NULL UNIQUE)")
+							steam64_id INTEGER UNIQUE)")
 
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
