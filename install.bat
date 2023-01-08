@@ -20,7 +20,7 @@ if exist venv\pyenv.cfg (
 echo Installing dependencies
 cmd /c venv\scripts\activate.bat ^
 & python -m pip install --upgrade pip ^
-& python start.py -i
+& python -m blueonblue -i
 echo Blue on Blue is now installed
 echo Press enter to close
 pause
