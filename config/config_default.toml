@@ -1,0 +1,13 @@
+# Prefix for message-based commands. Only used for administrative actions
+prefix = "$$"
+# Bot token to connect to discord
+bot_token = ""
+# Debug server. When set, all slash commands will synchronized to the guild ID below instead of globally.
+# To disable, set debug_server = -1
+debug_server = -1
+
+# Steam API token for accessding the steam web API
+steam_api_token = ""
+
+# Google API access file for google sheets
+google_api_file = "config/google_api.json"
