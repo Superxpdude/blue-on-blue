@@ -6,7 +6,7 @@ import asqlite
 import blueonblue
 
 import logging
-log = logging.getLogger("bloeonblue")
+_log = logging.getLogger(__name__)
 
 async def update_member_info(member: discord.Member, cursor: asqlite.Cursor):
 	"""Updates user info a single member.
@@ -79,93 +79,74 @@ class Users(commands.Cog, name="Users"):
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
 	async def cog_load(self):
-		await self.db_init()
 		self.db_update_loop.start()
 
 	async def cog_unload(self):
 		self.db_update_loop.stop()
 
-	async def db_init(self):
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Create the tables if they do not exist
-			await cursor.execute("CREATE TABLE if NOT EXISTS users (\
-				server_id INTEGER,\
-				user_id INTEGER,\
-				display_name TEXT,\
-				name TEXT,\
-				UNIQUE(server_id,user_id))")
-			await cursor.execute("CREATE TABLE if NOT EXISTS user_roles (\
-				server_id INTEGER,\
-				user_id INTEGER,\
-				role_id INTEGER,\
-				UNIQUE(server_id,user_id,role_id),\
-				FOREIGN KEY (role_id) REFERENCES roles (role_id) ON DELETE CASCADE)")
-			await cursor.execute("CREATE TABLE if NOT EXISTS roles(\
-				server_id INTEGER,\
-				role_id INTEGER PRIMARY KEY,\
-				name TEXT,\
-				block_updates TEXT,\
-				UNIQUE(server_id,role_id),\
-				UNIQUE(server_id,block_updates))")
-			await self.bot.dbConnection.commit()
-
 	@commands.Cog.listener()
 	async def on_guild_join(self, guild: discord.Guild):
 		"""Add information on all roles to the database when joining a guild."""
-		async with self.bot.dbConnection.cursor() as cursor:
-			await update_guild_roles(guild, cursor)
-			await self.bot.dbConnection.commit()
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				await update_guild_roles(guild, cursor)
+				await db.commit()
 
 	@commands.Cog.listener()
 	async def on_guild_role_create(self, role: discord.Role):
 		"""Add role information to the database on role creation."""
 		if (not role.managed) and (role != role.guild.default_role) and (role < role.guild.me.top_role): # Ignore roles that we can't add/remove
-			async with self.bot.dbConnection.cursor() as cursor:
-				await cursor.execute("INSERT INTO roles (server_id, role_id, name) VALUES (:server_id, :role_id, :name)",
-					{"server_id": role.guild.id, "role_id": role.id, "name": role.name})
-				await self.bot.dbConnection.commit()
+			async with self.bot.db.connect() as db:
+				async with db.cursor() as cursor:
+					await cursor.execute("INSERT INTO roles (server_id, role_id, name) VALUES (:server_id, :role_id, :name)",
+						{"server_id": role.guild.id, "role_id": role.id, "name": role.name})
+					await db.commit()
 
 	@commands.Cog.listener()
 	async def on_guild_role_delete(self, role: discord.Role):
 		"""Remove role information from the database on role deletion."""
-		async with self.bot.dbConnection.cursor() as cursor:
-			await cursor.execute("DELETE FROM roles WHERE role_id = :role_id", {"role_id": role.id}) # Delete any roles in our DB matching the role id
-			await self.bot.dbConnection.commit()
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				await cursor.execute("DELETE FROM roles WHERE role_id = :role_id", {"role_id": role.id}) # Delete any roles in our DB matching the role id
+				await db.commit()
 
 	@commands.Cog.listener()
 	async def on_member_remove(self, member: discord.Member):
 		"""Updates member data when a member leaves the server"""
-		async with self.bot.dbConnection.cursor() as cursor:
-			if (not member.bot) and (len(member.roles)>1): # Only update if the member is not a bot, and has roles assigned
-				await update_member_info(member, cursor)
-				await update_member_roles(member, cursor)
-			await self.bot.dbConnection.commit()
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				if (not member.bot) and (len(member.roles)>1): # Only update if the member is not a bot, and has roles assigned
+					await update_member_info(member, cursor)
+					await update_member_roles(member, cursor)
+				await db.commit()
 
 	async def update_members(self, *members: discord.Member):
 		"""Updates member data for a collection of members."""
-		async with self.bot.dbConnection.cursor() as cursor:
-			for m in members:
-				if (not m.bot) and (len(m.roles)>1): # Only look for users that are not bots, and have at least one role assigned
-					await update_member_info(m, cursor)
-					await update_member_roles(m, cursor)
-			await self.bot.dbConnection.commit()
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				for m in members:
+					if (not m.bot) and (len(m.roles)>1): # Only look for users that are not bots, and have at least one role assigned
+						await update_member_info(m, cursor)
+						await update_member_roles(m, cursor)
+				await db.commit()
 
 	@tasks.loop(hours=1, reconnect = True)
 	async def db_update_loop(self):
 		"""Periodically updates the user database"""
-		log.debug("Starting user update loop.")
-		async with self.bot.dbConnection.cursor() as cursor:
-			for g in self.bot.guilds:
-				# Update role info
-				await update_guild_roles(g, cursor)
-				# Update member info
-				for m in g.members:
-					if (not m.bot) and (len(m.roles)>1): # Only look for users that are not bots, and have at least one role assigned
-						await update_member_info(m, cursor)
-						await update_member_roles(m, cursor)
+		_log.debug("Starting user update loop.")
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				for g in self.bot.guilds:
+					# Update role info
+					await update_guild_roles(g, cursor)
+					# Update member info
+					for m in g.members:
+						if (not m.bot) and (len(m.roles)>1): # Only look for users that are not bots, and have at least one role assigned
+							await update_member_info(m, cursor)
+							await update_member_roles(m, cursor)
 
-			await self.bot.dbConnection.commit()
-		log.debug("User update loop complete")
+				await db.commit()
+		_log.debug("User update loop complete")
 
 	@db_update_loop.before_loop
 	async def before_db_update_loop(self):

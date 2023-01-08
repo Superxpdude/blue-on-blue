@@ -1,44 +1,37 @@
 import aiohttp
 import discord
 from discord.ext import commands
-import asqlite
 
 import configparser
 from datetime import datetime
 
+from typing import Optional
+
 import sys, traceback
 
 from . import checks
+from . import config
+from . import db
 
 import logging
-_log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 __all__ = ["BlueOnBlueBot"]
 
 class BlueOnBlueBot(commands.Bot):
 	"""Blue on Blue bot class.
 	Subclass of discord.ext.commands.Bot"""
+	# Class variable type hinting
+	httpSession: aiohttp.ClientSession
+	startTime: datetime
+	firstStart: bool
+
 	def __init__(self):
 		# Set up our core config
-		self.config = configparser.ConfigParser(allow_no_value=True)
-		# Set default values
-		self.config.read_dict({
-			"CORE": {
-				"prefix": "$$",
-				"bot_token": None,
-				"debug_server": -1
-			},
-			"STEAM": {
-				"api_token": None
-			},
-			"GOOGLE": {
-				"api_file": "config/google_api.json"
-			}
-		})
-		# Read local config file
-		self.config.read("config/config.ini")
-		# Write config back to disk
-		self.write_config()
+		self.config = config.BotConfig("config/config.toml")
+
+		# Set up our DB
+		self.db = db.DB("data/blueonblue.sqlite3")
 
 		# Set up our server config
 		self.serverConfig = configparser.ConfigParser(allow_no_value=True)
@@ -67,16 +60,13 @@ class BlueOnBlueBot(commands.Bot):
 		self.write_serverConfig()
 
 		# Store our "debug server" value for slash command testing
-		self.slashDebugID = None
-		debugServerID = self.config.getint("CORE", "debug_server", fallback = -1)
+		self.slashDebugID: Optional[int] = None
+		debugServerID = self.config.debug_server
 		if debugServerID > 0: # If we have an ID present
 			self.slashDebugID = debugServerID
 
 		# Set up variables for type hinting
-		self.dbConnection: asqlite.Connection = None
-		self.httpSession: aiohttp.ClientSession = None
-		self.startTime: datetime = None
-		self.firstStart: bool = True
+		self.firstStart = True
 
 		# Set up our intents
 		intents = discord.Intents.default()
@@ -85,7 +75,7 @@ class BlueOnBlueBot(commands.Bot):
 
 		# Call the commands.Bot init
 		super().__init__(
-			command_prefix = commands.when_mentioned_or(self.config.get("CORE", "prefix", fallback="$$")),
+			command_prefix = commands.when_mentioned_or(self.config.prefix),
 			description = "Blue on Blue",
 			case_insensitive = True,
 			intents = intents,
@@ -105,11 +95,6 @@ class BlueOnBlueBot(commands.Bot):
 			"utils",
 			"verify"
 		]
-
-	def write_config(self):
-		"""Write the current bot config to disk"""
-		with open("config/config.ini", "w") as configFile:
-			self.config.write(configFile)
 
 	def write_serverConfig(self):
 		"""Write the current server configs to disk"""
@@ -139,12 +124,20 @@ class BlueOnBlueBot(commands.Bot):
 
 		Overwritten start function to run the bot.
 		Sets up the HTTP client and DB connections, then starts the bot."""
-		async with aiohttp.ClientSession() as session:
-			async with asqlite.connect("data/blueonblue.sqlite3") as connection:
-				self.httpSession = session
-				self.dbConnection = connection
-				self.startTime = discord.utils.utcnow()
-				await super().start(*args, **kwargs)
+		# Validate our DB version
+		await self.db.migrate_version()
+
+		self.httpSession = aiohttp.ClientSession(raise_for_status=True)
+		self.startTime = discord.utils.utcnow()
+		await super().start(*args, **kwargs)
+
+	async def close(self):
+		"""|coro|
+
+		Overwritten close function to stop the bot.
+		Closes down the HTTP session when the bot is stopped."""
+		await self.httpSession.close()
+		await super().close()
 
 	# Setup hook function to load extensions
 	async def setup_hook(self):
@@ -209,25 +202,6 @@ class BlueOnBlueBot(commands.Bot):
 		if isinstance(error, commands.NotOwner):
 			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.")
 
-		elif isinstance(error, checks.CommandChannelUnauthorized):
-			channels = []
-			for c in error.channels:
-				ch = ctx.guild.get_channel(c)
-				if ch is not None:
-					channels.append(ch.mention)
-
-			if len(channels) > 1:
-				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` can only be used in the following channels: "
-			elif len(channels) == 1:
-				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` can only be used in the following channel: "
-			else:
-				message = f"{ctx.author.mention}, the command `{ctx.command.qualified_name}` cannot be used in this channel."
-
-			# Add the channel idenfiers to the string
-			message += ", ".join(channels)
-
-			await ctx.send(message)
-
 		# Command not found
 		elif isinstance(error, commands.CommandNotFound):
 			await ctx.send(f"{ctx.author.mention} Unknown command. This bot has migrated to slash commands. Try typing a `/` to see the list of commands.")
@@ -272,6 +246,7 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 
 		elif isinstance(error, checks.ChannelUnauthorized):
 			# Command can only be used in specified channels
+			assert isinstance(interaction.guild, discord.Guild)
 			channels = []
 			for c in error.channels:
 				ch = interaction.guild.get_channel(c)

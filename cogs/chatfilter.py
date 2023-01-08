@@ -7,7 +7,7 @@ from typing import Literal, List
 import blueonblue
 
 import logging
-log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 CHATFILTER_EMBED_COLOUR = 0xff0000
 
@@ -26,68 +26,60 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	# Async cog setup function
 	async def cog_load(self):
-		"""Initializes the database for the cog.
-		Creates the tables if they don't exist."""
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Create the tables if they do not exist
-			# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
-			await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
-				server_id INTEGER NOT NULL,\
-				filter_list INTEGER NOT NULL,\
-				string TEXT NOT NULL,\
-				UNIQUE(server_id,filter_list,string))")
-			await self.bot.dbConnection.commit()
+		"""Initializes the database for the cog."""
 		await self._update_all_lists()
 
 	async def _update_all_lists(self) -> None:
 		"""Update the chat filter lists"""
 		# Start the DB block
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Reset our existing lists from memory
-			keyList = []
-			for g in self.bot.guilds:
-				keyList.append(g.id)
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				# Reset our existing lists from memory
+				keyList = []
+				for g in self.bot.guilds:
+					keyList.append(g.id)
 
-			self.allowList = dict.fromkeys(keyList, [])
-			self.blockList = dict.fromkeys(keyList, [])
+				self.allowList = dict.fromkeys(keyList, [])
+				self.blockList = dict.fromkeys(keyList, [])
 
-			# Get data from the DB
-			await cursor.execute("SELECT * FROM chatfilter")
-			filterData = await cursor.fetchall()
-			for f in filterData:
-				serverID = f["server_id"]
-				if serverID in keyList:
-					# Server is present in list
-					if f["filter_list"]:
-						# Exclusion list
-						self.allowList[serverID].append(f["string"])
-					else:
-						# Filter list
-						self.blockList[serverID].append(f["string"])
-			# To ensure that we remove longer words first, we need to sort the exclusion list
-			for k in self.allowList:
-				self.allowList[k].sort(key = len, reverse=True)
+				# Get data from the DB
+				await cursor.execute("SELECT * FROM chatfilter")
+				filterData = await cursor.fetchall()
+				for f in filterData:
+					serverID = f["server_id"]
+					if serverID in keyList:
+						# Server is present in list
+						if f["filter_list"]:
+							# Exclusion list
+							self.allowList[serverID].append(f["string"])
+						else:
+							# Filter list
+							self.blockList[serverID].append(f["string"])
+				# To ensure that we remove longer words first, we need to sort the exclusion list
+				for k in self.allowList:
+					self.allowList[k].sort(key = len, reverse=True)
 
 	async def _update_server_lists(self, guild: discord.Guild):
 		"""Update the chat filter lists for a single server"""
 		# Start the DB block
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Don't reset the entire filter lists
-			self.allowList[guild.id] = []
-			self.blockList[guild.id] = []
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				# Don't reset the entire filter lists
+				self.allowList[guild.id] = []
+				self.blockList[guild.id] = []
 
-			# Get data from the DB
-			await cursor.execute("SELECT filter_list, string FROM chatfilter WHERE server_id = :server_id", {"server_id": guild.id})
-			filterData = await cursor.fetchall()
-			for f in filterData:
-				if f["filter_list"]:
-					# Exclusion list
-					self.allowList[guild.id].append(f["string"])
-				else:
-					# Filter list
-					self.blockList[guild.id].append(f["string"])
-			# To ensure that we remove longer words first, we need to sort the exclusion list
-			self.allowList[guild.id].sort(key = len, reverse=True)
+				# Get data from the DB
+				await cursor.execute("SELECT filter_list, string FROM chatfilter WHERE server_id = :server_id", {"server_id": guild.id})
+				filterData = await cursor.fetchall()
+				for f in filterData:
+					if f["filter_list"]:
+						# Exclusion list
+						self.allowList[guild.id].append(f["string"])
+					else:
+						# Filter list
+						self.blockList[guild.id].append(f["string"])
+				# To ensure that we remove longer words first, we need to sort the exclusion list
+				self.allowList[guild.id].sort(key = len, reverse=True)
 
 	async def _add_chatfilter_entry(self, string: str, filterlist: int|str, guild: discord.Guild) -> None:
 		"""Adds an entry to a chat filter list
@@ -99,12 +91,13 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 				filterlist = 1 # Exclusion list
 
 		# Start the DB block
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Add our entry to the DB
-			await cursor.execute("INSERT OR REPLACE INTO chatfilter (server_id, filter_list, string) VALUES (:server_id, :list, :string)",
-				{"server_id": guild.id, "list": filterlist, "string": string.casefold()})
-			await self.bot.dbConnection.commit()
-			await self._update_server_lists(guild)
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				# Add our entry to the DB
+				await cursor.execute("INSERT OR REPLACE INTO chatfilter (server_id, filter_list, string) VALUES (:server_id, :list, :string)",
+					{"server_id": guild.id, "list": filterlist, "string": string.casefold()})
+				await db.commit()
+				await self._update_server_lists(guild)
 
 	async def _remove_chatfilter_entry(self, string: str, filterlist: int|str, guild: discord.Guild) -> None:
 		"""Removes an entry to a chat filter list
@@ -116,12 +109,13 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 				filterlist = 1 # Exclusion list
 
 		# Start the DB block
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Remove our entry from the DB
-			await cursor.execute("DELETE FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list AND string = :string)",
-				{"server_id": guild.id, "list": filterlist, "string": string.casefold()})
-			await self.bot.dbConnection.commit()
-			await self._update_server_lists(guild)
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				# Remove our entry from the DB
+				await cursor.execute("DELETE FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list AND string = :string)",
+					{"server_id": guild.id, "list": filterlist, "string": string.casefold()})
+				await db.commit()
+				await self._update_server_lists(guild)
 
 	async def _get_chatfilterlist(self, filterlist: int|str, guild: discord.Guild) -> List[str]:
 		"""Returns the entries in a chat filter list
@@ -135,15 +129,16 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 		await self._update_server_lists(guild)
 
 		# Start the DB block
-		async with self.bot.dbConnection.cursor() as cursor:
-			# Get our values from the DB
-			await cursor.execute("SELECT string FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list)",
-				{"server_id": guild.id, "list": filterlist})
-			filterData = await cursor.fetchall()
-			filterEntries = []
-			for f in filterData:
-				filterEntries.append(f["string"])
-			return filterEntries
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				# Get our values from the DB
+				await cursor.execute("SELECT string FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list)",
+					{"server_id": guild.id, "list": filterlist})
+				filterData = await cursor.fetchall()
+				filterEntries = []
+				for f in filterData:
+					filterEntries.append(f["string"])
+				return filterEntries
 
 	def _check_text(self, text: str, guild: discord.Guild) -> bool:
 		"""Checks a text string against the chatfilter for a guild.
@@ -170,6 +165,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	def _check_message(self, message: discord.Message):
 		"""Runs a message through the chat filter."""
 		# Casefold for string comparison
+		assert message.guild is not None
 		text = message.content.casefold()
 		return self._check_text(text, message.guild)
 

@@ -10,5 +10,5 @@ if NOT exist venv\pyvenv.cfg (
 )
 echo Loading bot
 cmd /c venv\scripts\activate.bat ^
-& python start.py -s
+& python -m blueonblue -s
 pause

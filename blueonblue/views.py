@@ -1,51 +1,23 @@
 import discord
 
-from typing import Optional
-
-# Subclassed buttons
-class ConfirmButton(discord.ui.Button):
-	"""Button to confirm an action"""
-	def __init__(self, *args, label: str="Confirm", style: discord.ButtonStyle=discord.ButtonStyle.success, **kwargs):
-		super().__init__(*args, label = label, style = style, **kwargs)
-
-	async def callback(self, interaction: discord.Interaction):
-		"""Callback function for the button"""
-		view: AuthorResponseViewBase = self.view
-		view.response = True
-		await view.terminate()
-		await interaction.response.defer()
-
-class ConfirmButtonRed(ConfirmButton):
-	"""Button to confirm an action. Red for destructive actions"""
-	def __init__(self, *args, label: str="Confirm", style: discord.ButtonStyle=discord.ButtonStyle.danger, **kwargs):
-		super().__init__(*args, label = label, style = style, **kwargs)
-
-class CancelButton(discord.ui.Button):
-	"""Button to cancel an action"""
-	def __init__(self, *args, label: str="Cancel", style: discord.ButtonStyle=discord.ButtonStyle.secondary, **kwargs):
-		super().__init__(*args, label = label, style = style, **kwargs)
-
-	async def callback(self, interaction: discord.Interaction):
-		"""Callback function for the button"""
-		view: AuthorResponseViewBase = self.view
-		view.response = False
-		await view.terminate()
-		await interaction.response.defer()
+import logging
+_log = logging.getLogger(__name__)
 
 # Base view class for a view that only responds to the author
 class AuthorResponseViewBase(discord.ui.View):
 	"""Base view class for a view that will only respond to the original user who invoked the view."""
 	def __init__(self, author: discord.User|discord.Member, *args, timeout: float=120.0, **kwargs):
-		self.response = None
-		self.message: discord.InteractionMessage = None
+		self.response: bool | None = None
+		self.message: discord.InteractionMessage | None = None
 		self.author = author
 		super().__init__(*args, timeout=timeout, **kwargs)
 
-	async def terminate(self, *, timedOut: Optional[bool]=False) -> None:
+	async def terminate(self, *, timedOut: bool | None = False) -> None:
 		"""Overwritten "stop" function.
 		Automatically deactivates all child items when the view is stopped."""
 		# Disable all existing child items
 		for child in self.children:
+			assert isinstance(child, (discord.ui.Button, discord.ui.Select))
 			child.disabled = True
 		# Only try to edit the original message if we *have* the original message
 		if self.message is not None:
@@ -54,7 +26,7 @@ class AuthorResponseViewBase(discord.ui.View):
 				# Edit our message to add "Timed Out" at the end
 				messageText = self.message.content # Get message text
 				messageText += "\nTimed out"
-				await self.message.edit(messageText, view = self)
+				await self.message.edit(content = messageText, view = self)
 			else:
 				# We don't need to edit the message
 				await self.message.edit(view = self)
@@ -71,6 +43,36 @@ class AuthorResponseViewBase(discord.ui.View):
 
 	async def on_timeout(self):
 		await self.terminate(timedOut = True) # Stop the view, and deactivate all buttons on timeout
+
+# Subclassed buttons
+class ConfirmButton(discord.ui.Button):
+	"""Button to confirm an action"""
+	view: AuthorResponseViewBase
+	def __init__(self, *args, label: str="Confirm", style: discord.ButtonStyle=discord.ButtonStyle.success, **kwargs):
+		super().__init__(*args, label = label, style = style, **kwargs)
+
+	async def callback(self, interaction: discord.Interaction):
+		"""Callback function for the button"""
+		self.view.response = True
+		await self.view.terminate()
+		await interaction.response.defer()
+
+class ConfirmButtonRed(ConfirmButton):
+	"""Button to confirm an action. Red for destructive actions"""
+	def __init__(self, *args, label: str="Confirm", style: discord.ButtonStyle=discord.ButtonStyle.danger, **kwargs):
+		super().__init__(*args, label = label, style = style, **kwargs)
+
+class CancelButton(discord.ui.Button):
+	"""Button to cancel an action"""
+	view: AuthorResponseViewBase
+	def __init__(self, *args, label: str="Cancel", style: discord.ButtonStyle=discord.ButtonStyle.secondary, **kwargs):
+		super().__init__(*args, label = label, style = style, **kwargs)
+
+	async def callback(self, interaction: discord.Interaction):
+		"""Callback function for the button"""
+		self.view.response = False
+		await self.view.terminate()
+		await interaction.response.defer()
 
 # Confirmation view
 class ConfirmView(AuthorResponseViewBase):

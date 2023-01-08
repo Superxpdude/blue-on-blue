@@ -4,15 +4,15 @@ import argparse
 import subprocess
 import os
 
+from .bot import BlueOnBlueBot
+from .log import setup_logging
+
 import logging
-import logging.handlers
 
 def install_dependencies():
 	subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 def start_bot(args: argparse.Namespace):
-	from blueonblue.bot import BlueOnBlueBot
-
 	# Create required subfolders
 	for f in ["config", "logs", "data"]:
 		if not os.path.exists(f):
@@ -20,27 +20,12 @@ def start_bot(args: argparse.Namespace):
 
 	# Set up logging
 	logLevel = logging.DEBUG if args.debug else logging.INFO
-
-	rootLog = logging.getLogger()
-	logFormat = logging.Formatter("%(asctime)s [%(levelname)s]  %(message)s")
-	logFile = logging.handlers.TimedRotatingFileHandler("logs/blueonblue.log",when="midnight",backupCount=30)
-	logFile.setFormatter(logFormat)
-	rootLog.addHandler(logFile)
-
+	setup_logging(level = logLevel)
 	log = logging.getLogger("blueonblue")
-	logConsole = logging.StreamHandler(sys.stdout)
-	logConsole.setFormatter(logFormat)
-	log.addHandler(logConsole)
-
-	log.setLevel(logLevel)
-
-	# Discord logging
-	discordLog = logging.getLogger("discord")
-	discordLog.setLevel(logging.WARNING)
 
 	bot = BlueOnBlueBot()
 
-	botToken = bot.config.get("CORE", "bot_token", fallback = None)
+	botToken = bot.config.bot_token
 
 	if botToken is None:
 		logging.error("No Discord API token found in config file.")
@@ -50,7 +35,7 @@ def start_bot(args: argparse.Namespace):
 
 	# Start the bot
 	log.info("Starting Blue on Blue")
-	bot.run(botToken, reconnect=True)
+	bot.run(botToken, reconnect=True, log_handler = None)
 
 def main():
 	# Argument setup
@@ -61,8 +46,8 @@ def main():
 	args = parser.parse_args()
 
 	# Check python version
-	if (sys.version_info < (3,8,0,"final")):
-		print("Python 3.8.0 or higher is required to run this bot." \
+	if (sys.version_info < (3,10,0,"final")):
+		print("Python 3.10.0 or higher is required to run this bot." \
 		f"You are using version {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
 		input("Press ENTER to continue...")
 		exit()

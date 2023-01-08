@@ -5,4 +5,6 @@ Any code specific to a single command or cog should be placed within that cog.""
 
 from .bot import *
 from . import checks
+from . import config
+from . import db
 from . import views

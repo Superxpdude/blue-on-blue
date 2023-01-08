@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import blueonblue
 
 import logging
-log = logging.getLogger("blueonblue")
+_log = logging.getLogger(__name__)
 
 
 class Utils(commands.GroupCog, group_name = "utils"):
