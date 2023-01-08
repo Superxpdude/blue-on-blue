@@ -127,9 +127,7 @@ class BlueOnBlueBot(commands.Bot):
 		# Validate our DB version
 		await self.db.migrate_version()
 
-		#async with aiohttp.ClientSession() as session:
-		#self.httpSession = session
-		self.httpSession = aiohttp.ClientSession()
+		self.httpSession = aiohttp.ClientSession(raise_for_status=True)
 		self.startTime = discord.utils.utcnow()
 		await super().start(*args, **kwargs)
 
