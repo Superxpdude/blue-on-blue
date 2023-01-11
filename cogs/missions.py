@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
+import aiohttp
 from datetime import datetime, timedelta
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
@@ -171,6 +172,9 @@ class Missions(commands.Cog, name = "Missions"):
 	async def missions(self, interaction: discord.Interaction):
 		"""Displays a list of scheduled missions"""
 
+		# Guild-only command. Guild will always be defined
+		assert interaction.guild is not None
+
 		# Immediately defer this action, since this can take some time.
 		await interaction.response.defer()
 
@@ -189,7 +193,8 @@ class Missions(commands.Cog, name = "Missions"):
 		missionSheet = await missionDoc.worksheet(missionWorksheetName)
 
 		# Get our spreadsheet contents
-		sheetData = await missionSheet.get_all_records(default_blank = None)
+		# TODO: Change this to no longer require type ignore
+		sheetData = await missionSheet.get_all_records(default_blank = None) # type: ignore
 
 		# Get our wiki URL
 		wikiURL = self.bot.serverConfig.get(str(interaction.guild.id), "mission_wiki_url", fallback = None)
@@ -245,14 +250,14 @@ class Missions(commands.Cog, name = "Missions"):
 					colour = embedColour
 				)
 				# See if we can get the mission image
-				async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
-					"action": "query",
-					"format": "json",
-					"prop": "pageimages",
-					"titles": missionName,
-					"pithumbsize": "250"
-				}) as response:
-					if response.status == 200: # Request successful
+				try:
+					async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
+						"action": "query",
+						"format": "json",
+						"prop": "pageimages",
+						"titles": missionName,
+						"pithumbsize": "250"
+					}) as response:
 						responsePages: dict = (await response.json())["query"]["pages"]
 						responsePageData = responsePages[list(responsePages)[0]]
 						if "thumbnail" in responsePageData:
@@ -265,11 +270,15 @@ class Missions(commands.Cog, name = "Missions"):
 						else:
 							# No thumbnail for the mission
 							missionImageURL = None
-					else:
-						missionImageURL = None
 
-				if missionImageURL is not None:
-					missionEmbed.set_image(url = missionImageURL)
+					if missionImageURL is not None:
+						missionEmbed.set_image(url = missionImageURL)
+				except aiohttp.ClientResponseError as error:
+					if error.status not in [404]:
+						_log.warning(f"Received HTTP error {error.status} from wiki when retrieving mission image for: {missionName}")
+					pass
+				except:
+					raise
 
 				# Start adding our fields
 				# Mission name
@@ -296,7 +305,10 @@ class Missions(commands.Cog, name = "Missions"):
 		else:
 			message = None
 		# Send our response
-		await interaction.followup.send(message, embeds=missionEmbeds)
+		if message is not None:
+			await interaction.followup.send(message, embeds=missionEmbeds)
+		else:
+			await interaction.followup.send(embeds=missionEmbeds)
 
 	@app_commands.command(name = "audit")
 	@app_commands.describe(
@@ -305,8 +317,11 @@ class Missions(commands.Cog, name = "Missions"):
 	)
 	@app_commands.guild_only()
 	@blueonblue.checks.in_guild()
-	async def audit(self, interaction: discord.Interaction, missionfile: discord.Attachment, modpreset: discord.Attachment = None):
+	async def audit(self, interaction: discord.Interaction, missionfile: discord.Attachment, modpreset: discord.Attachment|None = None):
 		"""Submits a mission for auditing"""
+
+		# Guild-only command
+		assert interaction.guild is not None
 
 		# Check to see if we have a mod preset
 		if modpreset is not None:
@@ -353,11 +368,11 @@ class Missions(commands.Cog, name = "Missions"):
 
 		# PBO file is good, scan the description.ext
 		try:
-			descriptionFile: str = None
+			descriptionFile: str|None = None
 			for f in missionPBO.filenames():
 				f: str
 				if f.lower() == "description.ext":
-					descriptionFile: str = missionPBO.file_as_bytes(f).decode()
+					descriptionFile: str|None = missionPBO.file_as_bytes(f).decode()
 					break
 			if descriptionFile is None:
 				raise Exception
@@ -447,11 +462,13 @@ class Missions(commands.Cog, name = "Missions"):
 			return
 
 		# Mission has passed validation checks
-		auditChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
+		auditChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
 
 		if auditChannel is None:
 			await interaction.response.send_message("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
 			return
+
+		assert isinstance(auditChannel, discord.TextChannel)
 
 		# Create and send our audit notes modal
 		auditModal = MissionAuditModal(timeout=1200) # 20 minute timeout should be enough
@@ -502,8 +519,9 @@ class Missions(commands.Cog, name = "Missions"):
 	@app_commands.guild_only()
 	@blueonblue.checks.in_guild()
 	@blueonblue.checks.in_channel_bot()
-	async def schedule(self, interaction: discord.Interaction, date: str, missionname: str, notes: str = None):
+	async def schedule(self, interaction: discord.Interaction, date: str, missionname: str, notes: str|None = None):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
+		assert interaction.guild is not None
 
 		# See if we can convert out date string to a datetime object
 		try:
@@ -532,26 +550,27 @@ class Missions(commands.Cog, name = "Missions"):
 		wikiURL = self.bot.serverConfig.get(str(interaction.guild.id), "mission_wiki_url", fallback = None)
 
 		# Start our HTTP request block
-		async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
-			"action": "parse",
-			"page": "Audited Mission List",
-			"prop": "wikitext",
-			"section": 1,
-			"format": "json"
-		}) as response:
-			if response.status == 200: # Request successful
+		try:
+			async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
+				"action": "parse",
+				"page": "Audited Mission List",
+				"prop": "wikitext",
+				"section": 1,
+				"format": "json"
+			}) as response:
 				responseData: dict = await response.json()
-				if "parse" in responseData:
-					responseText: str = responseData["parse"]["wikitext"]["*"]
-				else:
-					await interaction.followup.send("Could not locate the audit list on the wiki. Please contact the bot owner.")
-					return
-			else:
-				await interaction.followup.send(f"Could not contact the wiki to search for the audit list (Error: {response.status}). Please contact the bot owner.")
+				responseText: str = responseData["parse"]["wikitext"]["*"]
+		except aiohttp.ClientResponseError as error:
+			await interaction.followup.send(f"Could not contact the wiki to search for the audit list (Error: {error.status}). Please contact the bot owner.")
+			_log.warning(f"Received HTTP error {error.status} when trying to read the audit list from the wiki.")
+			return
+		except:
+			await interaction.followup.send("Error reading audit list from wiki. Please contact the bot owner.")
+			raise
 
 		# Now that we have our text, split it up and parse it.
 		responseLines = responseText.split("\n")
-		missionData: list[str] = []
+		missionData: list[list[str]] = []
 		for line in responseLines:
 			if not line.startswith("{{"):
 				# We only care about lines that start with {{
@@ -633,7 +652,7 @@ class Missions(commands.Cog, name = "Missions"):
 
 				if mission[1] == "Sefrou-Ramal":
 					cellWS = await missionSheet.cell(datecell.row,colWS)
-					cellWS.value = True
+					cellWS.value = "True"
 					cellList.append(cellWS)
 
 				if notes is not None:
@@ -660,6 +679,7 @@ class Missions(commands.Cog, name = "Missions"):
 	@blueonblue.checks.is_moderator()
 	async def schedule_cancel(self, interaction: discord.Interaction, date: str):
 		"""Removes a previously scheduled mission from the mission schedule"""
+		assert interaction.guild is not None
 
 		# See if we can convert out date string to a datetime object
 		try:
@@ -724,7 +744,7 @@ class Missions(commands.Cog, name = "Missions"):
 				cellList.append(cellMedical)
 
 				cellWS = await missionSheet.cell(datecell.row,colWS)
-				cellWS.value = False
+				cellWS.value = "False"
 				cellList.append(cellWS)
 
 				cellNotes = await missionSheet.cell(datecell.row,colNotes)
