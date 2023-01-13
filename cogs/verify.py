@@ -9,6 +9,8 @@ import blueonblue
 import logging
 _log = logging.getLogger(__name__)
 
+VERIFY_EMBED_COLOUR = 0xff00d0
+
 # Exceptions
 class MissingSteamID(BaseException):
 	"""Exception used when a Steam ID could not be found"""
@@ -328,6 +330,45 @@ async def steam_check_token(bot: blueonblue.BlueOnBlueBot, steamID: str, token: 
 			return False
 
 
+async def steam_get_display_name(bot: blueonblue.BlueOnBlueBot, steamID: str) -> str:
+	"""|coro|
+
+	Retrieves the display name of a Steam profile using their SteamID64
+
+	Parameters
+	----------
+	bot : blueonblue.BlueOnBlueBot
+		The bot object
+	steamID : str
+		Steam64ID of the user
+
+	Returns
+	-------
+	str
+		Display name of the user
+
+	Raises
+	------
+	NoSteamUserFound
+		Could not locate the user by SteamID
+	"""
+	# Make our web request
+	async with bot.httpSession.get(
+		"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
+		params = {
+			"key": bot.config.steam_api_token,
+			"steamids": steamID
+		}
+	) as response:
+		# Get our response data
+		playerData = (await response.json())["response"]["players"]
+		# If we have no entries, raise an error
+		if len(playerData) == 0:
+			raise NoSteamUserFound()
+		# We have a user, return their real name
+		return playerData[0]["personaname"]
+
+
 async def assign_roles(bot: blueonblue.BlueOnBlueBot, guild: discord.Guild, user: discord.Member) -> bool:
 	"""|coro|
 
@@ -482,6 +523,55 @@ class Verify(commands.GroupCog, group_name = "verify"):
 			view = view,
 			wait = True
 		)
+
+
+	@app_commands.command()
+	async def status(self, interaction: discord.Interaction):
+		"""Displays accounts linked through the bot
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord interaction
+		"""
+		# Immediately defer the response, since we need to make web requests
+		await interaction.response.defer(ephemeral=True)
+
+		# Initialize some variables
+		steamInfo: tuple[str, int] | None = None
+
+		# Check to see if we can get the user's Steam64ID from the database
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				# Get the user's data from the DB
+				await cursor.execute("SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL", {"id": interaction.user.id})
+				userData = await cursor.fetchone() # This will only return users that are verified
+				if userData is not None:
+					steamID: int = userData["steam64_id"]
+					# Get the user's steam display name
+					try:
+						steamInfo = (await steam_get_display_name(self.bot, str(steamID)), steamID)
+					except:
+						_log.exception("Error retrieving profile name from steam")
+						pass
+
+		# Start generating our embed
+		embed=discord.Embed(title="Accounts", color=0xff00d0)
+		embed.set_author(
+			name = interaction.user.display_name,
+			icon_url = interaction.user.display_avatar.url
+		)
+		if steamInfo is not None:
+			embed.add_field(
+				name = "Steam",
+				# Discord strips duplicate whitespace characters here, no way to align things nicely
+				value = f"{steamInfo[0]} | <http://steamcommunity.com/profiles/{steamInfo[1]}>",
+				inline = False
+			)
+		else:
+			embed.add_field(name = "Steam", value = "Not found", inline = False)
+
+		await interaction.followup.send(embed=embed)
 
 
 	@commands.Cog.listener()
