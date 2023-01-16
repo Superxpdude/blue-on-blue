@@ -69,13 +69,15 @@ class DB():
 						_log.info("Initializing database")
 						# Arma stats tables
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_missions (\
-							id INTEGER PRIMARY KEY \
+							id INTEGER PRIMARY KEY AUTOINCREMENT,\
+							server_id INTEGER NOT NULL,\
+							api_id INTEGER PRIMARY KEY,\
 							file_name TEXT NOT NULL,\
 							start_time TEXT NOT NULL,\
-							duration INTEGER NOT NULL)")
+							duration INTEGER NOT NULL,)")
 
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
-							mission_id INTEGER NOT NULL \
+							mission_id INTEGER NOT NULL, \
 							steam_id INTEGER NOT NULL,\
 							duration INTEGER NOT NULL,\
 							UNIQUE(mission_id,steam_id),\
@@ -152,13 +154,15 @@ class DB():
 
 					if schema_version == 1:
 						_log.info("Upgrading database to version 2")
-						# Chat Filter table
-						# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
+						# Arma stats tables
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_missions (\
-							id INTEGER PRIMARY KEY, \
+							id INTEGER PRIMARY KEY AUTOINCREMENT,\
+							server_id INTEGER NOT NULL,\
+							api_id INTEGER NOT NULL,\
 							file_name TEXT NOT NULL,\
 							start_time TEXT NOT NULL,\
-							duration INTEGER NOT NULL)")
+							duration INTEGER NOT NULL,\
+							UNIQUE(server_id,api_id))")
 
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
 							mission_id INTEGER NOT NULL, \
