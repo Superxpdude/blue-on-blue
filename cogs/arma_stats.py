@@ -110,9 +110,8 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 								player_pings: int = player["pings"]
 								player_duration = player_pings / mission_pings
 
+								# Only proceed if we have a valid playerID
 								if str(player_id).isnumeric():
-
-
 									# Insert the player details into the database
 									await cursor.execute("INSERT INTO arma_stats_players\
 										(mission_id, steam_id, duration)\
