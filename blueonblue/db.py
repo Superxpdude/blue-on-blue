@@ -15,7 +15,7 @@ __all__ = [
 	"DBConnection"
 ]
 
-DBVERSION = 1
+DBVERSION = 2
 
 class DBConnection():
 	"""BlueonBlue database connection class.
@@ -67,6 +67,20 @@ class DB():
 					# Database is newly created
 					if schema_version == 0:
 						_log.info("Initializing database")
+						# Arma stats tables
+						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_missions (\
+							id INTEGER PRIMARY KEY \
+							file_name TEXT NOT NULL,\
+							start_time TEXT NOT NULL,\
+							duration INTEGER NOT NULL)")
+
+						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
+							mission_id INTEGER NOT NULL \
+							steam_id INTEGER NOT NULL,\
+							duration INTEGER NOT NULL,\
+							UNIQUE(mission_id,steam_id),\
+							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
+
 						# Chat Filter table
 						# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
 						await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
@@ -133,6 +147,28 @@ class DB():
 
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
+
+						await db.commit()
+
+					if schema_version == 1:
+						_log.info("Upgrading database to version 2")
+						# Chat Filter table
+						# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
+						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_missions (\
+							id INTEGER PRIMARY KEY, \
+							file_name TEXT NOT NULL,\
+							start_time TEXT NOT NULL,\
+							duration INTEGER NOT NULL)")
+
+						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
+							mission_id INTEGER NOT NULL, \
+							steam_id INTEGER NOT NULL,\
+							duration INTEGER NOT NULL,\
+							UNIQUE(mission_id,steam_id),\
+							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
+
+						await cursor.execute(f"PRAGMA user_version = 2")
+						_log.info(f"Database upgraded to version: 2")
 
 						await db.commit()
 
