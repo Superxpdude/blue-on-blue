@@ -74,7 +74,7 @@ class DB():
 							api_id INTEGER PRIMARY KEY,\
 							file_name TEXT NOT NULL,\
 							start_time TEXT NOT NULL,\
-							duration INTEGER NOT NULL,)")
+							end_time TEXT NOT NULL)")
 
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
 							mission_id INTEGER NOT NULL, \
@@ -161,7 +161,7 @@ class DB():
 							api_id INTEGER NOT NULL,\
 							file_name TEXT NOT NULL,\
 							start_time TEXT NOT NULL,\
-							duration INTEGER NOT NULL,\
+							end_time TEXT NOT NULL,\
 							UNIQUE(server_id,api_id))")
 
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\

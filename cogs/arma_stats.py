@@ -91,14 +91,13 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 								continue
 
 							# Mission end time is at least 15 minutes ago, process the mission
-							duration = (end_time - start_time).total_seconds()
 							# Create the mission entry, and get its database ID
 							await cursor.execute("INSERT INTO arma_stats_missions\
-								(server_id, api_id, file_name, start_time, duration)\
+								(server_id, api_id, file_name, start_time, end_time)\
 								VALUES (\
-									:server_id, :api_id, :name, :start, :duration)",
+									:server_id, :api_id, :name, :start, :end_time)",
 									{"server_id": guild.id, "api_id": mission_id, "name": name,
-									"start":start_time.isoformat(),"duration": duration}
+									"start":start_time.isoformat(),"end_time": end_time.isoformat()}
 								)
 
 							await cursor.execute("SELECT last_insert_rowid() as db_id")
