@@ -71,15 +71,17 @@ class DB():
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_missions (\
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							server_id INTEGER NOT NULL,\
-							api_id INTEGER PRIMARY KEY,\
+							api_id INTEGER NOT NULL,\
 							file_name TEXT NOT NULL,\
 							start_time TEXT NOT NULL,\
-							end_time TEXT NOT NULL)")
+							end_time TEXT NOT NULL,\
+							main_op INTEGER,\
+							UNIQUE(server_id,api_id))")
 
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
 							mission_id INTEGER NOT NULL, \
 							steam_id INTEGER NOT NULL,\
-							duration INTEGER NOT NULL,\
+							duration REAL NOT NULL,\
 							UNIQUE(mission_id,steam_id),\
 							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
 
@@ -162,12 +164,13 @@ class DB():
 							file_name TEXT NOT NULL,\
 							start_time TEXT NOT NULL,\
 							end_time TEXT NOT NULL,\
+							main_op INTEGER,\
 							UNIQUE(server_id,api_id))")
 
 						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
 							mission_id INTEGER NOT NULL, \
 							steam_id INTEGER NOT NULL,\
-							duration INTEGER NOT NULL,\
+							duration REAL NOT NULL,\
 							UNIQUE(mission_id,steam_id),\
 							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
 
