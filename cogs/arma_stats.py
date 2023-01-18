@@ -82,7 +82,49 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 				data = await cursor.fetchone()
 				mission_count: int = data["mission_count"]
 
-				await interaction.response.send_message(f"You have attended `{mission_count}` missions")
+				# Get our "position" in the leaderboard
+				await cursor.execute(
+					"SELECT	COUNT(*) as position\
+					FROM\
+						(SELECT\
+							COUNT(steam64_id) as mission_count\
+						FROM\
+							mission_attendance_view\
+						WHERE\
+							server_id = :serverid AND\
+							player_session >= :duration AND\
+							(main_op IS NOT NULL OR\
+							(mission_duration >= :min_time AND\
+							user_attendance >= :min_players))\
+						GROUP BY\
+							steam64_id)\
+					WHERE\
+						mission_count > :missioncount",
+						{
+							"serverid": interaction.guild.id,
+							"duration": mission_participation_threshold,
+							"min_time": mission_min_duration,
+							"min_players": mission_min_players,
+							"missioncount": mission_count
+						}
+					)
+				# This will give us the number of users that are ahead of us on the leaderboard
+				position: int = (await cursor.fetchone())["position"]
+				# Increment the position by one to get our correct position.
+				position += 1
+
+				# Start generating our embed
+				embed = discord.Embed(
+					title = "Mission Leaderboard",
+					color = ARMASTATS_EMBED_COLOUR,
+					description = f"{mission_count} missions"
+				)
+				embed.set_author(
+					name = f"Rank {position} - {interaction.user.display_name}",
+					icon_url = interaction.user.display_avatar.url
+				)
+
+				await interaction.response.send_message(embed = embed)
 
 	@app_commands.command()
 	@app_commands.guild_only()
@@ -130,32 +172,28 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 				data = await cursor.fetchmany(leaderboard_count)
 
 		# We no longer need the database connection, so we can close the context manager
+		embed = discord.Embed(
+			title = "Mission Leaderboard",
+			color = ARMASTATS_EMBED_COLOUR
+		)
 
 		# Create our message text
 		leaderboard = []
-		for row in data:
+		for (count, row) in enumerate(data):
 			# If the user is not in the guild, return their stored display name instead of using a mention
 			user = interaction.guild.get_member(row['discord_id'])
 			if user is not None:
 				userText: str = user.mention
 			else:
 				userText: str = row["display_name"]
-			leaderboard.append(f"\n{row['mission_count']} - {userText}")
-			#leaderboard.append(f"\n{row['mission_count']} - <@{row['discord_id']}>")
+			embed.add_field(
+				name = f"Rank {count + 1}",
+				value = f"{row['mission_count']} missions - {userText}",
+				inline = False
+			)
 
-		# Start creating our embed
-		if len(leaderboard) > 0:
-			embed = discord.Embed(
-				title = "Mission Leaderboard",
-				color=ARMASTATS_EMBED_COLOUR,
-				description="\n".join(leaderboard)
-			)
-		else:
-			embed = discord.Embed(
-				title = "Mission Leaderboard",
-				color=ARMASTATS_EMBED_COLOUR,
-				description="No users on leaderboard yet"
-			)
+		if embed.fields is None:
+			embed.description = "No users on leaderboard yet"
 
 		await interaction.response.send_message(embed = embed)
 
