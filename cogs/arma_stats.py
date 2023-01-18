@@ -12,7 +12,9 @@ import logging
 _log = logging.getLogger(__name__)
 
 TIMEZONE = "CST6CDT"
+ARMASTATS_EMBED_COLOUR = 0xC48214
 
+@app_commands.guild_only()
 class ArmaStats(commands.GroupCog, group_name="armastats"):
 	"""Arma Stats commands."""
 	def __init__(self, bot, *args, **kwargs):
@@ -57,36 +59,21 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 				mission_participation_threshold = self.bot.serverConfig.getfloat(
 					str(interaction.guild.id),"arma_stats_participation_threshold", fallback = 0.5)
 
-
 				# Query the database
 				# This will return the number of missions in the database that the user has participated in
 				# It will only count them if they were longer than the duration threshold,
-				await cursor.execute(
-					"SELECT\
-						COUNT(*) as mission_count \
-					FROM \
-						arma_stats_players\
-					INNER JOIN \
-						arma_stats_missions on arma_stats_missions.id = arma_stats_players.mission_id \
-					INNER JOIN \
-						verify on verify.steam64_id = arma_stats_players.steam_id \
-					WHERE \
-						verify.discord_id = :userid AND \
-						arma_stats_players.duration >= :duration AND \
-						(\
-							(\
-								(((julianday(end_time) - julianday(start_time)) * 1440) >= :min_time) AND \
-								(\
-									SELECT COUNT(*) FROM arma_stats_players \
-									WHERE arma_stats_players.mission_id = arma_stats_missions.id\
-								) >= :min_players\
-							) OR \
-							main_op IS NOT NULL\
-						) \
-					GROUP BY \
-						arma_stats_players.steam_id",
+				await cursor.execute("SELECT count(*) as mission_count\
+					FROM mission_attendance_view\
+					WHERE\
+						discord_id = :userid AND\
+						server_id = :serverid AND\
+						player_session >= :duration AND\
+						(main_op IS NOT NULL OR\
+						(mission_duration >= :min_time AND\
+						user_attendance >= :min_players));",
 					{
 						"userid": interaction.user.id,
+						"serverid": interaction.guild.id,
 						"duration": mission_participation_threshold,
 						"min_time": mission_min_duration,
 						"min_players": mission_min_players
@@ -96,6 +83,81 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 				mission_count: int = data["mission_count"]
 
 				await interaction.response.send_message(f"You have attended `{mission_count}` missions")
+
+	@app_commands.command()
+	@app_commands.guild_only()
+	async def leaderboard(self, interaction: discord.Interaction):
+		assert interaction.guild is not None
+		leaderboard_count = 5
+
+		# Start the DB block
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				# Read config values
+				mission_min_duration = self.bot.serverConfig.getint(
+					str(interaction.guild.id),"arma_stats_min_duration", fallback = 90)
+				mission_min_players = self.bot.serverConfig.getint(
+					str(interaction.guild.id),"arma_stats_min_players", fallback = 10)
+				mission_participation_threshold = self.bot.serverConfig.getfloat(
+					str(interaction.guild.id),"arma_stats_participation_threshold", fallback = 0.5)
+
+				# Query the database to get our leaderboard
+				await cursor.execute(
+					"SELECT\
+						discord_id,\
+						steam64_id,\
+						display_name,\
+						COUNT(steam64_id) as mission_count\
+					FROM\
+						mission_attendance_view\
+					WHERE\
+						server_id = :serverid AND\
+						player_session >= :duration AND\
+						(main_op IS NOT NULL OR\
+						(mission_duration >= :min_time AND\
+						user_attendance >= :min_players))\
+					GROUP BY\
+						steam64_id\
+					ORDER BY\
+						mission_count DESC",
+					{
+						"serverid": interaction.guild.id,
+						"duration": mission_participation_threshold,
+						"min_time": mission_min_duration,
+						"min_players": mission_min_players
+					}
+				)
+				data = await cursor.fetchmany(leaderboard_count)
+
+		# We no longer need the database connection, so we can close the context manager
+
+		# Create our message text
+		leaderboard = []
+		for row in data:
+			# If the user is not in the guild, return their stored display name instead of using a mention
+			user = interaction.guild.get_member(row['discord_id'])
+			if user is not None:
+				userText: str = user.mention
+			else:
+				userText: str = row["display_name"]
+			leaderboard.append(f"\n{row['mission_count']} - {userText}")
+			#leaderboard.append(f"\n{row['mission_count']} - <@{row['discord_id']}>")
+
+		# Start creating our embed
+		if len(leaderboard) > 0:
+			embed = discord.Embed(
+				title = "Mission Leaderboard",
+				color=ARMASTATS_EMBED_COLOUR,
+				description="\n".join(leaderboard)
+			)
+		else:
+			embed = discord.Embed(
+				title = "Mission Leaderboard",
+				color=ARMASTATS_EMBED_COLOUR,
+				description="No users on leaderboard yet"
+			)
+
+		await interaction.response.send_message(embed = embed)
 
 
 	@tasks.loop(hours = 1)

@@ -149,6 +149,25 @@ class DB():
 							discord_id INTEGER PRIMARY KEY,\
 							steam64_id INTEGER UNIQUE)")
 
+						# Arma stats view
+						await cursor.execute("CREATE VIEW mission_attendance_view AS\
+							SELECT\
+								m.id,\
+								m.main_op,\
+								m.server_id,\
+								m.api_id,\
+								m.file_name,\
+								u.display_name,\
+								u.user_id as discord_id,\
+								v.steam64_id,\
+								((julianday(m.end_time) - julianday(m.start_time)) * 1440)AS mission_duration,\
+								p.duration as player_session,\
+								(SELECT COUNT(*) FROM arma_stats_players pp WHERE pp.mission_id = m.id) as user_attendance\
+							FROM arma_stats_missions m\
+								INNER JOIN arma_stats_players p on p.mission_id = m.id\
+								INNER JOIN verify v on v.steam64_id = p.steam_id\
+								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
+
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
 
@@ -173,6 +192,25 @@ class DB():
 							duration REAL NOT NULL,\
 							UNIQUE(mission_id,steam_id),\
 							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
+
+						# Arma stats view
+						await cursor.execute("CREATE VIEW mission_attendance_view AS\
+							SELECT\
+								m.id,\
+								m.main_op,\
+								m.server_id,\
+								m.api_id,\
+								m.file_name,\
+								u.display_name,\
+								u.user_id as discord_id,\
+								v.steam64_id,\
+								((julianday(m.end_time) - julianday(m.start_time)) * 1440) as mission_duration,\
+								p.duration as player_session,\
+								(SELECT COUNT(*) FROM arma_stats_players pp WHERE pp.mission_id = m.id) as user_attendance\
+							FROM arma_stats_missions m\
+								INNER JOIN arma_stats_players p on p.mission_id = m.id\
+								INNER JOIN verify v on v.steam64_id = p.steam_id\
+								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
 
 						await cursor.execute(f"PRAGMA user_version = 2")
 						_log.info(f"Database upgraded to version: 2")
