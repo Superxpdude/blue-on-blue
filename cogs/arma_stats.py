@@ -120,7 +120,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 					description = f"{mission_count} missions"
 				)
 				embed.set_author(
-					name = f"Rank {position} - {interaction.user.display_name}",
+					name = f"{interaction.user.display_name} - Rank {position}",
 					icon_url = interaction.user.display_avatar.url
 				)
 
@@ -188,7 +188,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 				userText: str = row["display_name"]
 			embed.add_field(
 				name = f"Rank {count + 1}",
-				value = f"{row['mission_count']} missions - {userText}",
+				value = f"{userText} - {row['mission_count']} missions",
 				inline = False
 			)
 
