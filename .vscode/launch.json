@@ -15,6 +15,19 @@
 			"args": [
 				"--start"
 			]
+		},
+		{
+			"name": "Debug Bot",
+			"type": "python",
+			"request": "launch",
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"module": "blueonblue",
+			"subProcess": true,
+			"args": [
+				"--start",
+				"--debug"
+			]
 		}
 	]
 }
