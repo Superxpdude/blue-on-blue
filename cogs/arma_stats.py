@@ -129,6 +129,13 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 	@app_commands.command()
 	@app_commands.guild_only()
 	async def leaderboard(self, interaction: discord.Interaction):
+		"""Displays the Arma stats leaderboard
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			The Discord interaction
+		"""
 		assert interaction.guild is not None
 		leaderboard_count = 5
 
