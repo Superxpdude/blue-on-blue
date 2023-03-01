@@ -185,6 +185,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 
 		# Send the message
 		await interaction.response.send_message(message, view=view)
+		view.message = await interaction.original_response()
 
 		# Wait for our timeout
 		await asyncio.sleep(duration)
