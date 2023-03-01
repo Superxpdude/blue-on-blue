@@ -2,6 +2,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
+import asyncio
+import datetime
 import random
 
 import blueonblue
@@ -97,7 +99,11 @@ class RaffleJoinButton(discord.ui.Button):
 		# Check if the user is already in the raffle
 		if self.raffle.userInRaffle(interaction.user):
 			# User already in, send them the leave prompt
-			await interaction.response.send_message("You are already in the raffle.")
+			await interaction.response.send_message(
+				f"You are already in the raffle for {self.raffle.name}",
+				ephemeral=True,
+				delete_after=30
+			)
 		else:
 			# User not in, add them to the raffle
 			self.raffle.addUser(interaction.user)
@@ -168,7 +174,29 @@ class Raffle(commands.Cog, name = "Raffle"):
 		# Guild-only command
 		assert interaction.guild is not None
 
+		# Determine the end time
+		dt = discord.utils.utcnow() + datetime.timedelta(seconds = duration)
 
+		# Create the message
+		message = f"Creating raffle: {raffle_name}\nEnds {discord.utils.format_dt(dt,'R')}"
+
+		# Create the view
+		view = RaffleView(self.bot, raffles = (raffle_name,))
+
+		# Send the message
+		await interaction.response.send_message(message, view=view)
+
+		# Wait for our timeout
+		await asyncio.sleep(duration)
+
+		# Choose winners
+		for r in view.raffles:
+			if len(r.participants) > 0:
+				winner = r.selectWinners(winners)[0]
+				await interaction.followup.send(f"Winner of '{r.name}': {winner.mention}")
+			else:
+				await interaction.followup.send(f"No participants for raffle: {r.name}")
+		await view.stop()
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):

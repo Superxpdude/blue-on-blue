@@ -98,6 +98,7 @@ class BlueOnBlueBot(commands.Bot):
 			"jail",
 			"missions",
 			"pings",
+			"raffle",
 			"utils",
 			"verify"
 		]
