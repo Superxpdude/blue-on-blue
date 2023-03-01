@@ -188,16 +188,23 @@ class Raffle(commands.Cog, name = "Raffle"):
 		view.message = await interaction.original_response()
 
 		# Wait for our timeout
-		await asyncio.sleep(duration)
+		# This will wait for shorter and shorter times to ensure that the raffle ends
+		# at the correct time with long durations
+		while discord.utils.utcnow() < dt:
+			sleep = max((dt - discord.utils.utcnow()).total_seconds() / 2,1)
+			print(f"Sleeping for: {sleep}")
+			await asyncio.sleep(sleep)
 
-		# Choose winners
-		for r in view.raffles:
-			if len(r.participants) > 0:
-				winner = r.selectWinners(winners)[0]
-				await interaction.followup.send(f"Winner of '{r.name}': {winner.mention}")
-			else:
-				await interaction.followup.send(f"No participants for raffle: {r.name}")
+		# Stop the view
 		await view.stop()
+
+		# Choose winners. Only a single raffle here, so we don't need a for loop
+		r = view.raffles[0]
+		if len(r.participants) > 0:
+			winner = r.selectWinners(winners)[0]
+			await interaction.followup.send(f"Winner of '{r.name}': {winner.mention}")
+		else:
+			await interaction.followup.send(f"No participants for raffle: {r.name}")
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
