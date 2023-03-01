@@ -192,7 +192,6 @@ class Raffle(commands.Cog, name = "Raffle"):
 		# at the correct time with long durations
 		while discord.utils.utcnow() < dt:
 			sleep = max((dt - discord.utils.utcnow()).total_seconds() / 2,1)
-			print(f"Sleeping for: {sleep}")
 			await asyncio.sleep(sleep)
 
 		# Stop the view
