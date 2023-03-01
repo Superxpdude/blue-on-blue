@@ -40,6 +40,11 @@ class BlueOnBlueBot(commands.Bot):
 		# Set default values
 		self.serverConfig.read_dict({
 			"DEFAULT": {
+				"arma_stats_url": None,
+				"arma_stats_key": None,
+				"arma_stats_min_duration": 90,
+				"arma_stats_min_players": 10,
+				"arma_stats_participation_threshold": 0.5,
 				"channel_bot": -1,
 				"channel_mod_activity": -1,
 				"channel_check_in": -1,
@@ -87,6 +92,7 @@ class BlueOnBlueBot(commands.Bot):
 		self.initialExtensions = [
 			"botcontrol",
 			"users",
+			"arma_stats",
 			"chatfilter",
 			"gold",
 			"jail",

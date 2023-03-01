@@ -8,6 +8,7 @@ import gspread_asyncio
 from google.oauth2.service_account import Credentials
 import pboutil
 import re
+from typing import TypedDict
 
 import blueonblue
 
@@ -22,7 +23,13 @@ ISO_8601_FORMAT = "%Y-%m-%d"
 
 VALID_GAMETYPES = ["coop", "tvt", "cotvt", "rptvt", "zeus", "zgm", "rpg"]
 
-def _decode_file_name(filename: str) -> dict:
+class MissionFileNameInfo(TypedDict):
+	gameType: str
+	map: str
+	playerCount: int
+
+
+def _decode_file_name(filename: str) -> MissionFileNameInfo:
 	"""Decodes the file name for a mission to collect information about it.
 	Returns a dict of parameters if successful, otherwise raises an error."""
 
@@ -48,6 +55,9 @@ def _decode_file_name(filename: str) -> dict:
 	if nameList[0].casefold() == "test":
 		del nameList[0]
 
+	if len(nameList) == 0:
+		raise Exception("File name appears to be missing the gametype and playercount")
+
 	# Check the mission type
 	gameType = nameList[0].casefold()
 	if not (gameType in VALID_GAMETYPES):
@@ -59,10 +69,58 @@ def _decode_file_name(filename: str) -> dict:
 	except:
 		raise Exception("I could not determine the player count in your mission.")
 
-	return {"gameType": gameType, "map": mapName, "playerCount": playerCount}
+	missionInfo: MissionFileNameInfo = {"gameType": gameType, "map": mapName, "playerCount": playerCount}
+	return missionInfo
+
+
+class MissionAuditView(blueonblue.views.AuthorResponseViewBase):
+	"""View for mission audits
+	Used to hold the button to trigger the audit modal upon the audit checks succeeding"""
+	message: discord.WebhookMessage
+	def __init__(self,
+	    bot: blueonblue.BlueOnBlueBot,
+		author: discord.User|discord.Member,
+		auditFile: discord.Attachment,
+		*args,
+		modpackFile: discord.Attachment|None,
+		timeout: float = 600.0, **kwargs,
+	):
+		self.bot = bot
+		self.auditFile = auditFile
+		self.modpackFile = modpackFile
+		super().__init__(author, *args, timeout=timeout, **kwargs)
+		self.add_item(MissionAuditButton())
+
+
+class MissionAuditButton(discord.ui.Button):
+	"""Button to trigger the audit modal to appear"""
+	view: MissionAuditView
+	def __init__(self, *args, label: str = "Submit Audit", style: discord.ButtonStyle = discord.ButtonStyle.primary, **kwargs):
+		super().__init__(*args, label = label, style = style, **kwargs)
+
+	async def callback(self, interaction: discord.Interaction):
+		# Send the modal response
+		auditModal = MissionAuditModal(
+			self.view,
+			self.view.auditFile,
+			modpackFile = self.view.modpackFile)
+		await interaction.response.send_modal(auditModal)
 
 
 class MissionAuditModal(discord.ui.Modal, title = "Mission Audit Notes"):
+	def __init__(self,
+	    originalView: MissionAuditView,
+		auditFile: discord.Attachment,
+		*args,
+		modpackFile: discord.Attachment|None,
+		timeout = 1200,
+		**kwargs,
+	):
+		self.originalView = originalView
+		self.auditFile = auditFile
+		self.modpackFile = modpackFile
+		super().__init__(*args, timeout = timeout, **kwargs)
+
 	audit_notes = discord.ui.TextInput(
 		label = "Please enter your audit notes here",
 		style = discord.TextStyle.long,
@@ -72,8 +130,54 @@ class MissionAuditModal(discord.ui.Modal, title = "Mission Audit Notes"):
 	)
 
 	async def on_submit(self, interaction: discord.Interaction):
+		# This modal should only ever appear in a guild context
+		assert interaction.guild is not None
+
+		await self.originalView.terminate() # Terminate the original view when the modal is submitted
 		# We need to respond to the modal so that it doesn't error out
 		await interaction.response.send_message("Audit received. Beginning upload.",ephemeral=True)
+
+		# Old code below
+		auditChannel = interaction.guild.get_channel(self.originalView.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
+
+		if auditChannel is None:
+			# This should never trigger since this check is also done in the originl audit command
+			# But we're going to keep it here anyways
+			await interaction.followup.send("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
+			return
+
+		assert isinstance(auditChannel, discord.TextChannel)
+
+		# Start creating our audit message
+		if self.modpackFile is None:
+			auditMessage = f"Mission submitted for audit by {interaction.user.mention}."
+		else:
+			auditMessage = f"Modnight mission submitted for audit by {interaction.user.mention}."
+
+		# The audit message is required now, so we can append it to the end.
+		auditMessage += f" Notes from the mission maker below \n```\n{self.audit_notes.value}```"
+
+		missionFileObject = await self.auditFile.to_file()
+		auditFiles = [missionFileObject]
+		if self.modpackFile is not None:
+			auditFiles.append(await self.modpackFile.to_file())
+
+		# Send our message to the audit channel
+		auditMessageObject = await auditChannel.send(auditMessage, files = auditFiles)
+
+		# Try to pin our message
+		try:
+			await auditMessageObject.pin()
+		except discord.Forbidden:
+			await auditChannel.send("I do not have permissions to pin this audit.")
+		except discord.NotFound:
+			await auditChannel.send("I ran into an issue pinning an audit message.")
+		except discord.HTTPException:
+			await auditChannel.send("Pinning the audit message failed. The pin list might be full!")
+
+		# Let the user know that their mission is being submitted for audit.
+		await interaction.followup.send(f"{interaction.user.mention}, your mission `{self.auditFile.filename}` has been submitted for audit.")
+
 
 class Missions(commands.Cog, name = "Missions"):
 	"""Commands and functions used to view and schedule missions"""
@@ -323,16 +427,26 @@ class Missions(commands.Cog, name = "Missions"):
 		# Guild-only command
 		assert interaction.guild is not None
 
+		# Immediately defer the response
+		await interaction.response.defer()
+
+		# Check to see if the audit channel exists before going any further
+		auditChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
+
+		if auditChannel is None:
+			await interaction.followup.send("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
+			return
+
 		# Check to see if we have a mod preset
 		if modpreset is not None:
 			# Check if the mod preset has an .html extension
 			if modpreset.filename.split(".")[-1].casefold() != "html":
-				await interaction.response.send_message("Mod preset files must have a `.html` extension!")
+				await interaction.followup.send("Mod preset files must have a `.html` extension!")
 				return
 			else:
 				# Since we have a mod preset, our mission file needs to be prefixed with "MODNIGHT"
 				if missionfile.filename.split("_",1)[0].casefold() != "modnight":
-					await interaction.response.send_message("Modnight missions must be prefixed with `modnight`!")
+					await interaction.followup.send("Modnight missions must be prefixed with `modnight`!")
 					return
 				else:
 					# Mission file is prefixed with modnight
@@ -342,7 +456,7 @@ class Missions(commands.Cog, name = "Missions"):
 			# No mod preset
 			# Check to make sure that we don't have a modnight mission
 			if missionfile.filename.split("_",1)[0].casefold() == "modnight":
-				await interaction.response.send_message("Modnight missions must be submitted with a mod preset `.html` file!")
+				await interaction.followup.send("Modnight missions must be submitted with a mod preset `.html` file!")
 				return
 			else:
 				missionFilename = missionfile.filename
@@ -351,7 +465,7 @@ class Missions(commands.Cog, name = "Missions"):
 		try:
 			missionInfo = _decode_file_name(missionFilename)
 		except Exception as exception:
-			await interaction.response.send_message(f"{exception.args[0]}"
+			await interaction.followup.send(f"{exception.args[0]}"
 				f"\n{interaction.user.mention}, I encountered some errors when submitting your mission `{missionfile.filename}` for auditing. "
 				"Please ensure that your mission file name follows the correct naming format."
 				"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`")
@@ -362,7 +476,7 @@ class Missions(commands.Cog, name = "Missions"):
 			missionFileBytes = await missionfile.read()
 			missionPBO = pboutil.PBOFile.from_bytes(missionFileBytes)
 		except:
-			await interaction.response.send_message("I encountered an error verifying the validity of your mission file."
+			await interaction.followup.send("I encountered an error verifying the validity of your mission file."
 				"\nPlease ensure that you are submitting a mission in PBO format, exported from the Arma 3 editor.")
 			return
 
@@ -377,7 +491,7 @@ class Missions(commands.Cog, name = "Missions"):
 			if descriptionFile is None:
 				raise Exception
 		except:
-			await interaction.response.send_message("I encountered an issue reading your mission's `description.ext` file."
+			await interaction.followup.send("I encountered an issue reading your mission's `description.ext` file."
 				"\nPlease ensure that your mission contains a description.ext file, with a filename in all-lowercase.")
 			return
 
@@ -385,7 +499,7 @@ class Missions(commands.Cog, name = "Missions"):
 		briefingMatch = re.search(r"(?<=^briefingName\s=\s[\"\'])[^\"\']*", descriptionFile, re.I | re.M)
 
 		if briefingMatch is None:
-			await interaction.response.send_message("I could not determine the `briefingName` of your mission from its `description.ext` file."
+			await interaction.followup.send("I could not determine the `briefingName` of your mission from its `description.ext` file."
 				"\nPlease ensure that your mission has a `briefingName` defined.")
 			return
 
@@ -406,7 +520,7 @@ class Missions(commands.Cog, name = "Missions"):
 
 		# If the briefingName did not follow the format specified by the regex
 		if briefingNameMatch is None:
-			await interaction.response.send_message(f"The `briefingName` entry in your `description.ext` file does not appear to follow the mission naming guidelines."
+			await interaction.followup.send(f"The `briefingName` entry in your `description.ext` file does not appear to follow the mission naming guidelines."
 				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
 				ephemeral = True)
 			return
@@ -420,94 +534,68 @@ class Missions(commands.Cog, name = "Missions"):
 
 		# briefingName exists, check to make sure that we have detected a gametype, playercont, name, and version
 		if (modpreset is not None) and (bModnight is None):
-			await interaction.response.send_message("Modnight missions must have their `briefingName` entries in `description.ext` prefixed with \"MODNIGHT\"."
+			await interaction.followup.send("Modnight missions must have their `briefingName` entries in `description.ext` prefixed with \"MODNIGHT\"."
 				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
 				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
 				ephemeral = True)
 			return
 
 		if bGametype is None:
-			await interaction.response.send_message("Could not determine your mission's gametype from the `briefingName` entry in your `description.ext` file."
+			await interaction.followup.send("Could not determine your mission's gametype from the `briefingName` entry in your `description.ext` file."
 				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
 				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
 				ephemeral = True)
 			return
 
 		if bPlayerCount is None:
-			await interaction.response.send_message("Could not determine your mission's player count from the `briefingName` entry in your `description.ext` file."
+			await interaction.followup.send("Could not determine your mission's player count from the `briefingName` entry in your `description.ext` file."
 				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
 				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
 				ephemeral = True)
 			return
 
 		if bName is None:
-			await interaction.response.send_message("Could not determine your mission's name from the `briefingName` entry in your `description.ext` file."
+			await interaction.followup.send("Could not determine your mission's name from the `briefingName` entry in your `description.ext` file."
 				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
 				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
 				ephemeral = True)
 			return
 
 		if bVersion is None:
-			await interaction.response.send_message("Could not determine your mission's version from the `briefingName` entry in your `description.ext` file."
+			await interaction.followup.send("Could not determine your mission's version from the `briefingName` entry in your `description.ext` file."
 				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
 				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
 				ephemeral = True)
 			return
 
 		if bGametype.casefold() not in VALID_GAMETYPES:
-			await interaction.response.send_message(f"The gametype `{bGametype}` found in the `briefingName` entry in your `description.ext` file is not a valid gametype."
+			await interaction.followup.send(f"The gametype `{bGametype}` found in the `briefingName` entry in your `description.ext` file is not a valid gametype."
 				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
 				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
 				ephemeral = True)
 			return
 
 		# Mission has passed validation checks
-		auditChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
+		# Create our playercount string
+		playerCountString = str(bPlayerCount) if bExtraCount is None else f"{bPlayerCount} + {bExtraCount}"
+		# Create our view
+		view = MissionAuditView(self.bot, interaction.user, missionfile, modpackFile = modpreset)
+		# Send the response
+		# Everything else in the audit process is done through callbacks in the view and accompanying modal
+		message = await interaction.followup.send(f"Audit checks complete for mission `{missionfile.filename}`."
+			"\nThe following information has been detected for this mission:"
+			"```"
+			f"Gametype     : {bGametype}\n"
+			f"Mission Name : {bName}\n"
+			f"Playercount  : {playerCountString}\n"
+			f"Map          : {missionInfo['map']}\n"
+			f"Version      : {bVersion}```"
+			"If the information above looks correct, click the button below to submit your mission for audit.",
+			view = view,
+			wait = True
+		)
+		view.message = message
 
-		if auditChannel is None:
-			await interaction.response.send_message("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
-			return
-
-		assert isinstance(auditChannel, discord.TextChannel)
-
-		# Create and send our audit notes modal
-		auditModal = MissionAuditModal(timeout=1200) # 20 minute timeout should be enough
-		await interaction.response.send_modal(auditModal)
-		await auditModal.wait()
-
-		# If we did not get a response, cancel the remainder of the command
-		if (auditModal.audit_notes.value is None) or (auditModal.audit_notes.value == ""):
-			return
-
-		# Start creating our audit message
-		if modpreset is None:
-			auditMessage = f"Mission submitted for audit by {interaction.user.mention}."
-		else:
-			auditMessage = f"Modnight mission submitted for audit by {interaction.user.mention}."
-
-		# The audit message is required now, so we can append it to the end.
-		auditMessage += f" Notes from the mission maker below \n```\n{auditModal.audit_notes.value}```"
-
-		missionFileObject = await missionfile.to_file()
-		auditFiles = [missionFileObject]
-		if modpreset is not None:
-			auditFiles.append(await modpreset.to_file())
-
-		# Send our message to the audit channel
-		auditMessageObject = await auditChannel.send(auditMessage, files = auditFiles)
-
-		# Try to pin our message
-		try:
-			await auditMessageObject.pin()
-		except discord.Forbidden:
-			await auditChannel.send("I do not have permissions to pin this audit.")
-		except discord.NotFound:
-			await auditChannel.send("I ran into an issue pinning an audit message.")
-		except discord.HTTPException:
-			await auditChannel.send("Pinning the audit message failed. The pin list might be full!")
-
-		# Let the user know that their mission is being submitted for audit.
-		await interaction.followup.send(f"{interaction.user.mention}, your mission `{missionfile.filename}` has been submitted for audit.")
 
 	@app_commands.command(name = "schedule")
 	@app_commands.describe(

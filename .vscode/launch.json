@@ -8,13 +8,25 @@
 			"name": "Start Bot",
 			"type": "python",
 			"request": "launch",
-			//"program": "${workspaceFolder}/start.py",
 			"cwd": "${workspaceFolder}",
 			"console": "integratedTerminal",
 			"module": "blueonblue",
 			"subProcess": true,
 			"args": [
 				"--start"
+			]
+		},
+		{
+			"name": "Debug Bot",
+			"type": "python",
+			"request": "launch",
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"module": "blueonblue",
+			"subProcess": true,
+			"args": [
+				"--start",
+				"--debug"
 			]
 		}
 	]
