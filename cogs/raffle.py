@@ -11,11 +11,14 @@ import blueonblue
 import logging
 _log = logging.getLogger(__name__)
 
+RAFFLE_EMBED_COLOUR = 0x00ff00
+
 
 class RaffleObject():
-	def __init__(self, name: str, *args, **kwargs):
+	def __init__(self, name: str, *args, winners: int = 1, **kwargs):
 		self.name = name
 		self.participants: list[discord.User|discord.Member] = []
+		self.winners = winners
 
 
 	def addUser(self, user: discord.User|discord.Member):
@@ -65,8 +68,19 @@ class RaffleObject():
 			return False
 
 
-	def selectWinners(self, winnerCount: int = 1) -> tuple[discord.User|discord.Member]:
-		"""_summary_
+	def participantCount(self) -> int:
+		"""Returns the current number of participants in the raffle
+
+		Returns
+		-------
+		int
+			Current number of participants
+		"""
+		return len(self.participants)
+
+
+	def selectWinners(self, winnerCount: int | None = None) -> tuple[discord.User|discord.Member]:
+		"""Selects a number of winners for the raffle
 
 		Parameters
 		----------
@@ -78,7 +92,32 @@ class RaffleObject():
 		tuple[discord.User|discord.Member]
 			The list of raffle winners
 		"""
+		if winnerCount is None:
+			winnerCount = self.winners
 		return tuple(random.choices(self.participants, k = winnerCount))
+
+
+	def endRaffleEmbed(self) -> discord.Embed:
+		"""Creates an embed with the raffle details
+		Automatically selects a number of winners based on the the stored winners value
+
+		Returns
+		-------
+		discord.Embed
+			Generated embed
+		"""
+		winners = self.selectWinners()
+		embed = discord.Embed(
+			title = f"🎉 Raffle: {self.name}",
+			color = RAFFLE_EMBED_COLOUR
+		)
+		if len(winners) < 1:
+			embed.description = "No entrants for this raffle"
+		else:
+			embed.add_field(name = "Winners", value = ", ".join(map(lambda x: x.mention ,winners)), inline = False)
+			embed.add_field(name = "Participants", value = ", ".join(map(lambda x: x.mention ,self.participants)), inline = False)
+
+		return embed
 
 
 class RaffleJoinButton(discord.ui.Button):
@@ -96,6 +135,8 @@ class RaffleJoinButton(discord.ui.Button):
 
 
 	async def callback(self, interaction: discord.Interaction):
+		assert isinstance(self.view, RaffleView)
+
 		# Check if the user is already in the raffle
 		if self.raffle.userInRaffle(interaction.user):
 			# User already in, send them the leave prompt
@@ -112,6 +153,7 @@ class RaffleJoinButton(discord.ui.Button):
 				ephemeral=True,
 				delete_after=30
 			)
+			await self.view.update_embed()
 
 
 class RaffleView(discord.ui.View):
@@ -120,7 +162,8 @@ class RaffleView(discord.ui.View):
 	    bot: blueonblue.BlueOnBlueBot,
 		*args,
 		timeout: float = 600.0,
-		raffles: tuple[str],
+		raffles: tuple[str | tuple[str,int],...],
+		endTime: datetime.datetime,
 		**kwargs,
 	):
 		self.bot = bot
@@ -129,9 +172,58 @@ class RaffleView(discord.ui.View):
 		self.raffles: list[RaffleObject] = []
 		# Set up our raffles
 		for r in raffles:
-			raffle = RaffleObject(r)
+			if isinstance(r,tuple):
+				raffle = RaffleObject(r[0])
+				raffle.winners = r[1]
+			else:
+				raffle = RaffleObject(r)
 			self.raffles.append(raffle)
 			self.add_item(RaffleJoinButton(raffle))
+		# Set the "last updated time"
+		self.lastUpdateTime: datetime.datetime | None = None
+		self.updating: bool = False
+		self.endTime = endTime
+
+
+	def build_embed(self) -> discord.Embed:
+		"""Builds the embed for the raffle message
+
+		Returns
+		-------
+		discord.Embed
+			The generated embed
+		"""
+		embed = discord.Embed(
+			title = f"🎉 Raffle (ends {discord.utils.format_dt(self.endTime,'R')})",
+			description = "Click the corresponding button below to enter the raffle!",
+			color = RAFFLE_EMBED_COLOUR
+		)
+		embed.set_footer(text = "Numbers above represent number of entrants in the raffle")
+		for r in self.raffles:
+			if r.winners > 1:
+				embed.add_field(name = f"{r.name} ({r.winners} winners)", value = r.participantCount(), inline = True)
+			else:
+				embed.add_field(name = f"{r.name}", value = r.participantCount(), inline = True)
+
+		return embed
+
+
+	async def update_embed(self) -> None:
+		"""Updates the embed with new raffle counts"""
+		# Only continue if not in the process of updating
+		if (not self.updating):
+			# If we're getting updates too frequently, we should wait to update the view to avoid rate limits
+			if ((self.lastUpdateTime is not None) and ((discord.utils.utcnow() - self.lastUpdateTime).total_seconds() < 10)):
+				# Mark that we're updating the view
+				self.updating = True
+				# Wait for five seconds
+				await asyncio.sleep(5)
+				# Disable the updating flag
+				self.updating = False
+
+			# Update the embed
+			await self.message.edit(embed = self.build_embed())
+
 
 	async def stop(self) -> None:
 		for child in self.children:
@@ -158,7 +250,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 		  duration: app_commands.Range[int, 15, 600],
 		  winners: app_commands.Range[int, 1, None] = 1,
 	):
-		"""_summary_
+		"""Creates a raffle
 
 		Parameters
 		----------
@@ -177,14 +269,14 @@ class Raffle(commands.Cog, name = "Raffle"):
 		# Determine the end time
 		dt = discord.utils.utcnow() + datetime.timedelta(seconds = duration)
 
-		# Create the message
-		message = f"Creating raffle: {raffle_name}\nEnds {discord.utils.format_dt(dt,'R')}"
-
 		# Create the view
-		view = RaffleView(self.bot, raffles = (raffle_name,))
+		view = RaffleView(self.bot, raffles = ((raffle_name,winners),), endTime = dt)
+
+		# Generate an embed
+		embed = view.build_embed()
 
 		# Send the message
-		await interaction.response.send_message(message, view=view)
+		await interaction.response.send_message(embed = embed, view=view)
 		view.message = await interaction.original_response()
 
 		# Wait for our timeout
@@ -197,13 +289,9 @@ class Raffle(commands.Cog, name = "Raffle"):
 		# Stop the view
 		await view.stop()
 
-		# Choose winners. Only a single raffle here, so we don't need a for loop
-		r = view.raffles[0]
-		if len(r.participants) > 0:
-			winner = r.selectWinners(winners)[0]
-			await interaction.followup.send(f"Winner of '{r.name}': {winner.mention}")
-		else:
-			await interaction.followup.send(f"No participants for raffle: {r.name}")
+		# Choose winners.
+		for r in view.raffles:
+			await interaction.followup.send(embed = r.endRaffleEmbed())
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
