@@ -12,16 +12,16 @@ _log = logging.getLogger(__name__)
 VERIFY_EMBED_COLOUR = 0xff00d0
 
 # Exceptions
-class MissingSteamID(BaseException):
+class MissingSteamID(Exception):
 	"""Exception used when a Steam ID could not be found"""
 	def __init__(self, status: int | None = None):
 		self.status = status
 
-class InvalidSteamURL(BaseException):
+class InvalidSteamURL(Exception):
 	"""Exception used when an invalid Steam profile URL format was provided"""
 	pass
 
-class NoSteamUserFound(BaseException):
+class NoSteamUserFound(Exception):
 	"""Exception raised when no users are returned by a Steam API search"""
 	pass
 
