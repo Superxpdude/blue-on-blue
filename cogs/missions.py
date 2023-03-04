@@ -5,6 +5,7 @@ from discord.ext import commands, tasks
 import aiohttp
 from datetime import datetime, timedelta
 import gspread_asyncio
+from gspread.utils import ValueInputOption
 from google.oauth2.service_account import Credentials
 import pboutil
 import re
@@ -748,7 +749,7 @@ class Missions(commands.Cog, name = "Missions"):
 					cellNotes.value = notes
 					cellList.append(cellNotes)
 				# With our data set, write it back to the spreadsheet
-				await missionSheet.update_cells(cellList)
+				await missionSheet.update_cells(cellList, value_input_option = ValueInputOption.user_entered)
 				#await missionSheet.update(f"{datecell.address}:{secondAddr}", [rowData])
 				await interaction.followup.send(f"The mission `{mission[0]}` has been successfully scheduled for {dateStr}`")
 			else:
@@ -839,7 +840,7 @@ class Missions(commands.Cog, name = "Missions"):
 				cellNotes.value = ""
 				cellList.append(cellNotes)
 				# With our data set, write it back to the spreadsheet
-				await missionSheet.update_cells(cellList)
+				await missionSheet.update_cells(cellList, value_input_option = ValueInputOption.user_entered)
 				await interaction.followup.send(f"The mission `{missionName}` has been removed as the scheduled mission for {dateStr}.")
 			else:
 				# Mission already scheduled
