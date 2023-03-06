@@ -62,7 +62,7 @@ class BotConfig:
 
 
 class ServerConfigOption:
-	def __init__(self, bot: BlueOnBlueBot, name: str):
+	def __init__(self, bot: "BlueOnBlueBot", name: str):
 		self.bot = bot
 		self.name = name
 
@@ -120,7 +120,7 @@ class ServerConfigOption:
 
 class ServerConfigRole(ServerConfigOption):
 
-	def __init__(self, bot: BlueOnBlueBot, name: str):
+	def __init__(self, bot: "BlueOnBlueBot", name: str):
 		self.data: dict[int, discord.Role] = {}
 		super().__init__(bot, name)
 
@@ -170,5 +170,5 @@ class ServerConfig:
 	Uses helper functions and properties to automatically convert SQLite database types
 	to discord.py or other python types when retrieving values.
 	"""
-	def __init__(self, bot: BlueOnBlueBot):
+	def __init__(self, bot: "BlueOnBlueBot"):
 		self.bot = bot
