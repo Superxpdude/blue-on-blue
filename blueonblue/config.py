@@ -65,6 +65,7 @@ class ServerConfigOption:
 	def __init__(self, bot: "BlueOnBlueBot", name: str):
 		self.bot = bot
 		self.name = name
+		self._cache: dict[int, str] = {}
 
 
 	async def _getValue(self, serverID: int) -> str | None:
@@ -118,11 +119,66 @@ class ServerConfigOption:
 				)
 
 
-class ServerConfigRole(ServerConfigOption):
+	def _clearCache(self) -> None:
+		"""Clears the cache for the config object
 
-	def __init__(self, bot: "BlueOnBlueBot", name: str):
-		self.data: dict[int, discord.Role] = {}
-		super().__init__(bot, name)
+		Returns
+		-------
+		None
+		"""
+		self._cache = {}
+
+
+	def _getTransform(self, value: str) -> str:
+		"""Applies a transformation on retrieved values for the setting to store them in the cache
+
+		Does nothing by default (input is string, output is string)
+
+		Parameters
+		----------
+		value : str
+			Value to transform
+
+		Returns
+		-------
+		str
+			Transformed value
+		"""
+		return value
+
+
+	async def exists(self, serverID: int) -> bool:
+		"""Checks if a value exists in the serverconfig
+
+		Stores the value in the cache if it is not already cached.
+
+		Parameters
+		----------
+		serverID : int
+			Discord server ID
+
+		Returns
+		-------
+		bool
+			Value exists
+		"""
+		# If the value is in the cache, return
+		if serverID in self._cache.keys():
+			return True
+		# If it isn't, try to get it from the database
+		dbValue = await self._getValue(serverID)
+		if dbValue is None:
+			# No value in DB
+			return False
+		# Value exists, store it in the cache and return true
+		value = self._getTransform(dbValue)
+		self._cache[serverID] = value
+		return True
+
+
+class ServerConfigRole(ServerConfigOption):
+	# Store role IDs as integers in the cache
+	_cache: dict[int, int]
 
 	async def get(self, server: int | discord.Guild) -> discord.Role | None:
 		"""Gets a role for the provided server from the serverconfig
@@ -143,10 +199,19 @@ class ServerConfigRole(ServerConfigOption):
 		else:
 			serverID = server
 			guild = self.bot.get_guild(serverID)
-		roleStr = await self._getValue(serverID)
-		if guild is None or roleStr is None or not roleStr.isnumeric():
-			return None
-		return guild.get_role(int(roleStr))
+
+			if guild is None:
+				return None
+
+		# Retrieve the role ID
+		if serverID in self._cache.keys():
+			roleID = self._cache[serverID]
+		else:
+			roleStr = await self._getValue(serverID)
+			if roleStr is None or not roleStr.isnumeric():
+				return None
+			roleID = int(roleStr)
+		return guild.get_role(roleID)
 
 
 	async def set(self, server: discord.Guild, role: discord.Role):
@@ -159,8 +224,12 @@ class ServerConfigRole(ServerConfigOption):
 		role : discord.Role
 			Role to set in serverconfig
 		"""
+		self._cache[server.id] = role.id
 		await self._setValue(server.id, str(role.id))
 
+
+	async def _getTransform(self, value: str) -> int:
+		return int(value)
 
 
 class ServerConfig:
