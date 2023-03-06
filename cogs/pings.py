@@ -22,7 +22,7 @@ def sanitize_check(text: str) -> str:
 	if text == "":
 		return "You need to specify a valid ping!"
 	elif text.count("<@") > 0:
-		return "You can't use mentiones in a ping!"
+		return "You can't use mentions in a ping!"
 	elif len(text) > 20:
 		return "Pings must be 20 characters or less!"
 	elif text.count(":") > 1:
