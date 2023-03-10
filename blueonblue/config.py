@@ -150,6 +150,44 @@ class ServerConfigOption:
 		return value
 
 
+	def _displayTransform(self, value: str) -> str:
+		"""Applies a transformation on retrieved values to be displayed in discord text
+
+		Parameters
+		----------
+		value
+			Value to transform
+
+		Returns
+		-------
+		str
+			Transformed value, suitable for placing in discord text
+		"""
+		return value
+
+
+	def _getServerID(self, server: discord.Guild | int) -> int | None:
+		"""Returns the server ID only if the provided server exists
+
+		Parameters
+		----------
+		server : discord.Guild | int
+			Guild to retrieve ID from
+
+		Returns
+		-------
+		int | None
+			Guild ID if present
+
+		"""
+		if isinstance(server, discord.Guild):
+			# We already have a guild object
+			return server.id
+		else:
+			guild = self.bot.get_guild(server)
+			return guild.id if guild is not None else None
+
+
 	async def exists(self, serverID: int) -> bool:
 		"""Checks if a value exists in the serverconfig
 
@@ -179,7 +217,48 @@ class ServerConfigOption:
 		return True
 
 
+	async def get(self, server: int | discord.Guild) -> str | None:
+		"""Retrieves the value of the serverconfig option
+
+		Parameters
+		----------
+		server : int | discord.Guild
+			Server to search in the config
+
+		Returns
+		-------
+		None
+			Default config option type will always return none
+		"""
+		# For the default type, always return none
+		return None
+
+
+	async def getDisplayValue(self, server: int | discord.Guild) -> str:
+		"""Retrieves the config value, and formats it for display in discord text
+
+		Parameters
+		----------
+		server : int | discord.Guild
+			Discord server
+
+		Returns
+		-------
+		str
+			Formatted string
+		"""
+		value = await self.get(server)
+		if value is not None:
+			return self._displayTransform(value)
+		else:
+			return "None"
+
+
 class ServerConfigString(ServerConfigOption):
+	def _displayTransform(self, value: str) -> str:
+		return value
+
+
 	async def get(self, server: int | discord.Guild) -> str | None:
 		"""Gets a string for the provided server from the serverconfig
 
@@ -199,15 +278,16 @@ class ServerConfigString(ServerConfigOption):
 		else:
 			serverID = server
 			guild = self.bot.get_guild(serverID)
-
 			if guild is None:
 				return None
 
-		# Retrieve the role ID
+		# Retrieve the config value
 		if serverID in self._cache.keys():
 			value = self._cache[serverID]
 		else:
 			value = await self._getValue(serverID)
+			if value is not None:
+				self._cache[serverID] = self._getTransform(value)
 		return value
 
 
@@ -228,6 +308,10 @@ class ServerConfigString(ServerConfigOption):
 class ServerConfigInteger(ServerConfigOption):
 	# Store values as integers in the cache
 	_cache: dict[int, int]
+
+	def _displayTransform(self, value: int) -> str:
+		return str(value)
+
 
 	async def get(self, server: int | discord.Guild) -> int | None:
 		"""Gets an integer for the provided server from the serverconfig
@@ -252,7 +336,7 @@ class ServerConfigInteger(ServerConfigOption):
 			if guild is None:
 				return None
 
-		# Retrieve the role ID
+		# Retrieve the config value
 		if serverID in self._cache.keys():
 			valueInt = self._cache[serverID]
 		else:
@@ -260,6 +344,7 @@ class ServerConfigInteger(ServerConfigOption):
 			if valueStr is None or not valueStr.isnumeric():
 				return None
 			valueInt = self._getTransform(valueStr)
+			self._cache[serverID] = valueInt
 		return valueInt
 
 
@@ -285,6 +370,10 @@ class ServerConfigFloat(ServerConfigOption):
 	# Store values as integers in the cache
 	_cache: dict[int, float]
 
+	def _displayTransform(self, value: float) -> str:
+		return str(value)
+
+
 	async def get(self, server: int | discord.Guild) -> float | None:
 		"""Gets a float for the provided server from the serverconfig
 
@@ -308,7 +397,7 @@ class ServerConfigFloat(ServerConfigOption):
 			if guild is None:
 				return None
 
-		# Retrieve the role ID
+		# Retrieve the config value
 		if serverID in self._cache.keys():
 			valueFloat = self._cache[serverID]
 		else:
@@ -319,6 +408,7 @@ class ServerConfigFloat(ServerConfigOption):
 				# Retrieved value is not none, try to convert it to float
 				try:
 					valueFloat = self._getTransform(valueStr)
+					self._cache[serverID] = valueFloat
 				except ValueError:
 					# If this fails, return none
 					valueFloat = None
@@ -347,6 +437,10 @@ class ServerConfigFloat(ServerConfigOption):
 class ServerConfigRole(ServerConfigOption):
 	# Store role IDs as integers in the cache
 	_cache: dict[int, int]
+
+	def _displayTransform(self, value: discord.Role) -> str:
+		return value.mention
+
 
 	async def get(self, server: int | discord.Guild) -> discord.Role | None:
 		"""Gets a role for the provided server from the serverconfig
@@ -379,6 +473,7 @@ class ServerConfigRole(ServerConfigOption):
 			if roleStr is None or not roleStr.isnumeric():
 				return None
 			roleID = self._getTransform(roleStr)
+			self._cache[serverID] = roleID
 		return guild.get_role(roleID)
 
 
@@ -404,6 +499,10 @@ class ServerConfigChannel(ServerConfigOption):
 	# Store channel IDs as integers in the cache
 	_cache: dict[int, int]
 
+	def _displayTransform(self, value: discord.abc.GuildChannel) -> str:
+		return value.mention
+
+
 	async def get(self, server: int | discord.Guild) -> discord.abc.GuildChannel | None:
 		"""Gets a channel for the provided server from the serverconfig
 
@@ -427,7 +526,7 @@ class ServerConfigChannel(ServerConfigOption):
 			if guild is None:
 				return None
 
-		# Retrieve the role ID
+		# Retrieve the channel ID
 		if serverID in self._cache.keys():
 			channelID = self._cache[serverID]
 		else:
@@ -435,6 +534,7 @@ class ServerConfigChannel(ServerConfigOption):
 			if channelStr is None or not channelStr.isnumeric():
 				return None
 			channelID = self._getTransform(channelStr)
+			self._cache[serverID] = channelID
 		return guild.get_channel(channelID)
 
 
