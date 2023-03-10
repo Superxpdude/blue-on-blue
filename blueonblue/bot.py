@@ -33,6 +33,9 @@ class BlueOnBlueBot(commands.Bot):
 		# Set up our DB
 		self.db = db.DB("data/blueonblue.sqlite3")
 
+		# Temp new server config
+		self.serverConfNew = config.ServerConfig(self)
+
 		# Set up our server config
 		self.serverConfig = configparser.ConfigParser(allow_no_value=True)
 		# Read local config file
@@ -94,6 +97,7 @@ class BlueOnBlueBot(commands.Bot):
 			"users",
 			"arma_stats",
 			"chatfilter",
+			"config",
 			"gold",
 			"jail",
 			"missions",
