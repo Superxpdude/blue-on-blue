@@ -169,11 +169,11 @@ class DB():
 								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
 
 						# Serverconfig table
-						await cursor.execute("CREATE TABLE if NOT EXISTS serverconfig(\
+						await cursor.execute("CREATE TABLE if NOT EXISTS serverconfig (\
 							server_id INTEGER,\
 							setting TEXT,\
 							value TEXT,\
-							UNIQUE(server_id, setting)")
+							UNIQUE(server_id, setting))")
 
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
@@ -228,11 +228,11 @@ class DB():
 						_log.info("Upgrading database to version 3")
 
 						# Serverconfig table
-						await cursor.execute("CREATE TABLE if NOT EXISTS serverconfig(\
+						await cursor.execute("CREATE TABLE if NOT EXISTS serverconfig (\
 							server_id INTEGER,\
 							setting TEXT,\
 							value TEXT,\
-							UNIQUE(server_id, setting)")
+							UNIQUE(server_id, setting))")
 
 						await cursor.execute("PRAGMA user_version = 3")
 						_log.info("Database upgraded to version: 3")
