@@ -62,9 +62,11 @@ class BotConfig:
 
 
 class ServerConfigOption:
-	def __init__(self, bot: "BlueOnBlueBot", name: str):
+	def __init__(self, bot: "BlueOnBlueBot", name: str, *, default: str | None = None, protected: bool = False):
 		self.bot = bot
 		self.name = name
+		self.default = default
+		self.protected = protected
 		self._cache: dict[int, str] = {}
 
 
@@ -93,10 +95,11 @@ class ServerConfigOption:
 				if row is not None:
 					return row["value"]
 				else:
-					return None
+					# If we could not find a value in the database, return the default
+					return self.default
 
 
-	async def _setValue(self, serverID: int, value: str):
+	async def _setValue(self, serverID: int, value: str) -> None:
 		"""Sets a raw value on the serverconfig table
 
 		Overwrites existing setting values if present
@@ -141,8 +144,7 @@ class ServerConfigOption:
 
 		Returns
 		-------
-		str
-			Transformed value
+		Transformed value
 		"""
 		return value
 
@@ -174,6 +176,108 @@ class ServerConfigOption:
 		value = self._getTransform(dbValue)
 		self._cache[serverID] = value
 		return True
+
+
+class ServerConfigString(ServerConfigOption):
+	async def get(self, server: int | discord.Guild) -> str | None:
+		"""Gets a string for the provided server from the serverconfig
+
+		Parameters
+		----------
+		server : int | discord.Guild
+			Discord guild to retrieve value from
+
+		Returns
+		-------
+		String | None
+			String for the provided server, if found
+		"""
+		if isinstance(server, discord.Guild):
+			serverID = server.id
+			guild = server
+		else:
+			serverID = server
+			guild = self.bot.get_guild(serverID)
+
+			if guild is None:
+				return None
+
+		# Retrieve the role ID
+		if serverID in self._cache.keys():
+			value = self._cache[serverID]
+		else:
+			value = await self._getValue(serverID)
+		return value
+
+
+	async def set(self, server: discord.Guild, value: str) -> None:
+		"""Sets the provided integer in the server config for this guild
+
+		Parameters
+		----------
+		server : discord.Guild
+			Discord guild
+		role : discord.Role
+			Role to set in serverconfig
+		"""
+		self._cache[server.id] = value
+		await self._setValue(server.id, value)
+
+
+class ServerConfigInteger(ServerConfigOption):
+	# Store values as integers in the cache
+	_cache: dict[int, int]
+
+	async def get(self, server: int | discord.Guild) -> int | None:
+		"""Gets an integer for the provided server from the serverconfig
+
+		Parameters
+		----------
+		server : int | discord.Guild
+			Discord guild to retrieve value from
+
+		Returns
+		-------
+		int | None
+			Integer for the provided server, if found
+		"""
+		if isinstance(server, discord.Guild):
+			serverID = server.id
+			guild = server
+		else:
+			serverID = server
+			guild = self.bot.get_guild(serverID)
+
+			if guild is None:
+				return None
+
+		# Retrieve the role ID
+		if serverID in self._cache.keys():
+			valueInt = self._cache[serverID]
+		else:
+			valueStr = await self._getValue(serverID)
+			if valueStr is None or not valueStr.isnumeric():
+				return None
+			valueInt = self._getTransform(valueStr)
+		return valueInt
+
+
+	async def set(self, server: discord.Guild, value: int) -> None:
+		"""Sets the provided integer in the server config for this guild
+
+		Parameters
+		----------
+		server : discord.Guild
+			Discord guild
+		role : discord.Role
+			Role to set in serverconfig
+		"""
+		self._cache[server.id] = value
+		await self._setValue(server.id, str(value))
+
+
+	def _getTransform(self, value: str) -> int:
+		return int(value)
 
 
 class ServerConfigRole(ServerConfigOption):
@@ -210,11 +314,11 @@ class ServerConfigRole(ServerConfigOption):
 			roleStr = await self._getValue(serverID)
 			if roleStr is None or not roleStr.isnumeric():
 				return None
-			roleID = int(roleStr)
+			roleID = self._getTransform(roleStr)
 		return guild.get_role(roleID)
 
 
-	async def set(self, server: discord.Guild, role: discord.Role):
+	async def set(self, server: discord.Guild, role: discord.Role) -> None:
 		"""Sets the provided role in the server config for this guild
 
 		Parameters
@@ -228,7 +332,63 @@ class ServerConfigRole(ServerConfigOption):
 		await self._setValue(server.id, str(role.id))
 
 
-	async def _getTransform(self, value: str) -> int:
+	def _getTransform(self, value: str) -> int:
+		return int(value)
+
+
+class ServerConfigChannel(ServerConfigOption):
+	# Store channel IDs as integers in the cache
+	_cache: dict[int, int]
+
+	async def get(self, server: int | discord.Guild) -> discord.abc.GuildChannel | None:
+		"""Gets a channel for the provided server from the serverconfig
+
+		Parameters
+		----------
+		server : int | discord.Guild
+			Discord guild to retrieve value from
+
+		Returns
+		-------
+		discord.abc.GuildChannel | None
+			Channel in the provided server, if found
+		"""
+		if isinstance(server, discord.Guild):
+			serverID = server.id
+			guild = server
+		else:
+			serverID = server
+			guild = self.bot.get_guild(serverID)
+
+			if guild is None:
+				return None
+
+		# Retrieve the role ID
+		if serverID in self._cache.keys():
+			channelID = self._cache[serverID]
+		else:
+			channelStr = await self._getValue(serverID)
+			if channelStr is None or not channelStr.isnumeric():
+				return None
+			channelID = self._getTransform(channelStr)
+		return guild.get_channel(channelID)
+
+
+	async def set(self, server: discord.Guild, channel: discord.abc.GuildChannel) -> None:
+		"""Sets the provided role in the server config for this guild
+
+		Parameters
+		----------
+		server : discord.Guild
+			Discord guild
+		role : discord.Role
+			Role to set in serverconfig
+		"""
+		self._cache[server.id] = channel.id
+		await self._setValue(server.id, str(channel.id))
+
+
+	def _getTransform(self, value: str) -> int:
 		return int(value)
 
 
@@ -241,3 +401,32 @@ class ServerConfig:
 	"""
 	def __init__(self, bot: "BlueOnBlueBot"):
 		self.bot = bot
+
+		# Initialize the config options
+		# Server channels
+		self.channel_bot = ServerConfigChannel(bot, "channel_bot")
+		self.channel_check_in = ServerConfigChannel(bot, "channel_check_in")
+		self.channel_mission_audit = ServerConfigChannel(bot, "channel_mission_audit")
+		self.channel_mod_activity = ServerConfigChannel(bot, "channel_mod_activity")
+
+		# Server roles
+		self.role_gold = ServerConfigRole(bot, "role_gold")
+		self.role_jail = ServerConfigRole(bot, "role_jail")
+		self.role_member = ServerConfigRole(bot, "role_member")
+
+		# Steam Group and verify URL
+		self.steam_group_id = ServerConfigInteger(bot, "steam_group_id")
+		self.group_apply_url = ServerConfigString(bot, "group_apply_url")
+
+		# Missions config
+		self.mission_sheet_key = ServerConfigString(bot, "mission_sheet_key")
+		self.mission_worksheet = ServerConfigString(bot, "mission_worksheet", default = "Schedule")
+		self.mission_wiki_url = ServerConfigString(bot, "mission_wiki_url")
+
+		# Arma stats config
+		self.arma_stats_key = ServerConfigString(bot, "arma_stats_key", protected = True)
+		self.arma_stats_url = ServerConfigString(bot, "arma_stats_url")
+		self.arma_stats_min_duration = ServerConfigInteger(bot, "arma_stats_min_duration", default = "90")
+		self.arma_stats_min_players = ServerConfigInteger(bot, "arma_stats_min_players", default = "10")
+		self.arma_stats_participation_threshold = ServerConfigInteger(bot, "arma_stats_participation_threshold", default = "0.5")
+
