@@ -31,33 +31,32 @@ class Config(commands.GroupCog, group_name = "config"):
 		"""
 		assert interaction.guild is not None
 
+		options = self.bot.serverConfNew.options
 		cfgOptions: list[str] = []
 
-		# Get a list of config options
-		for m in inspect.getmembers(self.bot.serverConfNew):
-			if isinstance(m[1], blueonblue.config.ServerConfigOption):
-				# Member is server config option. Create our string
-				name = m[0]
-				if isinstance(m[1], blueonblue.config.ServerConfigString):
-					value = await m[1].get(interaction.guild)
-				elif isinstance(m[1], blueonblue.config.ServerConfigInteger):
-					value = str(await m[1].get(interaction.guild))
-				elif isinstance(m[1], (blueonblue.config.ServerConfigRole, blueonblue.config.ServerConfigChannel)):
-					data = await m[1].get(interaction.guild)
-					value = data.name if data is not None else None
-				else:
-					value = None
-				if value is not None and m[1].protected:
-					value = "*****"
-				cfgOptions.append(f"{name:30.30}: {value}")
-
+		for cfg in options.keys():
+			option = self.bot.serverConfNew.options[cfg]
+			if isinstance(option, blueonblue.config.ServerConfigString):
+				value = f"`{await option.get(interaction.guild)}`"
+			elif isinstance(option, blueonblue.config.ServerConfigInteger):
+				value = f"`{await option.get(interaction.guild)}`"
+			elif isinstance(option, (blueonblue.config.ServerConfigRole, blueonblue.config.ServerConfigChannel)):
+				data = await option.get(interaction.guild)
+				value = data.mention if data is not None else None
+			else:
+				value = None
+			if value is not None and option.protected:
+				value = "`*****`"
+			if value is not None and (not value.startswith("<@")) and len(value) > 28:
+				value = f"{value:.25}...`"
+			cfgOptions.append(f"`{option.name:30.30}`: {value if value is not None else '`None`'}")
 
 		optionText = "\n".join(cfgOptions)
 
 		# Create embed
 		embed = discord.Embed(
 			title = f"Server configuration for {interaction.guild.name}",
-			description = f"```{optionText}```",
+			description = f"{optionText}",
 		)
 
 		await interaction.response.send_message(embed=embed)

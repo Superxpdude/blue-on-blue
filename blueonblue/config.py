@@ -1,6 +1,7 @@
 import discord
 import tomlkit
 from tomlkit import items
+import inspect
 
 import logging
 _log = logging.getLogger(__name__)
@@ -280,6 +281,69 @@ class ServerConfigInteger(ServerConfigOption):
 		return int(value)
 
 
+class ServerConfigFloat(ServerConfigOption):
+	# Store values as integers in the cache
+	_cache: dict[int, float]
+
+	async def get(self, server: int | discord.Guild) -> float | None:
+		"""Gets a float for the provided server from the serverconfig
+
+		Parameters
+		----------
+		server : int | discord.Guild
+			Discord guild to retrieve value from
+
+		Returns
+		-------
+		Float | None
+			Float for the provided server, if found
+		"""
+		if isinstance(server, discord.Guild):
+			serverID = server.id
+			guild = server
+		else:
+			serverID = server
+			guild = self.bot.get_guild(serverID)
+
+			if guild is None:
+				return None
+
+		# Retrieve the role ID
+		if serverID in self._cache.keys():
+			valueFloat = self._cache[serverID]
+		else:
+			valueStr = await self._getValue(serverID)
+			if valueStr is None:
+				return None
+			else:
+				# Retrieved value is not none, try to convert it to float
+				try:
+					valueFloat = self._getTransform(valueStr)
+				except ValueError:
+					# If this fails, return none
+					valueFloat = None
+
+		return valueFloat
+
+
+	async def set(self, server: discord.Guild, value: float) -> None:
+		"""Sets the provided integer in the server config for this guild
+
+		Parameters
+		----------
+		server : discord.Guild
+			Discord guild
+		role : discord.Role
+			Role to set in serverconfig
+		"""
+		self._cache[server.id] = value
+		await self._setValue(server.id, str(value))
+
+
+	def _getTransform(self, value: str) -> float:
+		return float(value)
+
+
 class ServerConfigRole(ServerConfigOption):
 	# Store role IDs as integers in the cache
 	_cache: dict[int, int]
@@ -428,5 +492,10 @@ class ServerConfig:
 		self.arma_stats_url = ServerConfigString(bot, "arma_stats_url")
 		self.arma_stats_min_duration = ServerConfigInteger(bot, "arma_stats_min_duration", default = "90")
 		self.arma_stats_min_players = ServerConfigInteger(bot, "arma_stats_min_players", default = "10")
-		self.arma_stats_participation_threshold = ServerConfigInteger(bot, "arma_stats_participation_threshold", default = "0.5")
+		self.arma_stats_participation_threshold = ServerConfigFloat(bot, "arma_stats_participation_threshold", default = "0.5")
 
+		# Initialize our options dict
+		self.options: dict[str, ServerConfigOption] = {}
+		for m in inspect.getmembers(self):
+			if isinstance(m[1], ServerConfigOption):
+				self.options[m[0]] = m[1]
