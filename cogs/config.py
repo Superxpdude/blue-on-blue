@@ -19,6 +19,16 @@ class Config(commands.GroupCog, group_name = "config"):
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
 
+	async def config_autocmplete(self, interaction: discord.Interaction, current: str):
+		"""Function to handle autocompletion of config elements present in the serverconfig"""
+		if (interaction.guild is None):
+			# If the guild doesn't exist, or the cache doesn't exist return nothing
+			return []
+		else:
+			# Command called in guild, and cache exists for that guild
+			return[app_commands.Choice(name=mission, value=mission) for mission in self.bot.serverConfNew.options.keys() if current.lower() in mission.lower()][:25]
+
+
 	@app_commands.command(name = "list")
 	@app_commands.guild_only()
 	async def list(self, interaction: discord.Interaction):
@@ -60,6 +70,43 @@ class Config(commands.GroupCog, group_name = "config"):
 		)
 
 		await interaction.response.send_message(embed=embed)
+
+
+	@app_commands.command(name = "search")
+	@app_commands.guild_only()
+	@app_commands.autocomplete(option = config_autocmplete)
+	async def search(self, interaction: discord.Interaction, option: str):
+		"""Displays config values for server config options
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord Interaction
+		option : str
+			Config option to search for
+		"""
+		assert interaction.guild is not None
+		# String searching is case-sensiive
+		option = option.casefold()
+
+		# Fix this type-hint later
+		matches: list[blueonblue.config.ServerConfigString] = []
+
+		# Find our matches
+		for k in self.bot.serverConfNew.options.keys():
+			o = self.bot.serverConfNew.options[k]
+			if option in o.name:
+				matches.append(o) #type: ignore
+
+		if len(matches) > 0:
+			embed = discord.Embed(
+				title = f"Server configuration for {interaction.guild.name}",
+			)
+			for o in matches:
+				embed.add_field(name = o.name, value = await o.get(interaction.guild), inline = False)
+			await interaction.response.send_message(embed = embed)
+		else:
+			await interaction.response.send_message(f"Could not find any config values that matches the search term: {option}", ephemeral=True)
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
