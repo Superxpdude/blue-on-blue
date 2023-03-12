@@ -151,7 +151,7 @@ class RaffleObject():
 			eligible = self.participants
 
 		if len(eligible) > 0:
-			return tuple(random.choices(eligible, k = winnerCount))
+			return tuple(random.sample(eligible, k = winnerCount))
 		else:
 			return tuple()
 
