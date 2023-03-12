@@ -4,6 +4,7 @@ from discord.ext import commands, tasks
 
 import asyncio
 import datetime
+import math
 import random
 
 import blueonblue
@@ -151,7 +152,7 @@ class RaffleObject():
 			eligible = self.participants
 
 		if len(eligible) > 0:
-			return tuple(random.sample(eligible, k = winnerCount))
+			return tuple(random.sample(eligible, k = min(winnerCount, len(eligible))))
 		else:
 			return tuple()
 
