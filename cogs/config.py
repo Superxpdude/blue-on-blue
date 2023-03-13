@@ -29,14 +29,41 @@ class Config(commands.GroupCog, group_name = "config"):
 			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() if current.lower() in option.lower()][:25]
 
 
-	async def config_autocomplete_role(self, interaction: discord.Interaction, current: str):
+	async def config_autocomplete_basic(self, interaction: discord.Interaction, current: str):
+		"""Autocomplete function that only returns role config options"""
 		if (interaction.guild is None):
 			# If the guild doesn't exist return nothing
 			return []
 		else:
 			# Command called in guild
-			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() if (current.lower() in option.lower()) and (isinstance(self.bot.serverConfNew.options[option],blueonblue.config.ServerConfigRole))][:25]
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() \
+				if (current.lower() in option.lower()) and not\
+				(isinstance(self.bot.serverConfNew.options[option],(
+				blueonblue.config.ServerConfigRole, blueonblue.config.ServerConfigChannel)))][:25]
 
+
+	async def config_autocomplete_role(self, interaction: discord.Interaction, current: str):
+		"""Autocomplete function that only returns role config options"""
+		if (interaction.guild is None):
+			# If the guild doesn't exist return nothing
+			return []
+		else:
+			# Command called in guild
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() \
+				if (current.lower() in option.lower()) and \
+				(isinstance(self.bot.serverConfNew.options[option],blueonblue.config.ServerConfigRole))][:25]
+
+
+	async def config_autocomplete_channel(self, interaction: discord.Interaction, current: str):
+		"""Autocomplete function that only returns channel config options"""
+		if (interaction.guild is None):
+			# If the guild doesn't exist return nothing
+			return []
+		else:
+			# Command called in guild
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() \
+				if (current.lower() in option.lower()) and \
+				(isinstance(self.bot.serverConfNew.options[option],blueonblue.config.ServerConfigChannel))][:25]
 
 
 	@app_commands.command(name = "list")
@@ -122,18 +149,18 @@ class Config(commands.GroupCog, group_name = "config"):
 
 	@app_commands.command(name = "set")
 	@app_commands.guild_only()
-	@app_commands.autocomplete(option = config_autocomplete)
+	@app_commands.autocomplete(option = config_autocomplete_basic)
 	async def set(self, interaction: discord.Interaction, option: str, value: str):
-		"""Sets a server config value
+		"""Sets a server config value for all values other than roles or channels
 
 		Parameters
 		----------
 		interaction : discord.Interaction
 			The Discord interaction
 		option : str
-			The name of the option to set
+			The name of the option to set.
 		value : str
-			The value to set. Roles and channels must be passed in ID form.
+			The value to set.
 		"""
 		assert interaction.guild is not None
 
@@ -173,37 +200,108 @@ class Config(commands.GroupCog, group_name = "config"):
 				ephemeral = True
 
 		elif isinstance(serverOpt, blueonblue.config.ServerConfigRole):
-			if value.isnumeric():
-				role = interaction.guild.get_role(int(value))
-				if role is not None:
-					await serverOpt.set(interaction.guild, role)
-					responseMessage = f"Setting option `{option}` to value {role.mention}."
-					_log.info(f"Setting server config [{option}|{role.id}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
-				else:
-					responseMessage = f"Could not locate a role with ID `{value}` for option `{option}`."
-					ephemeral = True
-			else:
-				responseMessage = f"Could not locate a role with ID `{value}` for option `{option}`."
-				ephemeral = True
+			responseMessage = f"Role server configs cannot be set using this command! Please use `/config setrole` instead!"
+			ephemeral = True
 
 		elif isinstance(serverOpt, blueonblue.config.ServerConfigChannel):
-			if value.isnumeric():
-				channel = interaction.guild.get_channel(int(value))
-				if channel is not None:
-					await serverOpt.set(interaction.guild, channel)
-					responseMessage = f"Setting option `{option}` to value {channel.mention}."
-					_log.info(f"Setting server config [{option}|{channel.id}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
-				else:
-					responseMessage = f"Could not locate a channel with ID `{value}` for option `{option}`."
-					ephemeral = True
-			else:
-				responseMessage = f"Could not locate a channel with ID `{value}` for option `{option}`."
-				ephemeral = True
-
+			responseMessage = f"Channel server configs cannot be set using this command! Please use `/config setchannel` instead!"
+			ephemeral = True
 
 		else:
 			responseMessage = f"Could not determine the option type for option `{option}`. Unable to set value."
 			_log.error(f"Unable to identify type for serverconfig option: {option}")
+
+		embed = discord.Embed(
+			title = "Server Config",
+			description = responseMessage
+		)
+
+		await interaction.response.send_message(embed = embed, ephemeral = ephemeral)
+
+
+	@app_commands.command(name = "setrole")
+	@app_commands.guild_only()
+	@app_commands.autocomplete(option = config_autocomplete_role)
+	async def set_role(self, interaction: discord.Interaction, option: str, role: discord.Role):
+		"""Sets a server config role value
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			The Discord interaction
+		option : str
+			The name of the option to set.
+		role : discord.Role
+			The role to set.
+		"""
+		assert interaction.guild is not None
+
+		# Check if the option exists
+		if option not in self.bot.serverConfNew.options.keys():
+			await interaction.response.send_message(f"`{option} is not a valid server config option!", ephemeral=True)
+			return
+
+		# Get the type of the option
+		serverOpt = self.bot.serverConfNew.options[option]
+
+		# Set some default values
+		responseMessage = "Default config response"
+		ephemeral = False
+
+		if isinstance(serverOpt, blueonblue.config.ServerConfigRole):
+			await serverOpt.set(interaction.guild, role)
+			responseMessage = f"Setting option `{option}` to value {role.mention}."
+			_log.info(f"Setting server config [{option}|{role.id}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
+
+		else:
+			responseMessage = "This command can only be used to set values for role configs!"
+			ephemeral = True
+
+		embed = discord.Embed(
+			title = "Server Config",
+			description = responseMessage
+		)
+
+		await interaction.response.send_message(embed = embed, ephemeral = ephemeral)
+
+
+	@app_commands.command(name = "setchannel")
+	@app_commands.guild_only()
+	@app_commands.autocomplete(option = config_autocomplete_channel)
+	async def set_channel(self, interaction: discord.Interaction, option: str, channel: discord.TextChannel | discord.VoiceChannel):
+		"""Sets a server config channel value
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			The Discord interaction
+		option : str
+			The name of the option to set.
+		channel : discord.abc.GuildChannel
+			The channel to set.
+		"""
+		assert interaction.guild is not None
+
+		# Check if the option exists
+		if option not in self.bot.serverConfNew.options.keys():
+			await interaction.response.send_message(f"`{option} is not a valid server config option!", ephemeral=True)
+			return
+
+		# Get the type of the option
+		serverOpt = self.bot.serverConfNew.options[option]
+
+		# Set some default values
+		responseMessage = "Default config response"
+		ephemeral = False
+
+		if isinstance(serverOpt, blueonblue.config.ServerConfigChannel):
+			await serverOpt.set(interaction.guild, channel)
+			responseMessage = f"Setting option `{option}` to value {channel.mention}."
+			_log.info(f"Setting server config [{option}|{channel.id}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
+
+		else:
+			responseMessage = "This command can only be used to set values for channel configs!"
+			ephemeral = True
 
 		embed = discord.Embed(
 			title = "Server Config",
