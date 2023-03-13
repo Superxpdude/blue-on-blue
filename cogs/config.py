@@ -19,14 +19,24 @@ class Config(commands.GroupCog, group_name = "config"):
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
 
-	async def config_autocmplete(self, interaction: discord.Interaction, current: str):
+	async def config_autocomplete(self, interaction: discord.Interaction, current: str):
 		"""Function to handle autocompletion of config elements present in the serverconfig"""
 		if (interaction.guild is None):
-			# If the guild doesn't exist, or the cache doesn't exist return nothing
+			# If the guild doesn't existreturn nothing
 			return []
 		else:
-			# Command called in guild, and cache exists for that guild
-			return[app_commands.Choice(name=mission, value=mission) for mission in self.bot.serverConfNew.options.keys() if current.lower() in mission.lower()][:25]
+			# Command called in guild
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() if current.lower() in option.lower()][:25]
+
+
+	async def config_autocomplete_role(self, interaction: discord.Interaction, current: str):
+		if (interaction.guild is None):
+			# If the guild doesn't exist return nothing
+			return []
+		else:
+			# Command called in guild
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() if (current.lower() in option.lower()) and (isinstance(self.bot.serverConfNew.options[option],blueonblue.config.ServerConfigRole))][:25]
+
 
 
 	@app_commands.command(name = "list")
@@ -74,7 +84,7 @@ class Config(commands.GroupCog, group_name = "config"):
 
 	@app_commands.command(name = "search")
 	@app_commands.guild_only()
-	@app_commands.autocomplete(option = config_autocmplete)
+	@app_commands.autocomplete(option = config_autocomplete)
 	async def search(self, interaction: discord.Interaction, option: str):
 		"""Displays config values for server config options
 
@@ -103,10 +113,104 @@ class Config(commands.GroupCog, group_name = "config"):
 				title = f"Server configuration for {interaction.guild.name}",
 			)
 			for o in matches:
-				embed.add_field(name = o.name, value = await o.get(interaction.guild), inline = False)
+				value = await o.get(interaction.guild) if not o.protected else "`*****`"
+				embed.add_field(name = o.name, value = value, inline = False)
 			await interaction.response.send_message(embed = embed)
 		else:
 			await interaction.response.send_message(f"Could not find any config values that matches the search term: {option}", ephemeral=True)
+
+
+	@app_commands.command(name = "set")
+	@app_commands.guild_only()
+	@app_commands.autocomplete(option = config_autocomplete)
+	async def set(self, interaction: discord.Interaction, option: str, value: str):
+		"""Sets a server config value
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			The Discord interaction
+		option : str
+			The name of the option to set
+		value : str
+			The value to set. Roles and channels must be passed in ID form.
+		"""
+		assert interaction.guild is not None
+
+		# Check if the option exists
+		if option not in self.bot.serverConfNew.options.keys():
+			await interaction.response.send_message(f"`{option} is not a valid server config option!", ephemeral=True)
+			return
+
+		# Get the type of the option
+		serverOpt = self.bot.serverConfNew.options[option]
+
+		# Set some default values
+		responseMessage = "Default config response"
+		ephemeral = False
+
+		if isinstance(serverOpt, blueonblue.config.ServerConfigString):
+			await serverOpt.set(interaction.guild, value)
+			responseMessage = f"Setting option `{option}` to value `{value}`."
+			_log.info(f"Setting server config [{option}|{value}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
+
+		elif isinstance(serverOpt, blueonblue.config.ServerConfigInteger):
+			if value.isnumeric():
+				await serverOpt.set(interaction.guild, int(value))
+				responseMessage = f"Setting option `{option}` to value `{value}`."
+				_log.info(f"Setting server config [{option}|{value}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
+			else:
+				responseMessage = f"Could not convert the value `{value}` to an integer for option `{option}`."
+				ephemeral = True
+
+		elif isinstance(serverOpt, blueonblue.config.ServerConfigFloat):
+			try:
+				await serverOpt.set(interaction.guild, float(value))
+				responseMessage = f"Setting option `{option}` to value `{value}`."
+				_log.info(f"Setting server config [{option}|{value}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
+			except ValueError:
+				responseMessage = f"Could not convert the value `{value}` to a float for option `{option}`."
+				ephemeral = True
+
+		elif isinstance(serverOpt, blueonblue.config.ServerConfigRole):
+			if value.isnumeric():
+				role = interaction.guild.get_role(int(value))
+				if role is not None:
+					await serverOpt.set(interaction.guild, role)
+					responseMessage = f"Setting option `{option}` to value {role.mention}."
+					_log.info(f"Setting server config [{option}|{role.id}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
+				else:
+					responseMessage = f"Could not locate a role with ID `{value}` for option `{option}`."
+					ephemeral = True
+			else:
+				responseMessage = f"Could not locate a role with ID `{value}` for option `{option}`."
+				ephemeral = True
+
+		elif isinstance(serverOpt, blueonblue.config.ServerConfigChannel):
+			if value.isnumeric():
+				channel = interaction.guild.get_channel(int(value))
+				if channel is not None:
+					await serverOpt.set(interaction.guild, channel)
+					responseMessage = f"Setting option `{option}` to value {channel.mention}."
+					_log.info(f"Setting server config [{option}|{channel.id}] for guild: [{interaction.guild.name}|{interaction.guild.id}]")
+				else:
+					responseMessage = f"Could not locate a channel with ID `{value}` for option `{option}`."
+					ephemeral = True
+			else:
+				responseMessage = f"Could not locate a channel with ID `{value}` for option `{option}`."
+				ephemeral = True
+
+
+		else:
+			responseMessage = f"Could not determine the option type for option `{option}`. Unable to set value."
+			_log.error(f"Unable to identify type for serverconfig option: {option}")
+
+		embed = discord.Embed(
+			title = "Server Config",
+			description = responseMessage
+		)
+
+		await interaction.response.send_message(embed = embed, ephemeral = ephemeral)
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):

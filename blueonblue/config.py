@@ -292,7 +292,7 @@ class ServerConfigString(ServerConfigOption):
 
 
 	async def set(self, server: discord.Guild, value: str) -> None:
-		"""Sets the provided integer in the server config for this guild
+		"""Sets the provided string in the server config for this guild
 
 		Parameters
 		----------
