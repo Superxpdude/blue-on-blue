@@ -123,6 +123,24 @@ class ServerConfigOption:
 				)
 
 
+	async def _clearValue(self, serverID: int) -> None:
+		"""Clears a valie from the serverconfig table
+
+		Parameters
+		----------
+		serverID : int
+			Discord server ID to use
+		setting : str
+			Setting to clear
+		"""
+		async with self.bot.db.connect() as db:
+			async with db.cursor() as cursor:
+				await cursor.execute(
+					"DELETE FROM pings WHERE (server_id = :server_id AND setting = :setting)",
+					{"server_id": serverID, "setting": self.name}
+				)
+
+
 	def _clearCache(self) -> None:
 		"""Clears the cache for the config object
 
@@ -186,6 +204,23 @@ class ServerConfigOption:
 		else:
 			guild = self.bot.get_guild(server)
 			return guild.id if guild is not None else None
+
+
+	async def delete(self, server: int | discord.Guild) -> None:
+		if isinstance(server, discord.Guild):
+			serverID = server.id
+			guild = server
+		else:
+			serverID = server
+			guild = self.bot.get_guild(serverID)
+			if guild is None:
+				return
+
+		# Clear the value from the DB
+		await self._clearValue(serverID)
+		# Clear the value from the cache if it exists
+		if serverID in self._cache.keys():
+			del self._cache[serverID]
 
 
 	async def exists(self, serverID: int) -> bool:
