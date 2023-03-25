@@ -7,7 +7,7 @@ import logging
 _log = logging.getLogger(__name__)
 
 from typing import (
-    TYPE_CHECKING
+	TYPE_CHECKING
 )
 if TYPE_CHECKING:
 	from blueonblue.bot import BlueOnBlueBot
@@ -340,6 +340,13 @@ class ServerConfigString(ServerConfigOption):
 		await self._setValue(server.id, value)
 
 
+class ServerConfigStringDefault(ServerConfigString):
+	async def get(self, server: int | discord.Guild) -> str:
+		value = await super().get(server)
+		assert value is not None
+		return value
+
+
 class ServerConfigInteger(ServerConfigOption):
 	# Store values as integers in the cache
 	_cache: dict[int, int]
@@ -399,6 +406,13 @@ class ServerConfigInteger(ServerConfigOption):
 
 	def _getTransform(self, value: str) -> int:
 		return int(value)
+
+
+class ServerConfigIntegerDefault(ServerConfigInteger):
+	async def get(self, server: int | discord.Guild) -> int:
+		value = await super().get(server)
+		assert value is not None
+		return value
 
 
 class ServerConfigFloat(ServerConfigOption):
@@ -467,6 +481,13 @@ class ServerConfigFloat(ServerConfigOption):
 
 	def _getTransform(self, value: str) -> float:
 		return float(value)
+
+
+class ServerConfigFloatDefault(ServerConfigFloat):
+	async def get(self, server: int | discord.Guild) -> float:
+		value = await super().get(server)
+		assert value is not None
+		return value
 
 
 class ServerConfigRole(ServerConfigOption):
@@ -619,15 +640,15 @@ class ServerConfig:
 
 		# Missions config
 		self.mission_sheet_key = ServerConfigString(bot, "mission_sheet_key")
-		self.mission_worksheet = ServerConfigString(bot, "mission_worksheet", default = "Schedule")
+		self.mission_worksheet = ServerConfigStringDefault(bot, "mission_worksheet", default = "Schedule")
 		self.mission_wiki_url = ServerConfigString(bot, "mission_wiki_url")
 
 		# Arma stats config
 		self.arma_stats_key = ServerConfigString(bot, "arma_stats_key", protected = True)
 		self.arma_stats_url = ServerConfigString(bot, "arma_stats_url")
-		self.arma_stats_min_duration = ServerConfigInteger(bot, "arma_stats_min_duration", default = "90")
-		self.arma_stats_min_players = ServerConfigInteger(bot, "arma_stats_min_players", default = "10")
-		self.arma_stats_participation_threshold = ServerConfigFloat(bot, "arma_stats_participation_threshold", default = "0.5")
+		self.arma_stats_min_duration = ServerConfigIntegerDefault(bot, "arma_stats_min_duration", default = "90")
+		self.arma_stats_min_players = ServerConfigIntegerDefault(bot, "arma_stats_min_players", default = "10")
+		self.arma_stats_participation_threshold = ServerConfigFloatDefault(bot, "arma_stats_participation_threshold", default = "0.5")
 
 		# Initialize our options dict
 		self.options: dict[str, ServerConfigOption] = {}
