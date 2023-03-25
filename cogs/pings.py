@@ -628,7 +628,6 @@ class Pings(commands.Cog, name = "ping"):
 	)
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def pingalias(self, interaction: discord.Interaction, alias: str, tag: str = None):
 		"""Creates (or removes) an alias for a ping"""
 
@@ -699,7 +698,6 @@ class Pings(commands.Cog, name = "ping"):
 		merge_to=ping_autocomplete
 	)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def pingmerge(self, interaction: discord.Interaction, merge_from: str, merge_to: str):
 		"""Merges two pings"""
 
@@ -806,7 +804,6 @@ class Pings(commands.Cog, name = "ping"):
 	@app_commands.describe(tag = "Ping to delete")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def pingdelete(self, interaction: discord.Interaction, tag: str):
 		"""Forcibly deletes a ping"""
 
@@ -852,7 +849,6 @@ class Pings(commands.Cog, name = "ping"):
 		days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion"
 	)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def pingpurge(self, interaction: discord.Interaction, user_threshold: int=5, days_since_last_use: int=30):
 		"""Purges pings that are inactive, and below a specified user count."""
 
