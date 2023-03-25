@@ -2,8 +2,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-import inspect
-
 import blueonblue
 
 import logging
@@ -83,10 +81,9 @@ class Config(commands.GroupCog, group_name = "config"):
 
 		for cfg in options.keys():
 			option = self.bot.serverConfNew.options[cfg]
-			if isinstance(option, blueonblue.config.ServerConfigString):
-				value = f"`{await option.get(interaction.guild)}`"
-			elif isinstance(option, blueonblue.config.ServerConfigInteger):
-				value = f"`{await option.get(interaction.guild)}`"
+			if isinstance(option, (blueonblue.config.ServerConfigString, blueonblue.config.ServerConfigInteger, blueonblue.config.ServerConfigFloat)):
+				data = await option.get(interaction.guild)
+				value = f"`{data}`" if data is not None else None
 			elif isinstance(option, (blueonblue.config.ServerConfigRole, blueonblue.config.ServerConfigChannel)):
 				data = await option.get(interaction.guild)
 				value = data.mention if data is not None else None
@@ -140,7 +137,8 @@ class Config(commands.GroupCog, group_name = "config"):
 				title = f"Server configuration for {interaction.guild.name}",
 			)
 			for o in matches:
-				value = await o.get(interaction.guild) if not o.protected else "`*****`"
+				data = await o.get(interaction.guild)
+				value = "`*****`" if data is not None and o.protected else data
 				embed.add_field(name = o.name, value = value, inline = False)
 			await interaction.response.send_message(embed = embed)
 		else:
