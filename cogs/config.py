@@ -24,7 +24,7 @@ class Config(commands.GroupCog, group_name = "config"):
 			return []
 		else:
 			# Command called in guild
-			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() if current.lower() in option.lower()][:25]
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfig.options.keys() if current.lower() in option.lower()][:25]
 
 
 	async def config_autocomplete_basic(self, interaction: discord.Interaction, current: str):
@@ -34,9 +34,9 @@ class Config(commands.GroupCog, group_name = "config"):
 			return []
 		else:
 			# Command called in guild
-			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() \
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfig.options.keys() \
 				if (current.lower() in option.lower()) and not\
-				(isinstance(self.bot.serverConfNew.options[option],(
+				(isinstance(self.bot.serverConfig.options[option],(
 				blueonblue.config.ServerConfigRole, blueonblue.config.ServerConfigChannel)))][:25]
 
 
@@ -47,9 +47,9 @@ class Config(commands.GroupCog, group_name = "config"):
 			return []
 		else:
 			# Command called in guild
-			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() \
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfig.options.keys() \
 				if (current.lower() in option.lower()) and \
-				(isinstance(self.bot.serverConfNew.options[option],blueonblue.config.ServerConfigRole))][:25]
+				(isinstance(self.bot.serverConfig.options[option],blueonblue.config.ServerConfigRole))][:25]
 
 
 	async def config_autocomplete_channel(self, interaction: discord.Interaction, current: str):
@@ -59,9 +59,9 @@ class Config(commands.GroupCog, group_name = "config"):
 			return []
 		else:
 			# Command called in guild
-			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfNew.options.keys() \
+			return[app_commands.Choice(name=option, value=option) for option in self.bot.serverConfig.options.keys() \
 				if (current.lower() in option.lower()) and \
-				(isinstance(self.bot.serverConfNew.options[option],blueonblue.config.ServerConfigChannel))][:25]
+				(isinstance(self.bot.serverConfig.options[option],blueonblue.config.ServerConfigChannel))][:25]
 
 
 	@app_commands.command(name = "list")
@@ -76,11 +76,11 @@ class Config(commands.GroupCog, group_name = "config"):
 		"""
 		assert interaction.guild is not None
 
-		options = self.bot.serverConfNew.options
+		options = self.bot.serverConfig.options
 		cfgOptions: list[str] = []
 
 		for cfg in options.keys():
-			option = self.bot.serverConfNew.options[cfg]
+			option = self.bot.serverConfig.options[cfg]
 			if isinstance(option, (blueonblue.config.ServerConfigString, blueonblue.config.ServerConfigInteger, blueonblue.config.ServerConfigFloat)):
 				data = await option.get(interaction.guild)
 				value = f"`{data}`" if data is not None else None
@@ -127,8 +127,8 @@ class Config(commands.GroupCog, group_name = "config"):
 		matches: list[blueonblue.config.ServerConfigString] = []
 
 		# Find our matches
-		for k in self.bot.serverConfNew.options.keys():
-			o = self.bot.serverConfNew.options[k]
+		for k in self.bot.serverConfig.options.keys():
+			o = self.bot.serverConfig.options[k]
 			if option in o.name:
 				matches.append(o) #type: ignore
 
@@ -163,12 +163,12 @@ class Config(commands.GroupCog, group_name = "config"):
 		assert interaction.guild is not None
 
 		# Check if the option exists
-		if option not in self.bot.serverConfNew.options.keys():
+		if option not in self.bot.serverConfig.options.keys():
 			await interaction.response.send_message(f"`{option} is not a valid server config option!", ephemeral=True)
 			return
 
 		# Get the type of the option
-		serverOpt = self.bot.serverConfNew.options[option]
+		serverOpt = self.bot.serverConfig.options[option]
 
 		# Set some default values
 		responseMessage = "Default config response"
@@ -235,12 +235,12 @@ class Config(commands.GroupCog, group_name = "config"):
 		assert interaction.guild is not None
 
 		# Check if the option exists
-		if option not in self.bot.serverConfNew.options.keys():
+		if option not in self.bot.serverConfig.options.keys():
 			await interaction.response.send_message(f"`{option} is not a valid server config option!", ephemeral=True)
 			return
 
 		# Get the type of the option
-		serverOpt = self.bot.serverConfNew.options[option]
+		serverOpt = self.bot.serverConfig.options[option]
 
 		# Set some default values
 		responseMessage = "Default config response"
@@ -281,12 +281,12 @@ class Config(commands.GroupCog, group_name = "config"):
 		assert interaction.guild is not None
 
 		# Check if the option exists
-		if option not in self.bot.serverConfNew.options.keys():
+		if option not in self.bot.serverConfig.options.keys():
 			await interaction.response.send_message(f"`{option} is not a valid server config option!", ephemeral=True)
 			return
 
 		# Get the type of the option
-		serverOpt = self.bot.serverConfNew.options[option]
+		serverOpt = self.bot.serverConfig.options[option]
 
 		# Set some default values
 		responseMessage = "Default config response"

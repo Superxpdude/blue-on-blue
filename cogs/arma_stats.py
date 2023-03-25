@@ -52,12 +52,9 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 					return
 
 				# The user has a linked steam account, count how many missions they have attended
-				mission_min_duration = self.bot.serverConfig.getint(
-					str(interaction.guild.id),"arma_stats_min_duration", fallback = 90)
-				mission_min_players = self.bot.serverConfig.getint(
-					str(interaction.guild.id),"arma_stats_min_players", fallback = 10)
-				mission_participation_threshold = self.bot.serverConfig.getfloat(
-					str(interaction.guild.id),"arma_stats_participation_threshold", fallback = 0.5)
+				mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
+				mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
+				mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(interaction.guild)
 
 				# Query the database
 				# This will return the number of missions in the database that the user has participated in
@@ -143,12 +140,9 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Read config values
-				mission_min_duration = self.bot.serverConfig.getint(
-					str(interaction.guild.id),"arma_stats_min_duration", fallback = 90)
-				mission_min_players = self.bot.serverConfig.getint(
-					str(interaction.guild.id),"arma_stats_min_players", fallback = 10)
-				mission_participation_threshold = self.bot.serverConfig.getfloat(
-					str(interaction.guild.id),"arma_stats_participation_threshold", fallback = 0.5)
+				mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
+				mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
+				mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(interaction.guild)
 
 				# Query the database to get our leaderboard
 				await cursor.execute(
@@ -219,8 +213,8 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 			async with db.cursor() as cursor:
 				# Iterate once through each discord server that we're in
 				for guild in self.bot.guilds:
-					api_url = self.bot.serverConfig.get(str(guild.id), "arma_stats_url", fallback = None)
-					api_key = self.bot.serverConfig.get(str(guild.id), "arma_stats_key", fallback = None)
+					api_url = await self.bot.serverConfig.arma_stats_url.get(guild)
+					api_key = await self.bot.serverConfig.arma_stats_key.get(guild)
 
 					# Only proceed if we have a valid URL and key for the API
 					if api_url is not None and api_key is not None:

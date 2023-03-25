@@ -51,13 +51,16 @@ def in_channel_bot() -> Callable[[T], T]:
 		if interaction.guild is not None:
 			# Command was used in a server
 			assert isinstance(interaction.channel, discord.abc.GuildChannel)
-			botChannelID = bot.serverConfig.getint(str(interaction.guild.id), "channel_bot", fallback = -1)
-			if interaction.channel.id == botChannelID:
+			botChannel = await bot.serverConfig.channel_bot.get(interaction.guild)
+			if (botChannel is not None) and (interaction.channel.id == botChannel.id):
 				# Used in bot channel
 				return True
 			else:
 				# Not in bot channel
-				raise ChannelUnauthorized(botChannelID)
+				if botChannel is not None:
+					raise ChannelUnauthorized(botChannel.id)
+				else:
+					raise ChannelUnauthorized()
 		else:
 			# Not used in guild
 			# For this, we don't specifically care if it was used in a DM or not. If it shouldn't be used in DMs, a "in_guild" check should be done as well.

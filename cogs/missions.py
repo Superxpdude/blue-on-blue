@@ -139,7 +139,7 @@ class MissionAuditModal(discord.ui.Modal, title = "Mission Audit Notes"):
 		await interaction.response.send_message("Audit received. Beginning upload.",ephemeral=True)
 
 		# Old code below
-		auditChannel = interaction.guild.get_channel(self.originalView.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
+		auditChannel = await self.originalView.bot.serverConfig.channel_mission_audit.get(interaction.guild)
 
 		if auditChannel is None:
 			# This should never trigger since this check is also done in the originl audit command
@@ -222,7 +222,7 @@ class Missions(commands.Cog, name = "Missions"):
 
 	async def _update_guild_cache(self, guild: discord.Guild):
 		"""Updates the mission cache for a single guild"""
-		wikiURL = self.bot.serverConfig.get(str(guild.id), "mission_wiki_url", fallback = None)
+		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(guild)
 		if wikiURL is not None:
 			# Guild has a wiki URL defined
 			async with self.bot.httpSession.get(f"{wikiURL}/api.php", params = {
@@ -286,11 +286,11 @@ class Missions(commands.Cog, name = "Missions"):
 		# Authorize our connection to google sheets
 		googleClient = await self.agcm.authorize()
 		# Read some config values
-		missionKey = self.bot.serverConfig.get(str(interaction.guild.id), "mission_sheet_key")
-		missionWorksheetName = self.bot.serverConfig.get(str(interaction.guild.id), "mission_worksheet", fallback="Schedule")
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
 
 		if missionKey is None:
-			await interaction.followup.send("Could not find the URL for the mission sheet in the config file. Please contact the bot owner.")
+			await interaction.followup.send("Could not find the URL for the mission sheet in the server config. Please contact the bot owner.")
 			return
 
 		# Get the actual mission document
@@ -302,7 +302,7 @@ class Missions(commands.Cog, name = "Missions"):
 		sheetData = await missionSheet.get_all_records(default_blank = None) # type: ignore
 
 		# Get our wiki URL
-		wikiURL = self.bot.serverConfig.get(str(interaction.guild.id), "mission_wiki_url", fallback = None)
+		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(interaction.guild)
 
 		# Get our current data
 		missionEmbeds = []
@@ -432,7 +432,7 @@ class Missions(commands.Cog, name = "Missions"):
 		await interaction.response.defer()
 
 		# Check to see if the audit channel exists before going any further
-		auditChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mission_audit", fallback = -1))
+		auditChannel = await self.bot.serverConfig.channel_mission_audit.get(interaction.guild)
 
 		if auditChannel is None:
 			await interaction.followup.send("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
@@ -629,14 +629,15 @@ class Missions(commands.Cog, name = "Missions"):
 		await interaction.response.defer()
 
 		# Read some config values
-		missionKey = self.bot.serverConfig.get(str(interaction.guild.id), "mission_sheet_key")
-		missionWorksheetName = self.bot.serverConfig.get(str(interaction.guild.id), "mission_worksheet", fallback="Schedule")
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
 
 		if missionKey is None:
-			await interaction.followup.send("Could not find the URL for the mission sheet in the config file. Please contact the bot owner.")
+			await interaction.followup.send("Could not find the URL for the mission sheet in the server config. Please contact the bot owner.")
+			return
 
 		# Get our wiki URL
-		wikiURL = self.bot.serverConfig.get(str(interaction.guild.id), "mission_wiki_url", fallback = None)
+		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(interaction.guild)
 
 		# Start our HTTP request block
 		try:
@@ -765,7 +766,6 @@ class Missions(commands.Cog, name = "Missions"):
 	@app_commands.guild_only()
 	@app_commands.default_permissions(manage_messages=True)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def schedule_cancel(self, interaction: discord.Interaction, date: str):
 		"""Removes a previously scheduled mission from the mission schedule"""
 		assert interaction.guild is not None
@@ -785,8 +785,12 @@ class Missions(commands.Cog, name = "Missions"):
 		dateStr = dateVar.strftime(ISO_8601_FORMAT)
 
 		# Read some config values
-		missionKey = self.bot.serverConfig.get(str(interaction.guild.id), "mission_sheet_key")
-		missionWorksheetName = self.bot.serverConfig.get(str(interaction.guild.id), "mission_worksheet", fallback="Schedule")
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
+
+		if missionKey is None:
+			await interaction.followup.send("Could not find the URL for the mission sheet in the server config. Please contact the bot owner.")
+			return
 
 		# Start our spreadsheet block
 		# Authorize our connection to google sheets

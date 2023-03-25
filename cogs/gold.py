@@ -35,6 +35,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 	@blueonblue.checks.in_guild()
 	async def add(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
+		assert interaction.guild is not None
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -74,16 +75,17 @@ class Gold(commands.GroupCog, group_name="gold"):
 				if view.response:
 					# Action confirmed. Give gold to the user
 					# Get the mod activity channel
-					modChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mod_activity", fallback = -1))
+					modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
 					# We need to check if the user is already present in the gold DB
 					await cursor.execute("SELECT * FROM gold WHERE server_id = :serverID AND user_id = :userID", {"serverID": interaction.guild.id, "userID": user.id})
 					userData = await cursor.fetchone()
 					if userData is None:
 						# User not in gold DB
 						# Add the "gold" role to the user
-						goldRole = interaction.guild.get_role(self.bot.serverConfig.getint(str(interaction.guild.id),"role_gold", fallback = -1))
+						goldRole = await self.bot.serverConfig.role_gold.get(interaction.guild)
 						goldReason = f"TMTM Gold given by {interaction.user.display_name} for {timeText} {time_unit}."
 						try:
+							assert goldRole is not None
 							await user.add_roles(goldRole, reason = goldReason)
 							await cursor.execute("INSERT OR REPLACE INTO gold (server_id, user_id, expiry_time) VALUES \
 							(:serverID, :userID, :expiryTime)", {"serverID": interaction.guild.id, "userID": user.id, "expiryTime": expiryTimeStamp})
@@ -114,7 +116,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 	@blueonblue.checks.in_guild()
 	async def remove(self, interaction: discord.Interaction, user: discord.Member):
 		"""Removes TMTM Gold from a user"""
-
+		assert interaction.guild is not None
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -149,10 +151,9 @@ class Gold(commands.GroupCog, group_name="gold"):
 				if view.response:
 					# Action confirmed. Remove gold.
 					# Get the mod activity channel
-					modChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mod_activity", fallback = -1))
+					modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
 					# Get the gold role
-					goldRoleID = self.bot.serverConfig.getint(str(interaction.guild.id),"role_gold", fallback = -1)
-					goldRole = interaction.guild.get_role(goldRoleID)
+					goldRole = await self.bot.serverConfig.role_gold.get(interaction.guild)
 					goldReason = f"TMTM Gold removed by {interaction.user.display_name}"
 					# Remove the role from the user (if present)
 					if goldRole in user.roles:
@@ -164,7 +165,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 						{"serverID": interaction.guild.id, "userID": user.id})
 					# Make sure that we remove the role reference from the users DB (if present)
 					await cursor.execute("DELETE FROM user_roles WHERE server_id = :serverID AND user_id = :userID AND role_id = :roleID",
-						{"serverID": interaction.guild.id, "userID": user.id, "roleID": goldRoleID})
+						{"serverID": interaction.guild.id, "userID": user.id, "roleID": goldRole.id})
 					# Write to the DB
 					await db.commit()
 
@@ -231,9 +232,9 @@ class Gold(commands.GroupCog, group_name="gold"):
 					if guild is not None:
 						# Make sure that we can find the guild
 						# Find the moderation activity channel
-						modChannel: discord.TextChannel = guild.get_channel(self.bot.serverConfig.getint(str(guild.id),"channel_mod_activity", fallback = -1))
+						modChannel = await self.bot.serverConfig.channel_mod_activity.get(guild)
 						# Get the jail role
-						goldRole = guild.get_role(self.bot.serverConfig.getint(str(guild.id),"role_gold", fallback = -1))
+						goldRole = await self.bot.serverConfig.role_gold.get(guild)
 						# Only continue if the goldRole exists
 						if goldRole is not None:
 							user = guild.get_member(userData["user_id"])

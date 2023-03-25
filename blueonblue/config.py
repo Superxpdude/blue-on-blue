@@ -612,6 +612,15 @@ class ServerConfigChannel(ServerConfigOption):
 		return int(value)
 
 
+class ServerConfigTextChannel(ServerConfigChannel):
+	async def get(self, server: int | discord.Guild) -> discord.TextChannel | None:
+		value = await super().get(server)
+		if isinstance(value, discord.TextChannel):
+			return value
+		else:
+			return None
+
+
 class ServerConfig:
 	"""Server config abstraction class.
 
@@ -624,10 +633,10 @@ class ServerConfig:
 
 		# Initialize the config options
 		# Server channels
-		self.channel_bot = ServerConfigChannel(bot, "channel_bot")
-		self.channel_check_in = ServerConfigChannel(bot, "channel_check_in")
-		self.channel_mission_audit = ServerConfigChannel(bot, "channel_mission_audit")
-		self.channel_mod_activity = ServerConfigChannel(bot, "channel_mod_activity")
+		self.channel_bot = ServerConfigTextChannel(bot, "channel_bot")
+		self.channel_check_in = ServerConfigTextChannel(bot, "channel_check_in")
+		self.channel_mission_audit = ServerConfigTextChannel(bot, "channel_mission_audit")
+		self.channel_mod_activity = ServerConfigTextChannel(bot, "channel_mod_activity")
 
 		# Server roles
 		self.role_gold = ServerConfigRole(bot, "role_gold")

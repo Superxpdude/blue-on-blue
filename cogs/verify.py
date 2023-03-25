@@ -97,7 +97,7 @@ class VerifyButton(discord.ui.Button):
 				groupMembership = await steam_check_group_membership(self.view.bot, interaction.guild.id, self.view.steamID)
 				if not groupMembership:
 					# User not in group
-					applyUrl = self.view.bot.serverConfig.get(str(interaction.guild.id), "group_apply_url", fallback = None)
+					applyUrl = await self.view.bot.serverConfig.group_apply_url.get(interaction.guild)
 					msg = "Your account has been verified, but it doesn't look like you're a part of this group."
 					if applyUrl is not None:
 						msg += f" You're free to apply at {applyUrl}."
@@ -113,7 +113,7 @@ class VerifyButton(discord.ui.Button):
 				return
 
 			# User is in the steam group, only proceed if they don't have the member role already
-			memberRole = interaction.guild.get_role(self.view.bot.serverConfig.getint(str(interaction.guild.id), "role_member"))
+			memberRole = await self.view.bot.serverConfig.role_member.get(interaction.guild)
 			if (memberRole in interaction.user.roles) or memberRole is None:
 				await interaction.followup.send("Verification complete, your Steam ID has been successfully linked", ephemeral=True)
 			else:
@@ -125,7 +125,7 @@ class VerifyButton(discord.ui.Button):
 						"when assigning your roles. Please ping an admin for your roles."
 					)
 				# Send a verification message to the check in channel
-				checkInChannel = self.view.bot.get_channel(self.view.bot.serverConfig.getint(str(interaction.guild.id),"channel_check_in", fallback = -1))
+				checkInChannel = await self.view.bot.serverConfig.channel_check_in.get(interaction.guild)
 				if isinstance(checkInChannel, discord.TextChannel):
 					await checkInChannel.send(f"Member {interaction.user.mention} verified with steam account: http://steamcommunity.com/profiles/{self.view.steamID}")
 
@@ -153,7 +153,7 @@ class CheckInButton(discord.ui.Button):
 			groupMembership = await steam_check_group_membership(self.view.bot, interaction.guild.id, self.view.steamID)
 			if not groupMembership:
 				# User not in group
-				applyUrl = self.view.bot.serverConfig.get(str(interaction.guild.id), "group_apply_url", fallback = None)
+				applyUrl = await self.view.bot.serverConfig.group_apply_url.get(interaction.guild)
 				msg = "Your account has been verified, but it doesn't look like you're a part of this group."
 				if applyUrl is not None:
 					msg += f" You're free to apply at {applyUrl}."
@@ -169,7 +169,7 @@ class CheckInButton(discord.ui.Button):
 			return
 
 		# User is in the steam group, only proceed if they don't have the member role already
-		memberRole = interaction.guild.get_role(self.view.bot.serverConfig.getint(str(interaction.guild.id), "role_member"))
+		memberRole = await self.view.bot.serverConfig.role_member.get(interaction.guild)
 		if (memberRole in interaction.user.roles) or memberRole is None:
 			await interaction.followup.send("Verification complete.", ephemeral=True)
 		else:
@@ -181,7 +181,7 @@ class CheckInButton(discord.ui.Button):
 					"when assigning your roles. Please ping an admin for your roles."
 				)
 			# Send a verification message to the check in channel
-			checkInChannel = self.view.bot.get_channel(self.view.bot.serverConfig.getint(str(interaction.guild.id),"channel_check_in", fallback = -1))
+			checkInChannel = await self.view.bot.serverConfig.channel_check_in.get(interaction.guild)
 			if isinstance(checkInChannel, discord.TextChannel):
 				await checkInChannel.send(f"Member {interaction.user.mention} verified with steam account: http://steamcommunity.com/profiles/{self.view.steamID}")
 
@@ -277,7 +277,7 @@ async def steam_check_group_membership(bot: blueonblue.BlueOnBlueBot, guildID: i
 			for g in responseData["groups"]:
 				groupList.append(int(g["gid"])) # Append the group ID to the group list
 		# Get the steam group from the config
-		steamGroupID = bot.serverConfig.getint(str(guildID), "steam_group_id", fallback = 0)
+		steamGroupID = await bot.serverConfig.steam_group_id.get(guildID)
 		if steamGroupID in groupList:
 			return True
 		else:
@@ -412,7 +412,7 @@ async def assign_roles(bot: blueonblue.BlueOnBlueBot, guild: discord.Guild, user
 			return False
 	else:
 		# No user roles stored
-		memberRole = guild.get_role(bot.serverConfig.getint(str(guild.id), "role_member"))
+		memberRole = await bot.serverConfig.role_member.get(guild)
 		try:
 			assert memberRole is not None
 			await user.add_roles(memberRole, reason="User verified")
@@ -498,7 +498,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 				groupMembership = await steam_check_group_membership(self.bot, interaction.guild.id, steamID)
 				if not groupMembership:
 					# User not in group
-					applyUrl = self.bot.serverConfig.get(str(interaction.guild.id), "group_apply_url", fallback = None)
+					applyUrl = await self.bot.serverConfig.group_apply_url.get(interaction.guild)
 					msg = "Sorry, it doesn't look like you're a part of this group."
 					if applyUrl is not None:
 						msg += f" You're free to apply at {applyUrl}."
@@ -576,11 +576,10 @@ class Verify(commands.GroupCog, group_name = "verify"):
 
 	@commands.Cog.listener()
 	async def on_member_join(self, member: discord.Member):
-		guildSteamGroupID = self.bot.serverConfig.getint(str(member.guild.id),"steam_group_id", fallback = -1)
-		checkInChannelID = self.bot.serverConfig.getint(str(member.guild.id),"channel_check_in", fallback = -1)
-		channel = self.bot.get_channel(checkInChannelID)
+		guildSteamGroupID = await self.bot.serverConfig.steam_group_id.get(member.guild)
+		channel = await self.bot.serverConfig.channel_check_in.get(member.guild)
 		assert isinstance(channel, discord.TextChannel)
-		if (guildSteamGroupID > 0) and (channel is not None):
+		if (guildSteamGroupID is not None) and (guildSteamGroupID > 0) and (channel is not None):
 			# Only continue if we have a valid steam group ID and check in channel
 			# Start our DB block
 			async with self.bot.db.connect() as db:
