@@ -164,7 +164,7 @@ class Config(commands.GroupCog, group_name = "config"):
 
 		# Check if the option exists
 		if option not in self.bot.serverConfig.options.keys():
-			await interaction.response.send_message(f"`{option} is not a valid server config option!", ephemeral=True)
+			await interaction.response.send_message(f"`{option}` is not a valid server config option!", ephemeral=True)
 			return
 
 		# Get the type of the option
