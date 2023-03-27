@@ -15,7 +15,7 @@ __all__ = [
 	"DBConnection"
 ]
 
-DBVERSION = 2
+DBVERSION = 3
 
 class DBConnection():
 	"""BlueonBlue database connection class.
@@ -168,6 +168,13 @@ class DB():
 								INNER JOIN verify v on v.steam64_id = p.steam_id\
 								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
 
+						# Serverconfig table
+						await cursor.execute("CREATE TABLE if NOT EXISTS serverconfig (\
+							server_id INTEGER,\
+							setting TEXT,\
+							value TEXT,\
+							UNIQUE(server_id, setting))")
+
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
 
@@ -212,8 +219,23 @@ class DB():
 								INNER JOIN verify v on v.steam64_id = p.steam_id\
 								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
 
-						await cursor.execute(f"PRAGMA user_version = 2")
-						_log.info(f"Database upgraded to version: 2")
+						await cursor.execute("PRAGMA user_version = 2")
+						_log.info("Database upgraded to version: 2")
+
+						await db.commit()
+
+					if schema_version == 2:
+						_log.info("Upgrading database to version 3")
+
+						# Serverconfig table
+						await cursor.execute("CREATE TABLE if NOT EXISTS serverconfig (\
+							server_id INTEGER,\
+							setting TEXT,\
+							value TEXT,\
+							UNIQUE(server_id, setting))")
+
+						await cursor.execute("PRAGMA user_version = 3")
+						_log.info("Database upgraded to version: 3")
 
 						await db.commit()
 

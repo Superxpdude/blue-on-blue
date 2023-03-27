@@ -33,36 +33,8 @@ class BlueOnBlueBot(commands.Bot):
 		# Set up our DB
 		self.db = db.DB("data/blueonblue.sqlite3")
 
-		# Set up our server config
-		self.serverConfig = configparser.ConfigParser(allow_no_value=True)
-		# Read local config file
-		self.serverConfig.read("config/serverconfig.ini")
-		# Set default values
-		self.serverConfig.read_dict({
-			"DEFAULT": {
-				"arma_stats_url": None,
-				"arma_stats_key": None,
-				"arma_stats_min_duration": 90,
-				"arma_stats_min_players": 10,
-				"arma_stats_participation_threshold": 0.5,
-				"channel_bot": -1,
-				"channel_mod_activity": -1,
-				"channel_check_in": -1,
-				"channel_mission_audit": -1,
-				"role_admin": -1,
-				"role_moderator": -1,
-				"role_member": -1,
-				"role_jail": -1,
-				"role_gold": -1,
-				"steam_group_id": -1,
-				"group_apply_url": None,
-				"mission_sheet_key": None,
-				"mission_worksheet": "Schedule",
-				"mission_wiki_url": None
-			}
-		})
-		# Write serverconfig back to disk
-		self.write_serverConfig()
+		# Temp new server config
+		self.serverConfig = config.ServerConfig(self)
 
 		# Store our "debug server" value for slash command testing
 		self.slashDebugID: Optional[int] = None
@@ -94,6 +66,7 @@ class BlueOnBlueBot(commands.Bot):
 			"users",
 			"arma_stats",
 			"chatfilter",
+			"config",
 			"gold",
 			"jail",
 			"missions",
@@ -102,11 +75,6 @@ class BlueOnBlueBot(commands.Bot):
 			"utils",
 			"verify"
 		]
-
-	def write_serverConfig(self):
-		"""Write the current server configs to disk"""
-		with open("config/serverconfig.ini", "w") as configFile:
-			self.serverConfig.write(configFile)
 
 	async def syncAppCommands(self):
 		"""|coro|
@@ -173,16 +141,6 @@ class BlueOnBlueBot(commands.Bot):
 	# On ready. Runs when the bot connects to discord, and has received server info.
 	# Can run multiple times if the bot is disconnected at any point
 	async def on_ready(self):
-		# Ensure that we have a config section for each server that we're in
-		newGuilds = False
-		for guild in self.guilds:
-			if not self.serverConfig.has_section(str(guild.id)):
-				self.serverConfig.add_section(str(guild.id))
-				newGuilds = True
-		# Write the server config (only if we have new guilds)
-		if newGuilds:
-			self.write_serverConfig()
-
 		# Make some log messages
 		_log.info(f"Connected to servers: {self.guilds}")
 		_log.info("Blue on Blue ready.")

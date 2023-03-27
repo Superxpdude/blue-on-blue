@@ -177,6 +177,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	async def _flag_message(self, message: discord.Message):
 		"""Flags a message for violating the chat filter."""
+		assert message.guild is not None
 		timestamp = message.edited_at if message.edited_at is not None else message.created_at
 		embed = discord.Embed(
 			title = f"{message.channel.parent}: {message.channel}" if hasattr(message.channel, "parent") else message.channel.name,
@@ -192,7 +193,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 		# Delete our flagged message
 		await message.delete()
 		# Log the deletion
-		logChannel = message.guild.get_channel(self.bot.serverConfig.getint(str(message.guild.id), "channel_mod_activity"))
+		logChannel = await self.bot.serverConfig.channel_mod_activity.get(message.guild)
 		if logChannel is not None:
 			await logChannel.send(embed=embed)
 
@@ -233,7 +234,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 		)
 
 		# Log the thread
-		logChannel = guild.get_channel(self.bot.serverConfig.getint(str(guild.id), "channel_mod_activity"))
+		logChannel = await self.bot.serverConfig.channel_mod_activity.get(thread.guild)
 		if logChannel is not None:
 			await logChannel.send(embed=embed)
 
@@ -249,7 +250,6 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	@blockListGroup.command(name = "show")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def blockListShow(self, interaction: discord.Interaction):
 		"""Shows the block list"""
 
@@ -264,7 +264,6 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	@blockListGroup.command(name="add")
 	@app_commands.describe(string="The string to add to the list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def blockListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the block list"""
 
@@ -275,7 +274,6 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	@blockListGroup.command(name="remove")
 	@app_commands.describe(string="The string to remove from the list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def blockListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the block list"""
 
@@ -287,7 +285,6 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	@allowListGroup.command(name = "show")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def allowListShow(self, interaction: discord.Interaction):
 		"""Shows the allow list"""
 
@@ -302,7 +299,6 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	@allowListGroup.command(name="add")
 	@app_commands.describe(string="The string to add to the list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def allowListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the allow list"""
 
@@ -313,7 +309,6 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	@allowListGroup.command(name="remove")
 	@app_commands.describe(string="The string to remove from the list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_admin()
 	async def allowListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the allow list"""
 

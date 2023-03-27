@@ -28,22 +28,22 @@ class Jail(commands.GroupCog, group_name="jail"):
 		Creates the tables if they don't exist."""
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
-				# Iterate through our serverConfig to set the "block_updates" flag on the jail role
-				for guildID in self.bot.serverConfig.sections():
-					roleID = self.bot.serverConfig.getint(str(guildID), "role_jail", fallback = -1)
-					if roleID >= 0:
+				# Iterate through our servers to set the "block_updates" flag on the jail role
+				for guild in self.bot.guilds:
+					role = await self.bot.serverConfig.role_jail.get(guild)
+					if role is not None:
 						# Role ID is present. Add info to the DB
 						# Check if we have an existing entry
 						await cursor.execute("SELECT role_id FROM roles WHERE block_updates = :block", {"block": JAIL_BLOCK_UPDATES_KEY})
 						roleData = await cursor.fetchone()
 						if roleData is not None: # We have an existing entry for the role
-							if roleData["role_id"] != roleID:
+							if roleData["role_id"] != role.id:
 								# Role IDs do not match. Remove block entry from old role.
 								await cursor.execute("UPDATE roles SET block_updates = NULL WHERE server_id = :serverID AND role_id = :roleID",
-									{"serverID": guildID, "roleID": roleID})
+									{"serverID": guild.id, "roleID": role.id})
 						else: # No existing entry for this block
 							await cursor.execute("INSERT OR REPLACE INTO roles (server_id, role_id, block_updates) VALUES \
-								(:serverID, :roleID, :block)", {"serverID": guildID, "roleID": roleID, "block": JAIL_BLOCK_UPDATES_KEY})
+								(:serverID, :roleID, :block)", {"serverID": guild.id, "roleID": role.id, "block": JAIL_BLOCK_UPDATES_KEY})
 				await db.commit()
 
 		self.jail_loop.start()
@@ -58,10 +58,9 @@ class Jail(commands.GroupCog, group_name="jail"):
 		time_unit = "Unit of measurement for the ""time"" parameter"
 	)
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def jail(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Jails a user"""
-
+		assert interaction.guild is not None
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -101,7 +100,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 				if view.response:
 					# Action confirmed. Jail the user
 					# Get the mod activity channel
-					modChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mod_activity", fallback = -1))
+					modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
 					# We need to check if the user is already present in the jail DB
 					await cursor.execute("SELECT * FROM jail WHERE server_id = :serverID AND user_id = :userID", {"serverID": interaction.guild.id, "userID": user.id})
 					userData = await cursor.fetchone()
@@ -109,13 +108,14 @@ class Jail(commands.GroupCog, group_name="jail"):
 						# User not in jail DB
 						await update_member_roles(user, cursor) # Update the user's roles in the DB
 						# Add the "jailed" role to the user
-						jailRole = interaction.guild.get_role(self.bot.serverConfig.getint(str(interaction.guild.id),"role_jail", fallback = -1))
+						jailRole = await self.bot.serverConfig.role_jail.get(interaction.guild)
 						jailReason = f"User jailed by {interaction.user.display_name} for {timeText} {time_unit}."
 						userRoles = []
 						for role in user.roles: # Make a list of roles that the bot can remove
 							if (role != interaction.guild.default_role) and (role < interaction.guild.me.top_role) and (not role.managed) and (role != jailRole):
 								userRoles.append(role)
 						try:
+							assert jailRole is not None
 							await user.add_roles(jailRole, reason = jailReason)
 							await user.remove_roles(*userRoles, reason = jailReason)
 							await cursor.execute("INSERT OR REPLACE INTO jail (server_id, user_id, release_time) VALUES \
@@ -140,10 +140,9 @@ class Jail(commands.GroupCog, group_name="jail"):
 	@app_commands.command(name = "release")
 	@app_commands.describe(user = "User to be released")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def release(self, interaction: discord.Interaction, user: discord.Member):
 		"""Releases a user from jail"""
-
+		assert interaction.guild is not None
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -179,9 +178,9 @@ class Jail(commands.GroupCog, group_name="jail"):
 				if view.response:
 					# Action confirmed. Release the user
 					# Get the mod activity channel
-					modChannel: discord.TextChannel = interaction.guild.get_channel(self.bot.serverConfig.getint(str(interaction.guild.id),"channel_mod_activity", fallback = -1))
+					modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
 					# Get the jail role
-					jailRole = interaction.guild.get_role(self.bot.serverConfig.getint(str(interaction.guild.id),"role_jail", fallback = -1))
+					jailRole = await self.bot.serverConfig.role_jail.get(interaction.guild)
 					# Get the stored roles for the user
 					await cursor.execute("SELECT role_id FROM user_roles WHERE server_id = :serverID AND user_id = :userID",
 						{"serverID": interaction.guild.id, "userID": user.id})
@@ -202,6 +201,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 					# Try assigning the roles to the user
 					try:
 						await user.add_roles(*userRoles, reason = jailReason)
+						assert jailRole is not None
 						await user.remove_roles(jailRole, reason = jailReason)
 						await interaction.followup.send(f"User {user.mention} has been released from jail.", ephemeral=True)
 						await modChannel.send(f"User {user.mention} has been released from jail by {interaction.user.mention}", allowed_mentions=discord.AllowedMentions.none())
@@ -218,7 +218,6 @@ class Jail(commands.GroupCog, group_name="jail"):
 
 	@app_commands.command(name = "list")
 	@blueonblue.checks.in_guild()
-	@blueonblue.checks.is_moderator()
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that are currently jailed"""
 
@@ -271,9 +270,9 @@ class Jail(commands.GroupCog, group_name="jail"):
 					if guild is not None:
 						# Make sure that we can find the guild
 						# Find the moderation activity channel
-						modChannel: discord.TextChannel = guild.get_channel(self.bot.serverConfig.getint(str(guild.id),"channel_mod_activity", fallback = -1))
+						modChannel = await self.bot.serverConfig.channel_mod_activity.get(guild)
 						# Get the jail role
-						jailRole = guild.get_role(self.bot.serverConfig.getint(str(guild.id),"role_jail", fallback = -1))
+						jailRole = await self.bot.serverConfig.role_jail.get(guild)
 						user = guild.get_member(userData["user_id"])
 						if user is not None:
 							# We have found the user
@@ -289,6 +288,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 							# Remove the jail role, and return the user's original roles
 							try:
 								await user.add_roles(*userRoles, reason = "Jail timeout expired")
+								assert jailRole is not None
 								await user.remove_roles(jailRole, reason = "Jail timeout expired")
 								await modChannel.send(f"User {user.mention} has been released from jail due to timeout expiry.", allowed_mentions=None)
 							except:
