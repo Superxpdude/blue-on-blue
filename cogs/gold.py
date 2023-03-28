@@ -2,7 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Literal
 
 import blueonblue
@@ -32,7 +32,6 @@ class Gold(commands.GroupCog, group_name="gold"):
 		time = "Time duration for TMTM Gold. Default unit is days.",
 		time_unit = "Unit of measurement for ""time"" parameter."
 	)
-	@blueonblue.checks.in_guild()
 	async def add(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
 		assert interaction.guild is not None
@@ -113,7 +112,6 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 	@app_commands.command(name = "remove")
 	@app_commands.describe(user = "User to have TMTM Gold removed")
-	@blueonblue.checks.in_guild()
 	async def remove(self, interaction: discord.Interaction, user: discord.Member):
 		"""Removes TMTM Gold from a user"""
 		assert interaction.guild is not None
@@ -179,9 +177,9 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 
 	@app_commands.command(name = "list")
-	@blueonblue.checks.in_guild()
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that have TMTM Gold"""
+		assert interaction.guild is not None
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
