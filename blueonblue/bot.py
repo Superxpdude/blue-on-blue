@@ -2,7 +2,6 @@ import aiohttp
 import discord
 from discord.ext import commands
 
-import configparser
 from datetime import datetime
 
 from typing import Optional
