@@ -178,16 +178,18 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	async def _flag_message(self, message: discord.Message):
 		"""Flags a message for violating the chat filter."""
 		assert message.guild is not None
+		assert isinstance(message.channel, discord.TextChannel)
 		timestamp = message.edited_at if message.edited_at is not None else message.created_at
+
 		embed = discord.Embed(
-			title = f"{message.channel.parent}: {message.channel}" if hasattr(message.channel, "parent") else message.channel.name,
+			title = f"{message.channel.parent}: {message.channel.name}" if isinstance(message.channel, discord.Thread) else message.channel.name,
 			description = message.content,
 			colour = CHATFILTER_EMBED_COLOUR,
 			timestamp = timestamp
 		)
 		embed.set_author(
 			name = message.author.display_name,
-			icon_url = message.author.avatar.url
+			icon_url = message.author.display_avatar.url
 		)
 
 		# Delete our flagged message
@@ -197,7 +199,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 		if logChannel is not None:
 			await logChannel.send(embed=embed)
 
-	async def _flag_thread(self, thread: discord.Thread, before: discord.Thread = None):
+	async def _flag_thread(self, thread: discord.Thread, before: discord.Thread | None = None):
 		"""Reports a user for triggering the chat filter on a thread title."""
 		guild: discord.Guild = thread.guild
 		if guild.me.guild_permissions.view_audit_log:
