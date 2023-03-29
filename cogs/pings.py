@@ -14,7 +14,8 @@ _log = logging.getLogger(__name__)
 # Define our ping embed colour
 PING_EMBED_COLOUR = 0xFFA500 # Orange
 
-def sanitize_check(text: str) -> str:
+
+def sanitize_check(text: str) -> str | None:
 	"""Checks a ping title to check for invalid characters, or excessive length.
 
 	Returns a string with an error message if an error was detected.
@@ -34,6 +35,7 @@ def sanitize_check(text: str) -> str:
 	else:
 		return None
 
+
 def check_ascii(text: str) -> bool:
 	"""Checks that a string contains only ASCII characters.
 
@@ -45,6 +47,7 @@ def check_ascii(text: str) -> bool:
 		return False
 	else: # Only ASCII characters present
 		return True
+
 
 async def ping_exists(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> bool:
 	"""Check if a ping exists in the database for a specific guild.
@@ -58,6 +61,7 @@ async def ping_exists(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) ->
 	else: # Ping exists
 		return True
 
+
 async def ping_is_alias(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> bool:
 	"""Gets the alias reference for a ping.
 	Returns True if the ping exists AND is an alias. Otherwise returns False."""
@@ -68,6 +72,7 @@ async def ping_is_alias(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) 
 		return False
 	else: # Alias is not null, and therefore exists
 		return True
+
 
 async def ping_get_id(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> int | None:
 	"""Gets the ID reference for a ping.
@@ -85,6 +90,7 @@ async def ping_get_id(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) ->
 		else:
 			return ping["id"]
 
+
 async def ping_get_name(id: int, cursor: asqlite.Cursor) -> str | None:
 	"""Gets the name of a ping from its ID.
 	If the ping cannot be found, returns None."""
@@ -99,6 +105,7 @@ async def ping_get_name(id: int, cursor: asqlite.Cursor) -> str | None:
 		else: # We couldn't find the ping name
 			return None
 
+
 async def ping_get_alias_names(id: int, cursor: asqlite.Cursor) -> List[str]:
 	"""Gets the names of all aliases for a given ping.
 	Returns a list containing all names.
@@ -110,6 +117,7 @@ async def ping_get_alias_names(id: int, cursor: asqlite.Cursor) -> List[str]:
 		aliasNames.append(a["ping_name"])
 	return aliasNames
 
+
 async def ping_create(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
 	"""Creates a ping in the database.
 	Use ping_exists() to check if the ping exists or not first."""
@@ -118,11 +126,13 @@ async def ping_create(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) ->
 	await cursor.execute("INSERT INTO pings (server_id, ping_name, last_used_time) VALUES (:server_id, :ping, :time)",
 		{"server_id": guild.id, "ping": tag, "time": time})
 
+
 async def ping_delete(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
 	"""Removes a ping from the database"""
 	tag = tag.casefold()
 	ping_id = await ping_get_id(tag, guild, cursor)
 	await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND id = :ping)", {"server_id": guild.id, "ping": ping_id})
+
 
 async def ping_create_alias(tag: str, pingID: int, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
 	"""Creates an alias for an existing ping"""
@@ -130,18 +140,21 @@ async def ping_create_alias(tag: str, pingID: int, guild: discord.Guild, cursor:
 	await cursor.execute("INSERT INTO pings (server_id, ping_name, alias_for) VALUES (:server_id, :alias, :pingID)",
 		{"server_id": guild.id, "alias": tag, "pingID": pingID})
 
+
 async def ping_delete_alias(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
 	"""Deletes an alias for an existing ping"""
 	tag = tag.casefold()
 	await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND ping_name = :tag AND alias_for IS NOT NULL)",
 		{"server_id": guild.id, "tag": tag})
 
-async def ping_update_time(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> bool:
+
+async def ping_update_time(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
 	"""Updates the "last used time" of a ping in the database."""
 	tag = tag.casefold()
 	time = round(datetime.now(timezone.utc).timestamp()) # Get the current time in timestamp format
 	ping_id = await ping_get_id(tag, guild, cursor)
 	await cursor.execute("UPDATE pings SET last_used_time = :time WHERE id = :ping", {"time": time, "ping": ping_id}) # Ping IDs are globally unique
+
 
 async def ping_add_user(tag: str, guild: discord.Guild, user: discord.Member, cursor: asqlite.Cursor) -> bool:
 	"""Adds a user to a ping.
@@ -156,6 +169,7 @@ async def ping_add_user(tag: str, guild: discord.Guild, user: discord.Member, cu
 		return True
 	else: # Ping does not exist. Could not add user to ping.
 		return False
+
 
 async def ping_remove_user(tag: str, guild: discord.Guild, user: discord.Member, cursor: asqlite.Cursor) -> bool:
 	"""Removes a user from a ping.
@@ -172,6 +186,7 @@ async def ping_remove_user(tag: str, guild: discord.Guild, user: discord.Member,
 	else: # Ping does not exist. Could not remove user from ping.
 		return False
 
+
 async def ping_remove_user_by_id(pingID: int, userID: int, cursor: asqlite.Cursor) -> bool:
 	"""Removes a user from a ping.
 	Requires a ping ID and user ID
@@ -180,6 +195,7 @@ async def ping_remove_user_by_id(pingID: int, userID: int, cursor: asqlite.Curso
 	await cursor.execute("DELETE FROM ping_users WHERE (ping_id = :ping AND user_id = :user_id)",
 		{"ping": pingID, "user_id": userID})
 	return True
+
 
 async def ping_has_user(tag: str, guild: discord.Guild, user: discord.Member, cursor: asqlite.Cursor) -> bool:
 	"""Checks if a user is already in a ping.
@@ -199,6 +215,7 @@ async def ping_has_user(tag: str, guild: discord.Guild, user: discord.Member, cu
 	else: # Ping does not exist. User could not be in ping.
 		return False
 
+
 async def ping_count_users(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> int:
 	"""Returns the number of users present in a ping.
 	Pings that don't exist will return -1."""
@@ -211,6 +228,7 @@ async def ping_count_users(tag: str, guild: discord.Guild, cursor: asqlite.Curso
 		await cursor.execute("SELECT COUNT(*) FROM ping_users WHERE server_id = :server_id AND ping_id = :ping", {"server_id": guild.id, "ping": ping_id})
 		userCount = await cursor.fetchone()
 		return userCount[0] # This entry has to be on the return. The await can't be subscripted.
+
 
 async def ping_count_active_users(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> int:
 	"""Returns the number of users present in a ping that are currently in the server.
@@ -232,6 +250,7 @@ async def ping_count_active_users(tag: str, guild: discord.Guild, cursor: asqlit
 		# Return our usercount
 		return userCount
 
+
 async def ping_get_user_ids_by_id(id: int, cursor: asqlite.Cursor) -> list[int]:
 	"""Returns a list of user IDs present in a ping by using the ping ID.
 	Empty or invalid pings will return an empty list."""
@@ -245,6 +264,7 @@ async def ping_get_user_ids_by_id(id: int, cursor: asqlite.Cursor) -> list[int]:
 	# Return our list of userIDs
 	return userIDList
 
+
 async def create_ping_embed(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> discord.Embed | None:
 	"""Creates a "ping info" embed using the name and guild of a ping."""
 	tag = tag.casefold()
@@ -255,21 +275,22 @@ async def create_ping_embed(tag: str, guild: discord.Guild, cursor: asqlite.Curs
 		return None
 	else:
 		# We have a ping ID
-		return await create_ping_embed_from_id(pingID, cursor)
+		return await create_ping_embed_from_id(pingID, guild, cursor)
+
 
 async def create_ping_embed_from_id(
 		id: int,
 		guild: discord.Guild,
 		cursor: asqlite.Cursor,
 		*,
-		title_prefix: str = None
-	) -> discord.Embed | None:
+		title_prefix: str | None = None
+	) -> discord.Embed:
 	"""Creates a "ping info" embed using the ID of a ping.
 	"title_prefix" is an optional argument that adds a "prefix" to the title of the resulting embed."""
 	# Get the name of the ping
 	pingName = await ping_get_name(id, cursor)
-	if pingName is None:
-		return None
+	#if pingName is None:
+	#	return None
 	# Get user names
 	pingUserIDs = await ping_get_user_ids_by_id(id, cursor)
 	pingUserNames = []
@@ -305,6 +326,7 @@ async def create_ping_embed_from_id(
 		)
 	# Return the generated embed
 	return embed
+
 
 class Pings(commands.Cog, name = "ping"):
 	"""Ping users by a tag."""
@@ -411,6 +433,7 @@ class Pings(commands.Cog, name = "ping"):
 	async def pingme(self, interaction: discord.Interaction, tag: str):
 		"""Adds you to, or removes you from a ping list"""
 		assert interaction.guild is not None
+		assert isinstance(interaction.user, discord.Member)
 
 		# Begin command function
 		san_check = sanitize_check(tag)
@@ -506,7 +529,7 @@ class Pings(commands.Cog, name = "ping"):
 							)
 							pingEmbed.set_author(
 								name = interaction.user.display_name,
-								icon_url = interaction.user.avatar.url
+								icon_url = interaction.user.display_avatar.url
 							)
 						else:
 							# Found pings, but could not find their names
@@ -537,7 +560,10 @@ class Pings(commands.Cog, name = "ping"):
 						response = "There are currently no pings defined."
 
 				# Send our response
-				await interaction.response.send_message(response, embed = pingEmbed)
+				if pingEmbed is not None:
+					await interaction.response.send_message(response, embed = pingEmbed)
+				else:
+					await interaction.response.send_message(response)
 				# We don't need to commit to the DB, since we don't write anything here
 
 	@pingGroup.command(name = "search")
@@ -616,7 +642,10 @@ class Pings(commands.Cog, name = "ping"):
 						response = f"{interaction.user.mention}, there are no tags for the search term: `{tag}`"
 
 				# Send our response
-				await interaction.response.send_message(response, embed = pingEmbed)
+				if pingEmbed is not None:
+					await interaction.response.send_message(response, embed = pingEmbed)
+				else:
+					await interaction.response.send_message(response)
 
 	@pingAdmin.command(name = "alias")
 	@app_commands.describe(
@@ -703,17 +732,23 @@ class Pings(commands.Cog, name = "ping"):
 			async with db.cursor() as cursor:
 				# Get the names of the pings for our two pings
 				fromID = await ping_get_id(merge_from, interaction.guild, cursor)
-				fromName = await ping_get_name(fromID, cursor)
+				if fromID is not None:
+					fromName = await ping_get_name(fromID, cursor)
+				else:
+					fromName = None
 
 				toID = await ping_get_id(merge_to, interaction.guild, cursor)
-				toName = await ping_get_name(toID, cursor)
+				if toID is not None:
+					toName = await ping_get_name(toID, cursor)
+				else:
+					toName = None
 
 				# Make sure these pings exist
-				if fromName is None:
+				if fromName is None or fromID is None:
 					# "From" ping not found
 					await interaction.response.send_message(f"The ping `{merge_from}` does not exist. Please specify a valid ping to be merged.", ephemeral=True)
 					return
-				if toName is None:
+				if toName is None or toID is None:
 					# "To" ping not found
 					await interaction.response.send_message(f"The ping `{merge_to}` does not exist. Please specify a valid ping to merge to.", ephemeral=True)
 					return
@@ -816,6 +851,9 @@ class Pings(commands.Cog, name = "ping"):
 					return
 				# Get the name of our main ping (in case our given tag was an alias)
 				pingName = await ping_get_name(pingID, cursor)
+				if pingName is None:
+					await interaction.response.send_message(f"I could not find a ping for the tag: `{tag}`", ephemeral=True)
+					return
 
 				# Set up our message
 				msg = f"{interaction.user.mention}, you are about to delete the following ping. This action is **irreversible**."
