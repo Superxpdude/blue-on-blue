@@ -57,10 +57,16 @@ class Jail(commands.GroupCog, group_name="jail"):
 		time = "Time duration for jail. Default unit is days",
 		time_unit = "Unit of measurement for the ""time"" parameter"
 	)
-	@blueonblue.checks.in_guild()
+	@blueonblue.checks.has_configs("channel_mod_activity", "role_jail")
 	async def jail(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Jails a user"""
 		assert interaction.guild is not None
+
+		modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
+		assert modChannel is not None
+		jailRole = await self.bot.serverConfig.role_jail.get(interaction.guild)
+		assert jailRole is not None
+
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -89,7 +95,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 				)
 				jailEmbed.set_author(
 					name = user.display_name,
-					icon_url = user.avatar.url
+					icon_url = user.display_avatar.url
 				)
 				await interaction.response.send_message(f"{interaction.user.mention}, you are about to jail the following user.", view = view, embed=jailEmbed)
 				view.message = await interaction.original_response()
@@ -99,8 +105,6 @@ class Jail(commands.GroupCog, group_name="jail"):
 				# Once we have a response, continue
 				if view.response:
 					# Action confirmed. Jail the user
-					# Get the mod activity channel
-					modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
 					# We need to check if the user is already present in the jail DB
 					await cursor.execute("SELECT * FROM jail WHERE server_id = :serverID AND user_id = :userID", {"serverID": interaction.guild.id, "userID": user.id})
 					userData = await cursor.fetchone()
@@ -108,7 +112,6 @@ class Jail(commands.GroupCog, group_name="jail"):
 						# User not in jail DB
 						await update_member_roles(user, cursor) # Update the user's roles in the DB
 						# Add the "jailed" role to the user
-						jailRole = await self.bot.serverConfig.role_jail.get(interaction.guild)
 						jailReason = f"User jailed by {interaction.user.display_name} for {timeText} {time_unit}."
 						userRoles = []
 						for role in user.roles: # Make a list of roles that the bot can remove
@@ -139,10 +142,16 @@ class Jail(commands.GroupCog, group_name="jail"):
 
 	@app_commands.command(name = "release")
 	@app_commands.describe(user = "User to be released")
-	@blueonblue.checks.in_guild()
+	@blueonblue.checks.has_configs("channel_mod_activity", "role_jail")
 	async def release(self, interaction: discord.Interaction, user: discord.Member):
 		"""Releases a user from jail"""
 		assert interaction.guild is not None
+
+		modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
+		assert modChannel is not None
+		jailRole = await self.bot.serverConfig.role_jail.get(interaction.guild)
+		assert jailRole is not None
+
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -166,7 +175,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 				)
 				jailEmbed.set_author(
 					name = user.display_name,
-					icon_url = user.avatar.url
+					icon_url = user.display_avatar.url
 				)
 
 				await interaction.response.send_message(f"{interaction.user.mention}, you are about to release the following user.", view = view, embed=jailEmbed)
@@ -177,10 +186,6 @@ class Jail(commands.GroupCog, group_name="jail"):
 				# Once we have a response, continue
 				if view.response:
 					# Action confirmed. Release the user
-					# Get the mod activity channel
-					modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
-					# Get the jail role
-					jailRole = await self.bot.serverConfig.role_jail.get(interaction.guild)
 					# Get the stored roles for the user
 					await cursor.execute("SELECT role_id FROM user_roles WHERE server_id = :serverID AND user_id = :userID",
 						{"serverID": interaction.guild.id, "userID": user.id})
@@ -217,9 +222,9 @@ class Jail(commands.GroupCog, group_name="jail"):
 					await interaction.followup.send("Pending release action has timed out", ephemeral=True)
 
 	@app_commands.command(name = "list")
-	@blueonblue.checks.in_guild()
 	async def list(self, interaction: discord.Interaction):
 		"""Lists users that are currently jailed"""
+		assert interaction.guild is not None
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
@@ -290,9 +295,11 @@ class Jail(commands.GroupCog, group_name="jail"):
 								await user.add_roles(*userRoles, reason = "Jail timeout expired")
 								assert jailRole is not None
 								await user.remove_roles(jailRole, reason = "Jail timeout expired")
-								await modChannel.send(f"User {user.mention} has been released from jail due to timeout expiry.", allowed_mentions=None)
+								if modChannel is not None:
+									await modChannel.send(f"User {user.mention} has been released from jail due to timeout expiry.", allowed_mentions=discord.AllowedMentions.none())
 							except:
-								await modChannel.send(f"Error assigning roles when releasing user {user.display_name} from jail.", allowed_mentions=None)
+								if modChannel is not None:
+									await modChannel.send(f"Error assigning roles when releasing user {user.display_name} from jail.", allowed_mentions=discord.AllowedMentions.none())
 								_log.warning(f"Failed to assign roles to release user from jail. Guild: [{guild.id}]. User: [{user.id}]. Roles: {userRoles}")
 						else:
 							# Could not find the user
@@ -303,7 +310,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 								# We should only have one result
 								userInfo = await cursor.fetchone()
 								# Send our information to the moderation activity channel
-								await modChannel.send(f"Failed to release user `{userInfo['display_name']}` from jail, user may no longer be present in the server", allowed_mentions=None)
+								await modChannel.send(f"Failed to release user `{userInfo['display_name']}` from jail, user may no longer be present in the server", allowed_mentions=discord.AllowedMentions.none())
 
 				# Delete data of released users
 				await cursor.execute("DELETE FROM jail WHERE release_time < :time", {"time": timeStamp})
