@@ -29,6 +29,15 @@ class ChannelUnauthorized(app_commands.AppCommandError):
 		self.channels = channels
 
 
+class MissingServerConfigs(app_commands.AppCommandError):
+	"""Command is missing server config options"""
+	configs: tuple[str]
+
+	def __init__(self, *configs: str, **kwargs):
+		super().__init__(**kwargs)
+		self.configs = configs
+
+
 # App command check functions
 def in_guild() -> Callable[[T], T]:
 	"""Checks if the command was used in a guild"""
@@ -37,6 +46,29 @@ def in_guild() -> Callable[[T], T]:
 			return True
 		else:
 			raise app_commands.errors.NoPrivateMessage
+
+	return app_commands.check(predicate)
+
+
+def has_configs(*configs: str) -> Callable[[T], T]:
+	"""Checks if a serverconfig exists for the given config value
+
+	Also implicitly checks if the command was used in a guild or not."""
+	async def predicate(interaction: discord.Interaction):
+		assert isinstance(interaction.client, blueonbluebot.BlueOnBlueBot)
+		bot = interaction.client
+		if interaction.guild is None:
+			raise app_commands.errors.NoPrivateMessage
+		# Guild exists
+		missing: list[str] = []
+		for c in configs:
+			if await bot.serverConfig.options[c].get(interaction.guild) is None:
+				missing.append(c)
+
+		if len(missing) > 0:
+			raise MissingServerConfigs(*missing)
+		# No errors
+		return True
 
 	return app_commands.check(predicate)
 

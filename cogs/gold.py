@@ -32,6 +32,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 		time = "Time duration for TMTM Gold. Default unit is days.",
 		time_unit = "Unit of measurement for ""time"" parameter."
 	)
+	@blueonblue.checks.has_configs("channel_mod_activity", "role_gold")
 	async def add(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
 		assert interaction.guild is not None
@@ -63,7 +64,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 				)
 				goldEmbed.set_author(
 					name = user.display_name,
-					icon_url = user.avatar.url
+					icon_url = user.display_avatar.url
 				)
 				await interaction.response.send_message(f"{interaction.user.mention}, you are about to give TMTM Gold to the following user.", view = view, embed=goldEmbed)
 				view.message = await interaction.original_response()

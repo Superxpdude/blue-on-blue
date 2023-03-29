@@ -229,10 +229,16 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 
 			await interaction.response.send_message(message, ephemeral=True)
 
+		elif isinstance(error, checks.MissingServerConfigs):
+			# Bot is missing server config options for the command
+			settings = ", ".join(error.configs)
+			message = f"{interaction.user.mention}, this server is missing the following config settings for this command.\n```{settings}```"
+			await interaction.response.send_message(message)
+
 		# If we don't have a handler for that error type, execute default error code.
 		else:
 			if interaction.command is not None:
-				_log.exception(f"Ignoring exception in app command {interaction.command}:")
+				_log.exception(f"Ignoring exception in app command {interaction.command.name}:")
 			else:
 				# Command is none
 				_log.exception(f"Ignoring exception in command tree:")
