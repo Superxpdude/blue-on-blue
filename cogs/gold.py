@@ -119,6 +119,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 	@app_commands.command(name = "remove")
 	@app_commands.describe(user = "User to have TMTM Gold removed")
+	@blueonblue.checks.has_configs("channel_mod_activity", "role_gold")
 	async def remove(self, interaction: discord.Interaction, user: discord.Member):
 		"""Removes TMTM Gold from a user"""
 		assert interaction.guild is not None
