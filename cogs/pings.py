@@ -360,9 +360,9 @@ class Pings(commands.Cog, name = "ping"):
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
 	@app_commands.guild_only()
-	@blueonblue.checks.in_guild()
 	async def ping(self, interaction: discord.Interaction, tag: str):
 		"""Pings all users associated with a specific tag."""
+		assert interaction.guild is not None
 
 		san_check = sanitize_check(tag)
 		if san_check is not None: # Validate our tag first
@@ -408,10 +408,9 @@ class Pings(commands.Cog, name = "ping"):
 	@pingGroup.command(name = "me")
 	@app_commands.describe(tag = "Name of ping")
 	@app_commands.autocomplete(tag=ping_autocomplete)
-	@blueonblue.checks.in_guild()
-	@blueonblue.checks.in_channel_bot()
 	async def pingme(self, interaction: discord.Interaction, tag: str):
 		"""Adds you to, or removes you from a ping list"""
+		assert interaction.guild is not None
 
 		# Begin command function
 		san_check = sanitize_check(tag)
@@ -466,10 +465,9 @@ class Pings(commands.Cog, name = "ping"):
 
 	@pingGroup.command(name = "list")
 	@app_commands.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
-	@blueonblue.checks.in_guild()
-	@blueonblue.checks.in_channel_bot()
 	async def pinglist(self, interaction: discord.Interaction, mode: Literal["all", "me"]="all"):
 		"""Lists information about pings"""
+		assert interaction.guild is not None
 
 		# Begin our DB section
 		async with self.bot.db.connect() as db:
@@ -545,10 +543,9 @@ class Pings(commands.Cog, name = "ping"):
 	@pingGroup.command(name = "search")
 	@app_commands.describe(tag = "The ping to search for")
 	@app_commands.autocomplete(tag=ping_autocomplete)
-	@blueonblue.checks.in_guild()
-	@blueonblue.checks.in_channel_bot()
 	async def pingsearch(self, interaction: discord.Interaction, tag: str):
 		"""Retrieves information about a ping"""
+		assert interaction.guild is not None
 
 		tag = tag.casefold() # String searching is case-sensitive
 
@@ -627,9 +624,9 @@ class Pings(commands.Cog, name = "ping"):
 		tag = "Ping to tie the alias to. Leave blank to remove alias."
 	)
 	@app_commands.autocomplete(tag=ping_autocomplete)
-	@blueonblue.checks.in_guild()
-	async def pingalias(self, interaction: discord.Interaction, alias: str, tag: str = None):
+	async def pingalias(self, interaction: discord.Interaction, alias: str, tag: str | None = None):
 		"""Creates (or removes) an alias for a ping"""
+		assert interaction.guild is not None
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
@@ -697,9 +694,9 @@ class Pings(commands.Cog, name = "ping"):
 		merge_from=ping_autocomplete,
 		merge_to=ping_autocomplete
 	)
-	@blueonblue.checks.in_guild()
 	async def pingmerge(self, interaction: discord.Interaction, merge_from: str, merge_to: str):
 		"""Merges two pings"""
+		assert interaction.guild is not None
 
 		# Begin our DB section
 		async with self.bot.db.connect() as db:
@@ -803,9 +800,9 @@ class Pings(commands.Cog, name = "ping"):
 	@pingAdmin.command(name = "delete")
 	@app_commands.describe(tag = "Ping to delete")
 	@app_commands.autocomplete(tag=ping_autocomplete)
-	@blueonblue.checks.in_guild()
 	async def pingdelete(self, interaction: discord.Interaction, tag: str):
 		"""Forcibly deletes a ping"""
+		assert interaction.guild is not None
 
 		# We need to search for the ping
 		# Begin our DB section
@@ -848,9 +845,9 @@ class Pings(commands.Cog, name = "ping"):
 		user_threshold = "Threshold below which pings will be subject to deletion",
 		days_since_last_use = "Pings last used greater than this number of days ago will be subject to deletion"
 	)
-	@blueonblue.checks.in_guild()
 	async def pingpurge(self, interaction: discord.Interaction, user_threshold: int=5, days_since_last_use: int=30):
 		"""Purges pings that are inactive, and below a specified user count."""
+		assert interaction.guild is not None
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
