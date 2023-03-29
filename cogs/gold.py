@@ -36,6 +36,12 @@ class Gold(commands.GroupCog, group_name="gold"):
 	async def add(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Gives TMTM Gold to a user"""
 		assert interaction.guild is not None
+
+		modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
+		assert modChannel is not None
+		goldRole = await self.bot.serverConfig.role_gold.get(interaction.guild)
+		assert goldRole is not None
+
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -75,14 +81,14 @@ class Gold(commands.GroupCog, group_name="gold"):
 				if view.response:
 					# Action confirmed. Give gold to the user
 					# Get the mod activity channel
-					modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
+
 					# We need to check if the user is already present in the gold DB
 					await cursor.execute("SELECT * FROM gold WHERE server_id = :serverID AND user_id = :userID", {"serverID": interaction.guild.id, "userID": user.id})
 					userData = await cursor.fetchone()
 					if userData is None:
 						# User not in gold DB
 						# Add the "gold" role to the user
-						goldRole = await self.bot.serverConfig.role_gold.get(interaction.guild)
+
 						goldReason = f"TMTM Gold given by {interaction.user.display_name} for {timeText} {time_unit}."
 						try:
 							assert goldRole is not None
@@ -116,6 +122,12 @@ class Gold(commands.GroupCog, group_name="gold"):
 	async def remove(self, interaction: discord.Interaction, user: discord.Member):
 		"""Removes TMTM Gold from a user"""
 		assert interaction.guild is not None
+
+		modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
+		assert modChannel is not None
+		goldRole = await self.bot.serverConfig.role_gold.get(interaction.guild)
+		assert goldRole is not None
+
 		# Start our DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
@@ -139,7 +151,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 				)
 				goldEmbed.set_author(
 					name = user.display_name,
-					icon_url = user.avatar.url
+					icon_url = user.display_avatar.url
 				)
 				await interaction.response.send_message(f"{interaction.user.mention}, you are about to remove TMTM Gold from the following user.", view = view, embed=goldEmbed)
 				view.message = await interaction.original_response()
@@ -149,10 +161,6 @@ class Gold(commands.GroupCog, group_name="gold"):
 				# Once we have a response, continue
 				if view.response:
 					# Action confirmed. Remove gold.
-					# Get the mod activity channel
-					modChannel = await self.bot.serverConfig.channel_mod_activity.get(interaction.guild)
-					# Get the gold role
-					goldRole = await self.bot.serverConfig.role_gold.get(interaction.guild)
 					goldReason = f"TMTM Gold removed by {interaction.user.display_name}"
 					# Remove the role from the user (if present)
 					if goldRole in user.roles:
@@ -241,9 +249,11 @@ class Gold(commands.GroupCog, group_name="gold"):
 								# We have found the user
 								try:
 									await user.remove_roles(goldRole, reason = "Jail timeout expired")
-									await modChannel.send(f"TMTM Gold has expired for user {user.mention}.", allowed_mentions=discord.AllowedMentions.none())
+									if modChannel is not None:
+										await modChannel.send(f"TMTM Gold has expired for user {user.mention}.", allowed_mentions=discord.AllowedMentions.none())
 								except:
-									await modChannel.send(f"Error removing expired TMTM Gold from user {user.display_name}. The user may no longer present in the server.", allowed_mentions=discord.AllowedMentions.none())
+									if modChannel is not None:
+										await modChannel.send(f"Error removing expired TMTM Gold from user {user.display_name}. The user may no longer present in the server.", allowed_mentions=discord.AllowedMentions.none())
 									_log.warning(f"Failed to remove expired TMTM Gold role from user. Guild: [{guild.id}]. User: [{user.id}].")
 							else:
 								# Could not find the user
