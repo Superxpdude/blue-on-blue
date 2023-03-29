@@ -202,6 +202,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 	async def _flag_thread(self, thread: discord.Thread, before: discord.Thread | None = None):
 		"""Reports a user for triggering the chat filter on a thread title."""
 		guild: discord.Guild = thread.guild
+		auditLog = None
 		if guild.me.guild_permissions.view_audit_log:
 			# Bot has permissions to view audit log
 			if before is None:
@@ -214,11 +215,13 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 				async for entry in guild.audit_logs(limit=1,action=discord.AuditLogAction.thread_update):
 					auditLog = entry
 			title = "Thread Title"
+			assert auditLog is not None
 			author = auditLog.user
 		else:
 			title = "Thread Title, check audit log for confirmation"
 			author = thread.owner
 
+		assert author is not None
 		# If the author is a bot, exit
 		if author.bot:
 			return
@@ -228,11 +231,11 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 			title = title,
 			description = thread.name,
 			colour = CHATFILTER_EMBED_COLOUR,
-			timestamp = auditLog.created_at
+			timestamp = auditLog.created_at if auditLog is not None else None
 		)
 		embed.set_author(
 			name = author.display_name,
-			icon_url = author.avatar.url
+			icon_url = author.display_avatar.url
 		)
 
 		# Log the thread
@@ -248,12 +251,12 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 			# Existing thread
 			await thread.edit(name=before.name)
 
-	blockListGroup = app_commands.Group(name="blocklist", description="Commands to manage the chatfilter blocklist")
+	blockListGroup = app_commands.Group(name="blocklist", description="Commands to manage the chatfilter blocklist", guild_only=True)
 
 	@blockListGroup.command(name = "show")
-	@blueonblue.checks.in_guild()
 	async def blockListShow(self, interaction: discord.Interaction):
 		"""Shows the block list"""
+		assert interaction.guild is not None
 
 		filterEntries = await self._get_chatfilterlist("block", interaction.guild)
 		filterEmbed = discord.Embed(
@@ -265,9 +268,9 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	@blockListGroup.command(name="add")
 	@app_commands.describe(string="The string to add to the list")
-	@blueonblue.checks.in_guild()
 	async def blockListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the block list"""
+		assert interaction.guild is not None
 
 		# Add to list
 		await self._add_chatfilter_entry(string, "block", interaction.guild)
@@ -275,20 +278,20 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	@blockListGroup.command(name="remove")
 	@app_commands.describe(string="The string to remove from the list")
-	@blueonblue.checks.in_guild()
 	async def blockListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the block list"""
+		assert interaction.guild is not None
 
 		# Remove from list
 		await self._remove_chatfilter_entry(string, "block", interaction.guild)
 		await interaction.response.send_message(f"{interaction.user.mention}, the string `{string}` has been removed from the block list.")
 
-	allowListGroup = app_commands.Group(name="allowlist", description="Commands to manage the chatfilter allowlist")
+	allowListGroup = app_commands.Group(name="allowlist", description="Commands to manage the chatfilter allowlist", guild_only=True)
 
 	@allowListGroup.command(name = "show")
-	@blueonblue.checks.in_guild()
 	async def allowListShow(self, interaction: discord.Interaction):
 		"""Shows the allow list"""
+		assert interaction.guild is not None
 
 		filterEntries = await self._get_chatfilterlist("allow", interaction.guild)
 		filterEmbed = discord.Embed(
@@ -300,9 +303,9 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	@allowListGroup.command(name="add")
 	@app_commands.describe(string="The string to add to the list")
-	@blueonblue.checks.in_guild()
 	async def allowListAdd(self, interaction: discord.Interaction, string: str):
 		"""Adds an entry to the allow list"""
+		assert interaction.guild is not None
 
 		# Add to list
 		await self._add_chatfilter_entry(string, "allow", interaction.guild)
@@ -310,9 +313,9 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 	@allowListGroup.command(name="remove")
 	@app_commands.describe(string="The string to remove from the list")
-	@blueonblue.checks.in_guild()
 	async def allowListRemove(self, interaction: discord.Interaction, string: str):
 		"""Removes an entry from the allow list"""
+		assert interaction.guild is not None
 
 		# Remove from list
 		await self._remove_chatfilter_entry(string, "allow", interaction.guild)
