@@ -8,6 +8,8 @@ from typing import Literal
 import blueonblue
 from .users import update_member_roles
 from blueonblue.defines import (
+	JAIL_BLOCK_UPDATES_KEY,
+	JAIL_EMBED_COLOUR,
 	SCONF_CHANNEL_MOD_ACTIVITY,
 	SCONF_ROLE_JAIL
 )
@@ -15,8 +17,6 @@ from blueonblue.defines import (
 import logging
 _log = logging.getLogger(__name__)
 
-JAIL_EMBED_COLOUR = 0xFF0000
-JAIL_BLOCK_UPDATES_KEY = "jail"
 
 @app_commands.guild_only()
 @app_commands.default_permissions(manage_messages=True)

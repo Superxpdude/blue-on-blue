@@ -13,6 +13,9 @@ from typing import TypedDict
 
 import blueonblue
 from blueonblue.defines import (
+	MISSION_EMBED_ADVMED_COLOUR,
+	MISSION_EMBED_COLOUR,
+	MISSION_EMBED_WS_COLOUR,
 	SCONF_CHANNEL_MISSION_AUDIT,
 	SCONF_MISSION_SHEET_KEY,
 	SCONF_MISSION_WORKSHEET,
@@ -22,9 +25,7 @@ from blueonblue.defines import (
 import logging
 _log = logging.getLogger(__name__)
 
-MISSION_EMBED_WS_COLOUR = 0xC2B280
-MISSION_EMBED_ADVMED_COLOUR = 0xDF0000
-MISSION_EMBED_COLOUR = 0x2E86C1
+
 
 ISO_8601_FORMAT = "%Y-%m-%d"
 

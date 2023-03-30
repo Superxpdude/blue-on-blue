@@ -7,12 +7,14 @@ import datetime
 from zoneinfo import ZoneInfo
 
 import blueonblue
+from blueonblue.defines import (
+	ARMASTATS_EMBED_COLOUR,
+	TIMEZONE
+)
 
 import logging
 _log = logging.getLogger(__name__)
 
-TIMEZONE = "CST6CDT"
-ARMASTATS_EMBED_COLOUR = 0xC48214
 
 @app_commands.guild_only()
 class ArmaStats(commands.GroupCog, group_name="armastats"):

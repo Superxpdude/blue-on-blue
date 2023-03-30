@@ -5,11 +5,12 @@ from discord.ext import commands
 from typing import List
 
 import blueonblue
+from blueonblue.defines import CHATFILTER_EMBED_COLOUR
 
 import logging
 _log = logging.getLogger(__name__)
 
-CHATFILTER_EMBED_COLOUR = 0xff0000
+
 
 @app_commands.guild_only()
 @app_commands.default_permissions(manage_guild=True)

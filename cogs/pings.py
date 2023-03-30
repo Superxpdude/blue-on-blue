@@ -7,12 +7,10 @@ from datetime import datetime, timezone, timedelta
 from typing import Literal, List
 
 import blueonblue
+from blueonblue.defines import PING_EMBED_COLOUR
 
 import logging
 _log = logging.getLogger(__name__)
-
-# Define our ping embed colour
-PING_EMBED_COLOUR = 0xFFA500 # Orange
 
 
 def sanitize_check(text: str) -> str | None:

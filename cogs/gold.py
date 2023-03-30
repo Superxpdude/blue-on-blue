@@ -8,14 +8,14 @@ from typing import Literal
 import blueonblue
 
 from blueonblue.defines import (
-    SCONF_CHANNEL_MOD_ACTIVITY,
+    GOLD_EMBED_COLOUR,
+	SCONF_CHANNEL_MOD_ACTIVITY,
     SCONF_ROLE_GOLD
 )
 
 import logging
 _log = logging.getLogger(__name__)
 
-GOLD_EMBED_COLOUR = 0xFF3491
 
 @app_commands.guild_only()
 @app_commands.default_permissions(manage_guild=True)

@@ -7,11 +7,10 @@ import datetime
 import random
 
 import blueonblue
+from blueonblue.defines import RAFFLE_EMBED_COLOUR
 
 import logging
 _log = logging.getLogger(__name__)
-
-RAFFLE_EMBED_COLOUR = 0x00ff00
 
 
 class RaffleParseError(Exception):

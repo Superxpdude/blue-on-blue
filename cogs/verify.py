@@ -5,11 +5,11 @@ from discord.ext import commands
 import aiohttp
 
 import blueonblue
+from blueonblue.defines import VERIFY_EMBED_COLOUR
 
 import logging
 _log = logging.getLogger(__name__)
 
-VERIFY_EMBED_COLOUR = 0xff00d0
 
 # Exceptions
 class MissingSteamID(Exception):
@@ -556,7 +556,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 						pass
 
 		# Start generating our embed
-		embed=discord.Embed(title="Accounts", color=0xff00d0)
+		embed=discord.Embed(title="Accounts", color=VERIFY_EMBED_COLOUR)
 		embed.set_author(
 			name = interaction.user.display_name,
 			icon_url = interaction.user.display_avatar.url
