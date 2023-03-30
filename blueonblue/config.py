@@ -3,6 +3,26 @@ import tomlkit
 from tomlkit import items
 import inspect
 
+from .defines import (
+	SCONF_CHANNEL_BOT,
+	SCONF_CHANNEL_CHECK_IN,
+	SCONF_CHANNEL_MISSION_AUDIT,
+	SCONF_CHANNEL_MOD_ACTIVITY,
+	SCONF_ROLE_GOLD,
+	SCONF_ROLE_JAIL,
+	SCONF_ROLE_MEMBER,
+	SCONF_STEAM_GROUP_ID,
+	SCONF_GROUP_APPLY_URL,
+	SCONF_MISSION_SHEET_KEY,
+	SCONF_MISSION_WORKSHEET,
+	SCONF_MISSION_WIKI_URL,
+	SCONF_ARMA_STATS_KEY,
+	SCONF_ARMA_STATS_URL,
+	SCONF_ARMA_STATS_MIN_DURATION,
+	SCONF_ARMA_STATS_MIN_PLAYERS,
+	SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD
+)
+
 import logging
 _log = logging.getLogger(__name__)
 
@@ -633,31 +653,31 @@ class ServerConfig:
 
 		# Initialize the config options
 		# Server channels
-		self.channel_bot = ServerConfigTextChannel(bot, "channel_bot")
-		self.channel_check_in = ServerConfigTextChannel(bot, "channel_check_in")
-		self.channel_mission_audit = ServerConfigTextChannel(bot, "channel_mission_audit")
-		self.channel_mod_activity = ServerConfigTextChannel(bot, "channel_mod_activity")
+		self.channel_bot = ServerConfigTextChannel(bot, SCONF_CHANNEL_BOT)
+		self.channel_check_in = ServerConfigTextChannel(bot, SCONF_CHANNEL_CHECK_IN)
+		self.channel_mission_audit = ServerConfigTextChannel(bot, SCONF_CHANNEL_MISSION_AUDIT)
+		self.channel_mod_activity = ServerConfigTextChannel(bot, SCONF_CHANNEL_MOD_ACTIVITY)
 
 		# Server roles
-		self.role_gold = ServerConfigRole(bot, "role_gold")
-		self.role_jail = ServerConfigRole(bot, "role_jail")
-		self.role_member = ServerConfigRole(bot, "role_member")
+		self.role_gold = ServerConfigRole(bot, SCONF_ROLE_GOLD)
+		self.role_jail = ServerConfigRole(bot, SCONF_ROLE_JAIL)
+		self.role_member = ServerConfigRole(bot, SCONF_ROLE_MEMBER)
 
 		# Steam Group and verify URL
-		self.steam_group_id = ServerConfigInteger(bot, "steam_group_id")
-		self.group_apply_url = ServerConfigString(bot, "group_apply_url")
+		self.steam_group_id = ServerConfigInteger(bot, SCONF_STEAM_GROUP_ID)
+		self.group_apply_url = ServerConfigString(bot, SCONF_GROUP_APPLY_URL)
 
 		# Missions config
-		self.mission_sheet_key = ServerConfigString(bot, "mission_sheet_key")
-		self.mission_worksheet = ServerConfigStringDefault(bot, "mission_worksheet", default = "Schedule")
-		self.mission_wiki_url = ServerConfigString(bot, "mission_wiki_url")
+		self.mission_sheet_key = ServerConfigString(bot, SCONF_MISSION_SHEET_KEY)
+		self.mission_worksheet = ServerConfigStringDefault(bot, SCONF_MISSION_WORKSHEET, default = "Schedule")
+		self.mission_wiki_url = ServerConfigString(bot, SCONF_MISSION_WIKI_URL)
 
 		# Arma stats config
-		self.arma_stats_key = ServerConfigString(bot, "arma_stats_key", protected = True)
-		self.arma_stats_url = ServerConfigString(bot, "arma_stats_url")
-		self.arma_stats_min_duration = ServerConfigIntegerDefault(bot, "arma_stats_min_duration", default = "90")
-		self.arma_stats_min_players = ServerConfigIntegerDefault(bot, "arma_stats_min_players", default = "10")
-		self.arma_stats_participation_threshold = ServerConfigFloatDefault(bot, "arma_stats_participation_threshold", default = "0.5")
+		self.arma_stats_key = ServerConfigString(bot, SCONF_ARMA_STATS_KEY, protected = True)
+		self.arma_stats_url = ServerConfigString(bot, SCONF_ARMA_STATS_URL)
+		self.arma_stats_min_duration = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_DURATION, default = "90")
+		self.arma_stats_min_players = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_PLAYERS, default = "10")
+		self.arma_stats_participation_threshold = ServerConfigFloatDefault(bot, SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD, default = "0.5")
 
 		# Initialize our options dict
 		self.options: dict[str, ServerConfigOption] = {}
