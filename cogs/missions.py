@@ -12,6 +12,12 @@ import re
 from typing import TypedDict
 
 import blueonblue
+from blueonblue.defines import (
+	SCONF_CHANNEL_MISSION_AUDIT,
+	SCONF_MISSION_SHEET_KEY,
+	SCONF_MISSION_WORKSHEET,
+	SCONF_MISSION_WIKI_URL
+)
 
 import logging
 _log = logging.getLogger(__name__)
@@ -273,25 +279,29 @@ class Missions(commands.Cog, name = "Missions"):
 
 	@app_commands.command(name = "missions")
 	@app_commands.guild_only()
-	@blueonblue.checks.in_guild()
+	@blueonblue.checks.has_configs(
+		SCONF_MISSION_SHEET_KEY,
+		SCONF_MISSION_WORKSHEET,
+		SCONF_MISSION_WIKI_URL
+	)
 	async def missions(self, interaction: discord.Interaction):
 		"""Displays a list of scheduled missions"""
 
 		# Guild-only command. Guild will always be defined
 		assert interaction.guild is not None
 
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
+		assert missionKey is not None
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
+		assert missionWorksheetName is not None
+		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(interaction.guild)
+		assert wikiURL is not None
+
 		# Immediately defer this action, since this can take some time.
 		await interaction.response.defer()
 
 		# Authorize our connection to google sheets
 		googleClient = await self.agcm.authorize()
-		# Read some config values
-		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
-		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
-
-		if missionKey is None:
-			await interaction.followup.send("Could not find the URL for the mission sheet in the server config. Please contact the bot owner.")
-			return
 
 		# Get the actual mission document
 		missionDoc = await googleClient.open_by_key(missionKey)
@@ -300,9 +310,6 @@ class Missions(commands.Cog, name = "Missions"):
 		# Get our spreadsheet contents
 		# TODO: Change this to no longer require type ignore
 		sheetData = await missionSheet.get_all_records(default_blank = None) # type: ignore
-
-		# Get our wiki URL
-		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(interaction.guild)
 
 		# Get our current data
 		missionEmbeds = []
@@ -421,22 +428,16 @@ class Missions(commands.Cog, name = "Missions"):
 		modpreset = "Mod preset .html file"
 	)
 	@app_commands.guild_only()
-	@blueonblue.checks.in_guild()
+	@blueonblue.checks.has_configs(SCONF_CHANNEL_MISSION_AUDIT)
 	async def audit(self, interaction: discord.Interaction, missionfile: discord.Attachment, modpreset: discord.Attachment|None = None):
 		"""Submits a mission for auditing"""
-
-		# Guild-only command
 		assert interaction.guild is not None
+
+		auditChannel = await self.bot.serverConfig.channel_mission_audit.get(interaction.guild)
+		assert auditChannel is not None
 
 		# Immediately defer the response
 		await interaction.response.defer()
-
-		# Check to see if the audit channel exists before going any further
-		auditChannel = await self.bot.serverConfig.channel_mission_audit.get(interaction.guild)
-
-		if auditChannel is None:
-			await interaction.followup.send("I could not locate the audit channel to submit this mission for auditing. Please contact the bot owner.")
-			return
 
 		# Check to see if we have a mod preset
 		if modpreset is not None:
@@ -606,11 +607,21 @@ class Missions(commands.Cog, name = "Missions"):
 	)
 	@app_commands.autocomplete(missionname=mission_autocomplete)
 	@app_commands.guild_only()
-	@blueonblue.checks.in_guild()
-	@blueonblue.checks.in_channel_bot()
+	@blueonblue.checks.has_configs(
+		SCONF_MISSION_SHEET_KEY,
+		SCONF_MISSION_WORKSHEET,
+		SCONF_MISSION_WIKI_URL
+	)
 	async def schedule(self, interaction: discord.Interaction, date: str, missionname: str, notes: str|None = None):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
 		assert interaction.guild is not None
+
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
+		assert missionKey is not None
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
+		assert missionWorksheetName is not None
+		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(interaction.guild)
+		assert wikiURL is not None
 
 		# See if we can convert out date string to a datetime object
 		try:
@@ -627,17 +638,6 @@ class Missions(commands.Cog, name = "Missions"):
 		# If we've passed our preliminary checks, defer the response
 		# This gives us time to communicate with the wiki and google sheets
 		await interaction.response.defer()
-
-		# Read some config values
-		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
-		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
-
-		if missionKey is None:
-			await interaction.followup.send("Could not find the URL for the mission sheet in the server config. Please contact the bot owner.")
-			return
-
-		# Get our wiki URL
-		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(interaction.guild)
 
 		# Start our HTTP request block
 		try:
@@ -765,10 +765,19 @@ class Missions(commands.Cog, name = "Missions"):
 	@app_commands.describe(date = "ISO 8601 formatted date (YYYY-MM-DD)")
 	@app_commands.guild_only()
 	@app_commands.default_permissions(manage_messages=True)
-	@blueonblue.checks.in_guild()
+	@blueonblue.checks.has_configs(
+		SCONF_MISSION_SHEET_KEY,
+		SCONF_MISSION_WORKSHEET,
+		SCONF_MISSION_WIKI_URL
+	)
 	async def schedule_cancel(self, interaction: discord.Interaction, date: str):
 		"""Removes a previously scheduled mission from the mission schedule"""
 		assert interaction.guild is not None
+
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
+		assert missionKey is not None
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
+		assert missionWorksheetName is not None
 
 		# See if we can convert out date string to a datetime object
 		try:
@@ -783,14 +792,6 @@ class Missions(commands.Cog, name = "Missions"):
 
 		#Convert the date back to a string format so that we can find it on the schedule sheet
 		dateStr = dateVar.strftime(ISO_8601_FORMAT)
-
-		# Read some config values
-		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
-		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
-
-		if missionKey is None:
-			await interaction.followup.send("Could not find the URL for the mission sheet in the server config. Please contact the bot owner.")
-			return
 
 		# Start our spreadsheet block
 		# Authorize our connection to google sheets
