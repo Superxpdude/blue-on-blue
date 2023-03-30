@@ -38,18 +38,6 @@ class MissingServerConfigs(app_commands.AppCommandError):
 		self.configs = configs
 
 
-# App command check functions
-def in_guild() -> Callable[[T], T]:
-	"""Checks if the command was used in a guild"""
-	async def predicate(interaction: discord.Interaction):
-		if interaction.guild is not None:
-			return True
-		else:
-			raise app_commands.errors.NoPrivateMessage
-
-	return app_commands.check(predicate)
-
-
 def has_configs(*configs: str) -> Callable[[T], T]:
 	"""Checks if a serverconfig exists for the given config value
 
@@ -69,33 +57,5 @@ def has_configs(*configs: str) -> Callable[[T], T]:
 			raise MissingServerConfigs(*missing)
 		# No errors
 		return True
-
-	return app_commands.check(predicate)
-
-
-def in_channel_bot() -> Callable[[T], T]:
-	"""Checks if the command was used in the specified bot channel"""
-	async def predicate(interaction: discord.Interaction):
-		assert isinstance(interaction.client, blueonbluebot.BlueOnBlueBot)
-		assert isinstance(interaction.user, discord.Member)
-		bot: blueonbluebot.BlueOnBlueBot = interaction.client
-		# Check if the command was executed in a server or not
-		if interaction.guild is not None:
-			# Command was used in a server
-			assert isinstance(interaction.channel, discord.abc.GuildChannel)
-			botChannel = await bot.serverConfig.channel_bot.get(interaction.guild)
-			if (botChannel is not None) and (interaction.channel.id == botChannel.id):
-				# Used in bot channel
-				return True
-			else:
-				# Not in bot channel
-				if botChannel is not None:
-					raise ChannelUnauthorized(botChannel.id)
-				else:
-					raise ChannelUnauthorized()
-		else:
-			# Not used in guild
-			# For this, we don't specifically care if it was used in a DM or not. If it shouldn't be used in DMs, a "in_guild" check should be done as well.
-			return True
 
 	return app_commands.check(predicate)
