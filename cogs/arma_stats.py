@@ -39,6 +39,10 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		"""
 		assert interaction.guild is not None
 
+		mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
+		mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
+		mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(interaction.guild)
+
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# First, we need to check if we have a linked steam account
@@ -52,9 +56,6 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 					return
 
 				# The user has a linked steam account, count how many missions they have attended
-				mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
-				mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
-				mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(interaction.guild)
 
 				# Query the database
 				# This will return the number of missions in the database that the user has participated in
@@ -136,13 +137,15 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		assert interaction.guild is not None
 		leaderboard_count = 5
 
+		mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
+		mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
+		mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(interaction.guild)
+
 		# Start the DB block
 		async with self.bot.db.connect() as db:
 			async with db.cursor() as cursor:
 				# Read config values
-				mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
-				mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
-				mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(interaction.guild)
+
 
 				# Query the database to get our leaderboard
 				await cursor.execute(
@@ -179,7 +182,6 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		)
 
 		# Create our message text
-		leaderboard = []
 		for (count, row) in enumerate(data):
 			# If the user is not in the guild, return their stored display name instead of using a mention
 			user = interaction.guild.get_member(row['discord_id'])
