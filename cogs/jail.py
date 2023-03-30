@@ -7,6 +7,10 @@ from typing import Literal
 
 import blueonblue
 from .users import update_member_roles
+from blueonblue.defines import (
+	SCONF_CHANNEL_MOD_ACTIVITY,
+	SCONF_ROLE_JAIL
+)
 
 import logging
 _log = logging.getLogger(__name__)
@@ -57,7 +61,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		time = "Time duration for jail. Default unit is days",
 		time_unit = "Unit of measurement for the ""time"" parameter"
 	)
-	@blueonblue.checks.has_configs("channel_mod_activity", "role_jail")
+	@blueonblue.checks.has_configs(SCONF_CHANNEL_MOD_ACTIVITY, SCONF_ROLE_JAIL)
 	async def jail(self, interaction: discord.Interaction, user: discord.Member, time: float, time_unit: Literal["minutes", "hours", "days", "weeks"] = "days"):
 		"""Jails a user"""
 		assert interaction.guild is not None
@@ -142,7 +146,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 
 	@app_commands.command(name = "release")
 	@app_commands.describe(user = "User to be released")
-	@blueonblue.checks.has_configs("channel_mod_activity", "role_jail")
+	@blueonblue.checks.has_configs(SCONF_CHANNEL_MOD_ACTIVITY, SCONF_ROLE_JAIL)
 	async def release(self, interaction: discord.Interaction, user: discord.Member):
 		"""Releases a user from jail"""
 		assert interaction.guild is not None
