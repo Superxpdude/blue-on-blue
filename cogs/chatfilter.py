@@ -34,7 +34,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 		"""Update the chat filter lists"""
 		# Start the DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Reset our existing lists from memory
 				keyList = []
 				for g in self.bot.guilds:
@@ -64,7 +64,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 		"""Update the chat filter lists for a single server"""
 		# Start the DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Don't reset the entire filter lists
 				self.allowList[guild.id] = []
 				self.blockList[guild.id] = []
@@ -93,7 +93,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 		# Start the DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Add our entry to the DB
 				await cursor.execute("INSERT OR REPLACE INTO chatfilter (server_id, filter_list, string) VALUES (:server_id, :list, :string)",
 					{"server_id": guild.id, "list": filterlist, "string": string.casefold()})
@@ -111,7 +111,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 		# Start the DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Remove our entry from the DB
 				await cursor.execute("DELETE FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list AND string = :string)",
 					{"server_id": guild.id, "list": filterlist, "string": string.casefold()})
@@ -131,7 +131,7 @@ class ChatFilter(commands.GroupCog, group_name="chatfilter"):
 
 		# Start the DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Get our values from the DB
 				await cursor.execute("SELECT string FROM chatfilter WHERE (server_id = :server_id AND filter_list = :list)",
 					{"server_id": guild.id, "list": filterlist})

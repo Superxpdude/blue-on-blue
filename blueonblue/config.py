@@ -107,7 +107,7 @@ class ServerConfigOption:
 			Setting value if found
 		"""
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				await cursor.execute(
 					"SELECT value FROM serverconfig WHERE server_id = :server_id AND setting = :setting AND value IS NOT NULL",
 					{"server_id": serverID, "setting": self.name}
@@ -135,7 +135,7 @@ class ServerConfigOption:
 			Value to set
 		"""
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				await cursor.execute(
 					"INSERT INTO serverconfig (server_id, setting, value) VALUES (:server_id, :setting, :value) \
 					ON CONFLICT(server_id, setting) DO UPDATE SET value = :value",
@@ -154,7 +154,7 @@ class ServerConfigOption:
 			Setting to clear
 		"""
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				await cursor.execute(
 					"DELETE FROM pings WHERE (server_id = :server_id AND setting = :setting)",
 					{"server_id": serverID, "setting": self.name}

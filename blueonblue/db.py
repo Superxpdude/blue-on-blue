@@ -1,4 +1,5 @@
 import asqlite
+from .dbtables import *
 
 from typing import (
 	Optional,
@@ -26,9 +27,17 @@ class DBConnection():
 	def __init__(self, dbFile: str):
 		self._dbFile = dbFile
 
-	async def __aenter__(self) -> asqlite.Connection:
+		# Initialize tables
+		self.raffleWeight = RaffleWeights(self)
+
+	async def commit(self) -> None:
+		"""Convenience function to commit changes on the connection
+		"""
+		await self.connection.commit()
+
+	async def __aenter__(self) -> "DBConnection":
 		self.connection = await asqlite.connect(self._dbFile)
-		return self.connection
+		return self
 
 	async def __aexit__(
 		self,
@@ -58,7 +67,7 @@ class DB():
 		Does nothing if the database is already up to date.
 		"""
 		async with self.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				schema_version = 0
 				while schema_version != DBVERSION:
 					schema_version = (await (await cursor.execute("PRAGMA user_version")).fetchone())["user_version"]

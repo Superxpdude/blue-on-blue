@@ -79,7 +79,7 @@ class VerifyButton(discord.ui.Button):
 
 		# User is now confirmed to be verified, set the data in the DB
 		async with self.view.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Clean up any other matching steamID entries
 				await cursor.execute("UPDATE verify SET steam64_id = NULL WHERE steam64_id = :steamID", {"steamID": int(self.view.steamID)})
 				await cursor.execute("INSERT OR REPLACE INTO verify (discord_id, steam64_id) VALUES\
@@ -390,7 +390,7 @@ async def assign_roles(bot: blueonblue.BlueOnBlueBot, guild: discord.Guild, user
 	"""
 	# Start by querying the database to see if the user has any roles stored.
 	async with bot.db.connect() as db:
-		async with db.cursor() as cursor:
+		async with db.connection.cursor() as cursor:
 			await cursor.execute("SELECT server_id, user_id, role_id FROM user_roles WHERE server_id = :server_id AND user_id = :user_id", {"server_id": guild.id, "user_id": user.id})
 			roleData = await cursor.fetchall()
 
@@ -542,7 +542,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 
 		# Check to see if we can get the user's Steam64ID from the database
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Get the user's data from the DB
 				await cursor.execute("SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL", {"id": interaction.user.id})
 				userData = await cursor.fetchone() # This will only return users that are verified
@@ -583,7 +583,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 			# Only continue if we have a valid steam group ID and check in channel
 			# Start our DB block
 			async with self.bot.db.connect() as db:
-				async with db.cursor() as cursor:
+				async with db.connection.cursor() as cursor:
 					# Get the user data from the DB
 					await cursor.execute("SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL", {"id": member.id})
 					userData = await cursor.fetchone() # This will only return users that are verified

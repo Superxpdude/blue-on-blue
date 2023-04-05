@@ -46,7 +46,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(interaction.guild)
 
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# First, we need to check if we have a linked steam account
 				# Get the user's data from the DB
 				await cursor.execute("SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL", {"id": interaction.user.id})
@@ -145,7 +145,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 
 		# Start the DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Read config values
 
 
@@ -214,7 +214,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		# Get our DB connection
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Iterate once through each discord server that we're in
 				for guild in self.bot.guilds:
 					api_url = await self.bot.serverConfig.arma_stats_url.get(guild)
