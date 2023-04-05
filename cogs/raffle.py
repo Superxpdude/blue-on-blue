@@ -6,8 +6,10 @@ import asyncio
 import datetime
 import random
 
+import asqlite
 import blueonblue
 from blueonblue.defines import RAFFLE_EMBED_COLOUR
+
 
 import logging
 _log = logging.getLogger(__name__)
@@ -52,6 +54,53 @@ def parseRaffleString(raffleStr: str) -> tuple[tuple[str, int],...]:
 			raise RaffleParseError(f"Invalid winner count for raffle: {raffleName}")
 		raffles.append((raffleName,winnerCount))
 	return tuple(raffles)
+
+
+async def getRaffleWeight(cursor: asqlite.Cursor, guildID: int, userID: int) -> float:
+	"""Returns the raffle weight of a user from the database
+
+	Parameters
+	----------
+	cursor : asqlite.Cursor
+		asqlite cursor to use
+	guildID: int
+		Guild ID to check
+	userID : int
+		User ID to check
+
+	Returns
+	-------
+	float
+		Raffle weight. Defaults to 1 if not found
+	"""
+	await cursor.execute("SELECT weight FROM raffle_weights WHERE server_id = :server_id AND user_id = :user_id", {"server_id": guildID, "user_id": userID})
+	data = await cursor.fetchone()
+	if data is None:
+		return 1.0
+	else:
+		return data["weight"]
+
+
+async def setRaffleWeight(cursor: asqlite.Cursor, guildID: int, userID: int, weight: float) -> None:
+	"""Sets the raffle weight for a participant
+
+	Parameters
+	----------
+	cursor : asqlite.Cursor
+		asqlite cursor to use
+	guildID : int
+		Guild ID
+	userID : int
+		User ID
+	weight : float
+		New weight to set
+	"""
+	await cursor.execute("INSERT INTO raffle_weights (server_id, user_id, weight)\
+		VALUES (:server_id, :user_id, :weight)\
+		ON CONFLICT (server_id, user_id) DO UPDATE\
+		SET weight == :weight",
+		{"server_id": guildID, "user_id": userID, "weight": weight}
+	)
 
 
 class RaffleObject():
@@ -121,7 +170,9 @@ class RaffleObject():
 
 	def selectWinners(self,
 		winnerCount: int | None = None,
-		excluded: tuple[discord.User|discord.Member] | None = None
+		excluded: tuple[discord.User|discord.Member] | None = None,
+		*,
+		weighted: bool = False
 	) -> tuple[discord.User|discord.Member]:
 		"""Selects a number of winners for the raffle
 
@@ -131,6 +182,8 @@ class RaffleObject():
 			How many winners to select, by default 1
 		excluded: tuple[discord.User|discord.Member], optional
 			Tuple of users that cannot win the raffle (due to exclusive wins)
+		weighted: bool, optional
+			Whether or not to grab participants weights from the database
 
 		Returns
 		-------
@@ -357,12 +410,12 @@ class Raffle(commands.Cog, name = "Raffle"):
 		description="Raffle commands",
 		guild_only=True
 	)
-	# missionRaffleGroup = app_commands.Group(
-	# 	name="missionraffle",
-	# 	description="Mission raffle commands",
-	# 	guild_only=True,
-	# 	default_permissions=discord.Permissions(manage_messages=True)
-	# )
+	missionRaffleGroup = app_commands.Group(
+		name="missionraffle",
+		description="Mission raffle commands",
+		guild_only=True,
+		default_permissions=discord.Permissions(manage_messages=True)
+	)
 
 
 	@raffleGroup.command(name = "single")
