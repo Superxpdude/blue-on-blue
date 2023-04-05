@@ -1,4 +1,4 @@
-name: Type Checking
+name: Lint
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
       matrix:
         python-version: ["3.10","3.11"]
 
-    name: check ${{ matrix.python-version }}
+    name: Check ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v3
 
