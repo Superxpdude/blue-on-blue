@@ -15,7 +15,7 @@ __all__ = [
 	"DBConnection"
 ]
 
-DBVERSION = 3
+DBVERSION = 4
 
 class DBConnection():
 	"""BlueonBlue database connection class.
@@ -175,6 +175,13 @@ class DB():
 							value TEXT,\
 							UNIQUE(server_id, setting))")
 
+						# Raffle weights table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_weights (\
+							server_id INTEGER NOT NULL,\
+							user_id INTEGER NOT NULL,\
+							weight NUMERIC NOT NULL,\
+							UNIQUE(server_id, user_id))")
+
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
 
@@ -236,6 +243,21 @@ class DB():
 
 						await cursor.execute("PRAGMA user_version = 3")
 						_log.info("Database upgraded to version: 3")
+
+						await db.commit()
+
+					if schema_version == 3:
+						_log.info("Upgrading database to version 4")
+
+						# Raffle weights table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_weights (\
+							server_id INTEGER NOT NULL,\
+							user_id INTEGER NOT NULL,\
+							weight NUMERIC NOT NULL,\
+							UNIQUE(server_id, user_id))")
+
+						await cursor.execute("PRAGMA user_version = 4")
+						_log.info("Database upgraded to version: 4")
 
 						await db.commit()
 
