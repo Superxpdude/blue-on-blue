@@ -1,11 +1,8 @@
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-	from ..db import DBConnection
+from .base import BaseTable
 
-class RaffleWeights:
-	def __init__(self, db: "DBConnection"):
-		self.db = db
-
+class RaffleWeights(BaseTable):
+	"""Raffle Weights table class"""
+	_tableName = "raffle_weights"
 
 	async def getWeight(self, guildID: int, userID: int) -> float:
 		"""Returns the raffle weight of a user from the database
