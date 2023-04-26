@@ -1,5 +1,5 @@
 import asqlite
-from .dbtables import *
+import dbtables
 
 from typing import (
 	Optional,
@@ -28,7 +28,7 @@ class DBConnection():
 		self._dbFile = dbFile
 
 		# Initialize tables
-		self.raffleWeight = RaffleWeights(self)
+		self.raffleWeight = dbtables.RaffleWeights(self)
 
 	async def commit(self) -> None:
 		"""Convenience function to commit changes on the connection

@@ -12,8 +12,6 @@ class RaffleWeights:
 
 		Parameters
 		----------
-		cursor : asqlite.Cursor
-			asqlite cursor to use
 		guildID: int
 			Guild ID to check
 		userID : int
@@ -38,8 +36,6 @@ class RaffleWeights:
 
 		Parameters
 		----------
-		cursor : asqlite.Cursor
-			asqlite cursor to use
 		guildID : int
 			Guild ID
 		userID : int
