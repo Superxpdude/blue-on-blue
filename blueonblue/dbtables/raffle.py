@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-	from .db import DBConnection
+	from ..db import DBConnection
 
 class RaffleWeights:
 	def __init__(self, db: "DBConnection"):
