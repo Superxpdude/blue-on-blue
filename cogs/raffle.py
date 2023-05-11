@@ -164,8 +164,10 @@ class RaffleObject():
 			eligible = self.participants
 
 		if len(eligible) > 0:
+			# At least one eligible participant
 			return tuple(random.sample(eligible, k = min(winnerCount, len(eligible))))
 		else:
+			# No eligible participants
 			return tuple()
 
 
