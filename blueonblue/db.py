@@ -1,5 +1,5 @@
 import asqlite
-import dbtables
+from . import dbtables
 
 from typing import (
 	Optional,
