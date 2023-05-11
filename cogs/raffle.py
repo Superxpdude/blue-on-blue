@@ -459,7 +459,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 		dt = discord.utils.utcnow() + datetime.timedelta(seconds = duration)
 
 		# Create the view
-		view = RaffleView(self.bot, raffles = raffleList, endTime = dt, exclusive = True)
+		view = RaffleView(self.bot, raffles = raffleList, endTime = dt, exclusive = exclusive)
 
 		# Generate an embed
 		embed = view.build_embed()
