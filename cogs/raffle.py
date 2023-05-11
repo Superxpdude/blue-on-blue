@@ -490,5 +490,102 @@ class Raffle(commands.Cog, name = "Raffle"):
 		await interaction.followup.send(embeds = raffleEmbeds)
 
 
+	raffleWeightGroup = app_commands.Group(
+		name="raffleweight",
+		description="Raffle Weight commands",
+		guild_only=True,
+		default_permissions=discord.Permissions(manage_guild=True)
+	)
+
+
+	@raffleWeightGroup.command(name = "get")
+	async def weight_get(self,
+		interaction: discord.Interaction,
+		user: discord.Member
+	):
+		"""Gets the raffle weight of a user
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord interaction
+		user : discord.Member
+			Discord user
+		"""
+		assert interaction.guild is not None
+		async with self.bot.db.connect() as db:
+			weight = await db.raffleWeight.getWeight(interaction.guild.id, user.id)
+			embed = discord.Embed(
+				title = "Raffle Weight",
+				description = f"Weight for {user.display_name}: `{weight}`",
+				colour = RAFFLE_EMBED_COLOUR
+			)
+			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
+			await interaction.response.send_message(embed = embed)
+
+
+	@raffleWeightGroup.command(name = "set")
+	async def weight_set(self,
+		interaction: discord.Interaction,
+		user: discord.Member,
+		weight: float
+	):
+		"""Sets the raffle weight of a user
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord interaction
+		user : discord.Member
+			Discord user
+		weight : float
+			Raffle weight to set
+		"""
+		assert interaction.guild is not None
+		async with self.bot.db.connect() as db:
+			await db.raffleWeight.setWeight(interaction.guild.id, user.id, weight)
+			await db.commit()
+			embed = discord.Embed(
+				title = "Raffle Weight",
+				description = f"Weight for {user.display_name} set to: `{weight}`",
+				colour = RAFFLE_EMBED_COLOUR
+			)
+			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
+			await interaction.response.send_message(embed = embed)
+
+
+	@raffleWeightGroup.command(name = "increase")
+	async def weight_increase(self,
+		interaction: discord.Interaction,
+		user: discord.Member,
+		increase: float
+	):
+		"""Increases the raffle weight of a user
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord interaction
+		user : discord.Member
+			Discord user
+		increase : float
+			Raffle weight increase to apply
+		"""
+		assert interaction.guild is not None
+		maxWeight = await self.bot.serverConfig.raffleweight_max.get(interaction.guild.id)
+
+		async with self.bot.db.connect() as db:
+			await db.raffleWeight.increaseWeight(interaction.guild.id, user.id, increase, maxWeight)
+			weight = await db.raffleWeight.getWeight(interaction.guild.id, user.id)
+			await db.commit()
+			embed = discord.Embed(
+				title = "Raffle Weight",
+				description = f"Weight for {user.display_name} increased by `{increase}` to `{weight}`",
+				colour = RAFFLE_EMBED_COLOUR
+			)
+			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
+			await interaction.response.send_message(embed = embed)
+
+
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(Raffle(bot))

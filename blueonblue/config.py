@@ -16,6 +16,8 @@ from .defines import (
 	SCONF_MISSION_SHEET_KEY,
 	SCONF_MISSION_WORKSHEET,
 	SCONF_MISSION_WIKI_URL,
+	SCONF_RAFFLEWEIGHT_MAX,
+	SCONF_RAFFLEWEIGHT_INCREASE,
 	SCONF_ARMA_STATS_KEY,
 	SCONF_ARMA_STATS_URL,
 	SCONF_ARMA_STATS_MIN_DURATION,
@@ -671,6 +673,10 @@ class ServerConfig:
 		self.mission_sheet_key = ServerConfigString(bot, SCONF_MISSION_SHEET_KEY)
 		self.mission_worksheet = ServerConfigStringDefault(bot, SCONF_MISSION_WORKSHEET, default = "Schedule")
 		self.mission_wiki_url = ServerConfigString(bot, SCONF_MISSION_WIKI_URL)
+
+		# Raffle Weights
+		self.raffleweight_max = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_MAX, default = "3.0")
+		self.raffleweight_increase = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_INCREASE, default = "0.2")
 
 		# Arma stats config
 		self.arma_stats_key = ServerConfigString(bot, SCONF_ARMA_STATS_KEY, protected = True)

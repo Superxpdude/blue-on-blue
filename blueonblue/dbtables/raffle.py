@@ -26,10 +26,10 @@ class RaffleWeights(BaseTable):
 			if data is None:
 				return 1.0
 			else:
-				return data["weight"]
+				return float(data["weight"])
 
 
-	async def setRaffleWeight(self, guildID: int, userID: int, weight: float) -> None:
+	async def setWeight(self, guildID: int, userID: int, weight: float) -> None:
 		"""Sets the raffle weight for a participant
 
 		Parameters
@@ -50,7 +50,7 @@ class RaffleWeights(BaseTable):
 			)
 
 
-	async def increaseRaffleWeight(self, guildID: int, userID: int, increase: float, maxWeight: float = 3.0) -> None:
+	async def increaseWeight(self, guildID: int, userID: int, increase: float, maxWeight: float = 3.0) -> None:
 		"""Increase the raffle weight for a user.
 		Creates the raffle weight entry for the user if it does not exist
 
