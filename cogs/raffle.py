@@ -56,7 +56,7 @@ def parseRaffleString(raffleStr: str) -> tuple[tuple[str, int],...]:
 
 
 # Source: https://maxhalford.github.io/blog/weighted-sampling-without-replacement/
-def weighted_sample_without_replacement(population, weights, k, rng=random):
+def weighted_sample_without_replacement(population: list | tuple, weights: list | tuple, k: int, rng=random) -> list:
     v = [rng.random() ** (1 / w) for w in weights]
     order = sorted(range(len(population)), key=lambda i: v[i])
     result = [population[i] for i in order[-k:]]
