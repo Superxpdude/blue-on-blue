@@ -55,6 +55,15 @@ def parseRaffleString(raffleStr: str) -> tuple[tuple[str, int],...]:
 	return tuple(raffles)
 
 
+# Source: https://maxhalford.github.io/blog/weighted-sampling-without-replacement/
+def weighted_sample_without_replacement(population, weights, k, rng=random):
+    v = [rng.random() ** (1 / w) for w in weights]
+    order = sorted(range(len(population)), key=lambda i: v[i])
+    result = [population[i] for i in order[-k:]]
+    result.reverse()
+    return result
+
+
 class RaffleObject():
 	def __init__(self, name: str, *args, winners: int = 1, **kwargs):
 		self.name = name
