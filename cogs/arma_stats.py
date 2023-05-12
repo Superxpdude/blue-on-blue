@@ -220,6 +220,10 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 					api_url = await self.bot.serverConfig.arma_stats_url.get(guild)
 					api_key = await self.bot.serverConfig.arma_stats_key.get(guild)
 
+					mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(guild.id)
+					raffleweight_increase = await self.bot.serverConfig.raffleweight_increase.get(guild.id)
+					raffleweight_max = await self.bot.serverConfig.raffleweight_max.get(guild.id)
+
 					# Only proceed if we have a valid URL and key for the API
 					if api_url is not None and api_key is not None:
 						_log.info(f"Updating Arma stats for guild: [{guild.name}|{guild.id}]")
@@ -308,6 +312,17 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 										(mission_id, steam_id, duration)\
 										VALUES (:mission_id, :steam_id, :duration)",
 										{"mission_id": db_id, "steam_id": player_id, "duration": player_duration})
+
+									# Update the user's mission raffle weight if they played for long enough on a main op
+									if (player_duration >= mission_participation_threshold) and main_op:
+										# Get the player's discord ID from the verify DB
+										await cursor.execute("SELECT discord_id FROM verify WHERE steam64_id = :id", {"id": player_id})
+										data = await cursor.fetchone()
+										if data is not None:
+											discord_id: int = data["discord_id"]
+											_log.debug(f"Increasing raffle weight for user: ({discord_id})")
+											await db.raffleWeight.increaseWeight(guild.id, discord_id, raffleweight_increase, raffleweight_max)
+
 
 						_log.info(f"Finished updating Arma stats for guild: [{guild.name}|{guild.id}]")
 
