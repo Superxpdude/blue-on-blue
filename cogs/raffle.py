@@ -65,10 +65,11 @@ def weighted_sample_without_replacement(population: list | tuple, weights: list 
 
 
 class RaffleObject():
-	def __init__(self, name: str, view: "RaffleView", *args, winners: int = 1, **kwargs):
+	def __init__(self, name: str, view: "RaffleView", *args, mission: bool = False, winners: int = 1, **kwargs):
 		self.name = name
 		self.participants: list[discord.User|discord.Member] = []
 		self.winners = winners
+		self.mission = mission
 		self.view = view
 
 
@@ -132,9 +133,7 @@ class RaffleObject():
 
 	async def selectWinners(self,
 		winnerCount: int | None = None,
-		excluded: tuple[discord.User|discord.Member] | None = None,
-		*,
-		weighted: bool = False
+		excluded: tuple[discord.User|discord.Member] | None = None
 	) -> tuple[discord.User|discord.Member]:
 		"""Selects a number of winners for the raffle
 
@@ -171,16 +170,16 @@ class RaffleObject():
 				return tuple(eligible)
 
 			# We need to actually make a random selection here
-			if weighted:
+			if self.mission:
 				async with self.view.bot.db.connect() as db:
 					_log.debug(f"Beginning weighted raffle. Guild: {self.view.guild.id}")
 					weights = [await db.raffleWeight.getWeight(self.view.guild.id, p.id) for p in self.participants]
-					_log.debug(f"Raffle participants: {eligible}")
+					_log.debug(f"Raffle participants: {[f'({e.display_name}|{e.id})' for e in eligible]}")
 					_log.debug(f"Raffle weights: {weights}")
 					winners: tuple[discord.Member] = tuple(weighted_sample_without_replacement(eligible, weights, winnerCount))
 					for w in winners:
-						await db.raffleWeight.setWeight(self.view.guild.id, w.id, 1.0)
-					_log.debug(f"Raffle winners: {winners}")
+						await db.raffleWeight.setWeight(self.view.guild.id, w.id, 1.0 - (await self.view.bot.serverConfig.raffleweight_increase.get(self.view.guild.id)))
+					_log.debug(f"Raffle winners: {[f'({w.display_name}|{w.id})' for w in winners]}")
 					return winners
 			else:
 				return tuple(random.sample(eligible, k = min(winnerCount, len(eligible))))
@@ -189,7 +188,7 @@ class RaffleObject():
 			return tuple()
 
 
-	async def endRaffleEmbed(self, winners: tuple[discord.User | discord.Member] | None = None, *, weighted: bool = False) -> discord.Embed:
+	async def endRaffleEmbed(self, winners: tuple[discord.User | discord.Member] | None = None) -> discord.Embed:
 		"""Creates an embed with the raffle details
 		Automatically selects a number of winners based on the the stored winners value
 
@@ -205,7 +204,7 @@ class RaffleObject():
 		"""
 
 		embed = discord.Embed(
-			title = f"🎉 Raffle: {self.name}",
+			title = f"🎉 Mission Raffle: {self.name}" if self.mission else f"🎉 Raffle: {self.name}",
 			color = RAFFLE_EMBED_COLOUR
 		)
 		if self.participantCount() < 1:
@@ -297,6 +296,7 @@ class RaffleView(discord.ui.View):
 		endTime: datetime.datetime,
 		exclusive: bool = True,
 		guild: discord.Guild,
+		mission: bool = False,
 		**kwargs,
 	):
 		self.bot = bot
@@ -305,18 +305,19 @@ class RaffleView(discord.ui.View):
 		# Set up our raffles
 		for r in raffles:
 			if isinstance(r,tuple):
-				raffle = RaffleObject(r[0], self)
+				raffle = RaffleObject(r[0], self, mission = mission)
 				raffle.winners = r[1]
 			else:
-				raffle = RaffleObject(r, self)
+				raffle = RaffleObject(r, self, mission = mission)
 			self.raffles.append(raffle)
 			self.add_item(RaffleJoinButton(raffle))
 		# Set the "last updated time"
 		self.lastUpdateTime: datetime.datetime | None = None
 		self.updating: bool = False
 		self.endTime = endTime
-		self.exclusive = True
+		self.exclusive = exclusive
 		self.guild = guild
+		self.mission = mission
 
 
 	def build_embed(self) -> discord.Embed:
@@ -329,7 +330,7 @@ class RaffleView(discord.ui.View):
 		"""
 		endText = "ends" if self.endTime > discord.utils.utcnow() else "ended"
 		embed = discord.Embed(
-			title = f"🎉 Raffle ({endText} {discord.utils.format_dt(self.endTime,'R')})",
+			title = f"🎉 {'Mission Raffle' if self.mission else 'Raffle'} ({endText} {discord.utils.format_dt(self.endTime,'R')})",
 			description = "Click the corresponding button below to enter the raffle!",
 			color = RAFFLE_EMBED_COLOUR
 		)
@@ -431,7 +432,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 		dt = discord.utils.utcnow() + datetime.timedelta(seconds = duration)
 
 		# Create the view
-		view = RaffleView(self.bot, guild = interaction.guild, raffles = ((raffle_name,winners),), endTime = dt)
+		view = RaffleView(self.bot, guild = interaction.guild, raffles = ((raffle_name,winners),), endTime = dt, mission = weighted)
 
 		# Generate an embed
 		embed = view.build_embed()
@@ -452,7 +453,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 
 		# Choose winners.
 		for r in view.raffles:
-			await interaction.followup.send(embed = await r.endRaffleEmbed(weighted = weighted))
+			await interaction.followup.send(embed = await r.endRaffleEmbed())
 
 
 	async def multiRaffle(self,
@@ -481,7 +482,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 		dt = discord.utils.utcnow() + datetime.timedelta(seconds = duration)
 
 		# Create the view
-		view = RaffleView(self.bot, guild = interaction.guild, raffles = raffleList, endTime = dt, exclusive = exclusive)
+		view = RaffleView(self.bot, guild = interaction.guild, raffles = raffleList, endTime = dt, exclusive = exclusive, mission = weighted)
 
 		# Generate an embed
 		embed = view.build_embed()
@@ -504,7 +505,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 		allWinners: list[discord.User | discord.Member] = []
 		raffleEmbeds: list[discord.Embed] = []
 		for r in view.raffles:
-			winners = await r.selectWinners(excluded = tuple(allWinners), weighted = weighted)
+			winners = await r.selectWinners(excluded = tuple(allWinners))
 			for w in winners:
 				allWinners.append(w)
 			raffleEmbeds.append(await r.endRaffleEmbed(winners=winners))
