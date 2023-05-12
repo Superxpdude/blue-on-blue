@@ -94,14 +94,6 @@ class DB():
 							UNIQUE(mission_id,steam_id),\
 							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
 
-						# Chat Filter table
-						# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
-						await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
-							server_id INTEGER NOT NULL,\
-							filter_list INTEGER NOT NULL,\
-							string TEXT NOT NULL,\
-							UNIQUE(server_id,filter_list,string))")
-
 						# Gold module table
 						await cursor.execute("CREATE TABLE if NOT EXISTS gold (\
 							server_id INTEGER NOT NULL,\
@@ -264,6 +256,9 @@ class DB():
 							user_id INTEGER NOT NULL,\
 							weight NUMERIC NOT NULL,\
 							UNIQUE(server_id, user_id))")
+
+						# Remove chatfilter table
+						await cursor.execute("DROP TABLE chatfilter")
 
 						await cursor.execute("PRAGMA user_version = 4")
 						_log.info("Database upgraded to version: 4")
