@@ -177,9 +177,6 @@ class RaffleObject():
 					_log.debug(f"Raffle participants: {[f'({e.display_name}|{e.id})' for e in eligible]}")
 					_log.debug(f"Raffle weights: {weights}")
 					winners: tuple[discord.Member] = tuple(weighted_sample_without_replacement(eligible, weights, winnerCount))
-					for w in winners:
-						await db.raffleWeight.setWeight(self.view.guild.id, w.id, 1.0 - (await self.view.bot.serverConfig.raffleweight_increase.get(self.view.guild.id)))
-					await db.commit()
 					_log.debug(f"Raffle winners: {[f'({w.display_name}|{w.id})' for w in winners]}")
 					return winners
 			else:
@@ -461,8 +458,21 @@ class Raffle(commands.Cog, name = "Raffle"):
 		await view.stop()
 
 		# Choose winners.
+		allWinners: list[discord.User | discord.Member] = []
+		raffleEmbeds: list[discord.Embed] = []
 		for r in view.raffles:
-			await interaction.followup.send(embed = await r.endRaffleEmbed())
+			raffleWinners = await r.selectWinners(excluded = tuple(allWinners))
+			for w in raffleWinners:
+				allWinners.append(w)
+			raffleEmbeds.append(await r.endRaffleEmbed(winners=raffleWinners))
+
+		# Reset raffle weights
+		async with self.bot.db.connect() as db:
+			for w in allWinners:
+				await db.raffleWeight.setWeight(interaction.guild.id, w.id, 1.0 - (await self.bot.serverConfig.raffleweight_increase.get(interaction.guild.id)))
+			await db.commit()
+
+		await interaction.followup.send(embeds = raffleEmbeds)
 
 
 	async def multiRaffle(self,
@@ -518,6 +528,12 @@ class Raffle(commands.Cog, name = "Raffle"):
 			for w in winners:
 				allWinners.append(w)
 			raffleEmbeds.append(await r.endRaffleEmbed(winners=winners))
+
+		# Reset raffle weights
+		async with self.bot.db.connect() as db:
+			for w in allWinners:
+				await db.raffleWeight.setWeight(interaction.guild.id, w.id, 1.0 - (await self.bot.serverConfig.raffleweight_increase.get(interaction.guild.id)))
+			await db.commit()
 
 		await interaction.followup.send(embeds = raffleEmbeds)
 
