@@ -1,9 +1,11 @@
 from .base import BaseTable
 from datetime import datetime, timezone
+import discord
 
 class Pings(BaseTable):
 	"""Ping table class"""
 	_tableName = "pings"
+	_userTable  = "ping_users"
 
 	async def exists(self, tag: str, guildID: int) -> bool:
 		"""Checks if a tag exists in the database for a specific guild.
@@ -208,3 +210,290 @@ class Pings(BaseTable):
      				"id": id
 				}
 			)
+
+
+	async def create_alias(self, alias: str, targetID: int, guildID: int) -> None:
+		"""Creates an alias for an existing ping
+
+		Parameters
+		----------
+		alias : str
+			Alias tag to create
+		targetID : int
+			Ping ID to link the alias to
+		guildID : int
+			Discord guild ID
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute("INSERT INTO :table_name (server_id, ping_name, alias_for) VALUES (:server_id, :alias, :id)",
+				{
+					"table_name": self._tableName,
+					"server_id": guildID,
+					"alias": alias.casefold(),
+     				"id": targetID,
+				}
+			)
+
+
+	async def delete_alias(self, alias: str, guildID: int) -> None:
+		"""Deletes an alias
+
+		Parameters
+		----------
+		alias : str
+			Alias to delete
+		guildID : int
+			Discord guild ID
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute("DELETE FROM :table_name WHERE (server_id = :server_id AND ping_name = :alias AND alias_for IS NOT NULL)",
+				{
+					"table_name": self._tableName,
+					"server_id": guildID,
+					"alias": alias.casefold()
+				}
+			)
+
+
+	async def update_ping_time(self, tag: str, guildID: int) -> None:
+		"""Updates the last-used-time for a ping
+
+		Parameters
+		----------
+		tag : str
+			Ping tag to update
+		guildID : int
+			Discord guild ID
+		"""
+		async with self.db.connection.cursor() as cursor:
+			time = round(datetime.now(timezone.utc).timestamp()) # Get the current time in timestamp format
+			pingID = await self.get_id(tag, guildID)
+			await cursor.execute("UPDATE :table_name SET last_used_time = :time WHERE id = :id",
+				{
+					"table_name": self._tableName,
+					"time": time,
+					"id": pingID
+				}
+			)
+
+
+	async def add_user(self, tag: str, guildID: int, userID: int) -> bool:
+		"""Adds a user to a ping
+
+		Parameters
+		----------
+		tag : str
+			Ping tag
+		guildID : int
+			Discord guild ID
+		userID : int
+			User ID to add
+
+		Returns
+		-------
+		bool
+			If the user was added to the ping
+		"""
+		async with self.db.connection.cursor() as cursor:
+			pingID = await self.get_id(tag, guildID)
+			if pingID is not None:
+				await cursor.execute("INSERT OR REPLACE INTO :table_name (server_id, ping_id, user_id) VALUES (:server_id, :ping, :user_id)",
+					{
+						"table_name": self._userTable,
+						"server_id": guildID,
+						"ping": pingID,
+						"user_id": userID
+					}
+				)
+				return True
+			else: # Ping does not exist. Could not add user.
+				return False
+
+
+	async def remove_user(self, tag: str, guildID: int, userID: int) -> bool:
+		"""Removes a user from a ping
+
+		Parameters
+		----------
+		tag : str
+			Ping tag
+		guildID : int
+			Discord guild ID
+		userID : int
+			User ID to add
+
+		Returns
+		-------
+		bool
+			If the user was removed from the ping
+		"""
+		async with self.db.connection.cursor() as cursor:
+			pingID = await self.get_id(tag, guildID)
+			if pingID is not None:
+				# No server reference needed here. Ping IDs must be globally unique.
+				await cursor.execute("DELETE FROM :table_name WHERE (ping_id = :ping AND user_id = :user_id)",
+					{
+						"table_name": self._userTable,
+						"ping": pingID,
+						"user_id": userID
+					}
+				)
+				return True
+			else: # Ping does not exist. Could not remove user.
+				return False
+
+
+	async def remove_user_by_id(self, pingID: int, userID: int) -> bool:
+		"""Removes a user from a ping using a ping ID
+
+		Parameters
+		----------
+		pingID : int
+			Ping ID
+		userID : int
+			User ID
+
+		Returns
+		-------
+		bool
+			If the user was removed from the ping
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute("DELETE FROM :table_name WHERE (ping_id = :ping AND user_id = :user_id)",
+				{
+					"table_name": self._userTable,
+					"ping": pingID,
+					"user_id": userID
+				}
+			)
+			return True
+
+
+	async def has_user(self, tag: str, guildID: int, userID: int) -> bool:
+		"""Checks if a ping has a specific user
+
+		Parameters
+		----------
+		tag : str
+			Ping tag to check
+		guildID : int
+			Discord guild ID
+		userID : int
+			User ID to check
+
+		Returns
+		-------
+		bool
+			If the user is in the ping
+		"""
+		async with self.db.connection.cursor() as cursor:
+			pingID = await self.get_id(tag, guildID)
+			if pingID is not None:
+				# No server reference needed here. Ping IDs must be globally unique.
+				await cursor.execute("SELECT user_id FROM :table_name WHERE server_id = :server_id AND ping_id = :ping AND user_id = :user_id",
+					{
+						"table_name": self._userTable,
+						"server_id": guildID,
+						"ping": pingID,
+						"user_id": userID
+					}
+				)
+				userPing = await cursor.fetchone()
+				return userPing is not None # Return if the user is in the ping
+			else: # Ping does not exist. Return false.
+				return False
+
+
+	async def count_users(self, tag: str, guildID: int) -> int:
+		"""Counts the number of users present in a ping.
+		Pings that do not exist will return -1.
+
+		Parameters
+		----------
+		tag : str
+			Ping tag to check
+		guildID : int
+			Discord guild ID
+
+		Returns
+		-------
+		int
+			Number of users in a ping
+		"""
+		async with self.db.connection.cursor() as cursor:
+			pingID = await self.get_id(tag, guildID)
+			if pingID is None:
+				return -1
+			else: # Ping exists
+				await cursor.execute("SELECT COUNT(*) FROM :table_name WHERE ping_id = :ping",
+					{
+						"table_name": self._userTable,
+						"ping": pingID
+					}
+				)
+				return (await cursor.fetchone())[0]
+
+
+	async def count_active_users(self, tag: str, guild: discord.Guild) -> int:
+		"""Counts the number of users present in a ping that are currently in the server.
+		Slower than count_users() since it has to check user membership.
+		Pings that do not exist will return -1.
+
+		Parameters
+		----------
+		tag : str
+			Ping tag to check
+		guild : discord.Guild
+			Discord guild
+
+		Returns
+		-------
+		int
+			Number of users in a ping
+		"""
+		async with self.db.connection.cursor() as cursor:
+			pingID = await self.get_id(tag, guild.id)
+			if pingID is None:
+				return -1
+			else: # Ping exists
+				await cursor.execute("SELECT user_id FROM :table_name WHERE ping_id = :ping",
+					{
+						"table_name": self._userTable,
+						"ping": pingID
+					}
+				)
+				userIDs = await cursor.fetchall()
+				userCount = 0 # Start the count
+				for u in userIDs:
+					if (guild.get_member(u["user_id"])) is not None:
+						userCount += 1 # Increment usercount by 1
+				return userCount
+
+
+	async def get_user_ids_by_ping_id(self, pingID: int) -> tuple[int]:
+		"""Returns a tuple of user IDs present in a ping by using the ping ID.
+		Empty or invalid pings will return an empty list.
+
+		Parameters
+		----------
+		pingID : int
+			Ping ID
+
+		Returns
+		-------
+		tuple[int]
+			Tuple of discord user IDs
+		"""
+		async with self.db.connection.cursor() as cursor:
+			userIDList = []
+			await cursor.execute("SELECT user_id FROM :table_name WHERE ping_id = :ping",
+				{
+					"table_name": self._userTable,
+					"ping": pingID
+				}
+			)
+			pingData = await cursor.fetchall()
+			for p in pingData:
+				if "user_id" in p.keys():
+					userIDList.append(p["user_id"])
+			return tuple(userIDList)
