@@ -29,6 +29,7 @@ class DBConnection():
 
 		# Initialize tables
 		self.raffleWeight = dbtables.RaffleWeights(self)
+		self.pings = dbtables.Pings(self)
 
 	async def commit(self) -> None:
 		"""Convenience function to commit changes on the connection
