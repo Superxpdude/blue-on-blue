@@ -91,7 +91,7 @@ class Pings(BaseTable):
 				return ping["id"]
 
 
-	async def get_name(self, id: int, guildID: int) -> str | None:
+	async def get_name(self, id: int) -> str | None:
 		"""Gets the name of a tag from its ID.
 		Returns None if the tag was not found.
 
@@ -109,8 +109,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT ping_name FROM :table_name WHERE server_id = :server_id AND id = :id",
-				{"table_name": self._tableName, "server_id": guildID, "id": id}
+				"SELECT ping_name FROM :table_name WHERE id = :id",
+				{"table_name": self._tableName, "id": id}
 			)
 			ping = await cursor.fetchone()
 
@@ -120,7 +120,7 @@ class Pings(BaseTable):
 				return ping["ping_name"]
 
 
-	async def get_alias_names(self, id: int, guildID: int) -> tuple[str]:
+	async def get_alias_names(self, id: int) -> tuple[str]:
 		"""Gets the names of all aliases for a given ping.
 		Returns a tuple containing all names.
 		When no aliases are present, the returned tuple will be empty.
@@ -129,8 +129,6 @@ class Pings(BaseTable):
 		----------
 		id : int
 			Tag ID
-		guildID : int
-			Discord guild ID
 
 		Returns
 		-------
@@ -139,8 +137,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT ping_name FROM :table_name WHERE server_id = :server_id AND alias_for = :id",
-				{"table_name": self._tableName, "server_id": guildID, "id": id}
+				"SELECT ping_name FROM :table_name WHERE alias_for = :id",
+				{"table_name": self._tableName, "id": id}
 			)
 			aliasData = await cursor.fetchall()
 
@@ -192,21 +190,18 @@ class Pings(BaseTable):
 			)
 
 
-	async def delete_id(self, id: int, guildID: int) -> None:
+	async def delete_id(self, id: int) -> None:
 		"""Deletes the ping with a given ID.
 
 		Parameters
 		----------
 		id : int
 			Ping ID to delete
-		guildID : int
-			Discord guild ID
 		"""
 		async with self.db.connection.cursor() as cursor:
-			await cursor.execute("DELETE FROM :table_name WHERE (server_id = :server_id AND id = :id)",
+			await cursor.execute("DELETE FROM :table_name WHERE (id = :id)",
 				{
 					"table_name": self._tableName,
-					"server_id": guildID,
      				"id": id
 				}
 			)
