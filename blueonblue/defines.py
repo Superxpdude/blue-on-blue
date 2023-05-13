@@ -35,6 +35,9 @@ SCONF_MISSION_SHEET_KEY			= "mission_sheet_key"
 SCONF_MISSION_WORKSHEET			= "mission_worksheet"
 SCONF_MISSION_WIKI_URL			= "mission_wiki_url"
 
+SCONF_RAFFLEWEIGHT_MAX			= "raffle_weight_max"
+SCONF_RAFFLEWEIGHT_INCREASE		= "raffle_weight_increase"
+
 SCONF_ARMA_STATS_KEY						= "arma_stats_key"
 SCONF_ARMA_STATS_URL						= "arma_stats_url"
 SCONF_ARMA_STATS_MIN_DURATION				= "arma_stats_min_duration"

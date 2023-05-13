@@ -70,3 +70,6 @@ def setup_logging(
 	log.addHandler(consoleHandler)
 
 	log.setLevel(level)
+
+	# Always leave discord.py on INFO logging
+	logging.getLogger("discord").setLevel(logging.INFO)

@@ -31,7 +31,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		"""Initializes the database for the cog.
 		Creates the tables if they don't exist."""
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Iterate through our servers to set the "block_updates" flag on the jail role
 				for guild in self.bot.guilds:
 					role = await self.bot.serverConfig.role_jail.get(guild)
@@ -73,7 +73,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Get our timedelta
 				if time_unit == "minutes":
 					timeDelta = timedelta(minutes=time)
@@ -158,7 +158,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Check if the user is already jailed
 				await cursor.execute("SELECT user_id, release_time FROM jail WHERE server_id = :serverID AND user_id = :userID",
 					{"serverID": interaction.guild.id, "userID": user.id})
@@ -232,7 +232,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Get a list of jailed users in this server
 				await cursor.execute("SELECT user_id, release_time FROM jail WHERE server_id = :serverID", {"serverID": interaction.guild.id})
 				usersData = await cursor.fetchall()
@@ -265,7 +265,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		_log.debug("Starting jail release check loop")
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Get a list of users that are past their release time
 				# Get the current timestamp
 				timeStamp = round(datetime.now(timezone.utc).timestamp())

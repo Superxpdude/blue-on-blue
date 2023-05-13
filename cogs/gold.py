@@ -49,7 +49,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Get our timedelta
 				if time_unit == "minutes":
 					timeDelta = timedelta(minutes=time)
@@ -136,7 +136,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Check if the user is already jailed
 				await cursor.execute("SELECT user_id, expiry_time FROM gold WHERE server_id = :serverID AND user_id = :userID",
 					{"serverID": interaction.guild.id, "userID": user.id})
@@ -198,7 +198,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Get a list of gold users in this server
 				await cursor.execute("SELECT user_id, expiry_time FROM gold WHERE server_id = :serverID", {"serverID": interaction.guild.id})
 				usersData = await cursor.fetchall()
@@ -231,7 +231,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 		_log.debug("Starting gold expiry check loop")
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				# Get a list of users that are past their expiry time
 				# Get the current timestamp
 				timeStamp = round(discord.utils.utcnow().timestamp())

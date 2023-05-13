@@ -64,7 +64,6 @@ class BlueOnBlueBot(commands.Bot):
 			"botcontrol",
 			"users",
 			"arma_stats",
-			"chatfilter",
 			"config",
 			"gold",
 			"jail",

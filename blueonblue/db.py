@@ -1,4 +1,5 @@
 import asqlite
+from . import dbtables
 
 from typing import (
 	Optional,
@@ -15,7 +16,7 @@ __all__ = [
 	"DBConnection"
 ]
 
-DBVERSION = 3
+DBVERSION = 4
 
 class DBConnection():
 	"""BlueonBlue database connection class.
@@ -26,9 +27,18 @@ class DBConnection():
 	def __init__(self, dbFile: str):
 		self._dbFile = dbFile
 
-	async def __aenter__(self) -> asqlite.Connection:
+		# Initialize tables
+		self.raffleWeight = dbtables.RaffleWeights(self)
+		self.pings = dbtables.Pings(self)
+
+	async def commit(self) -> None:
+		"""Convenience function to commit changes on the connection
+		"""
+		await self.connection.commit()
+
+	async def __aenter__(self) -> "DBConnection":
 		self.connection = await asqlite.connect(self._dbFile)
-		return self.connection
+		return self
 
 	async def __aexit__(
 		self,
@@ -58,7 +68,7 @@ class DB():
 		Does nothing if the database is already up to date.
 		"""
 		async with self.connect() as db:
-			async with db.cursor() as cursor:
+			async with db.connection.cursor() as cursor:
 				schema_version = 0
 				while schema_version != DBVERSION:
 					schema_version = (await (await cursor.execute("PRAGMA user_version")).fetchone())["user_version"]
@@ -84,14 +94,6 @@ class DB():
 							duration REAL NOT NULL,\
 							UNIQUE(mission_id,steam_id),\
 							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
-
-						# Chat Filter table
-						# "filterlist" value determines if the string is on the block list (0) or the allow list (1)
-						await cursor.execute("CREATE TABLE if NOT EXISTS chatfilter (\
-							server_id INTEGER NOT NULL,\
-							filter_list INTEGER NOT NULL,\
-							string TEXT NOT NULL,\
-							UNIQUE(server_id,filter_list,string))")
 
 						# Gold module table
 						await cursor.execute("CREATE TABLE if NOT EXISTS gold (\
@@ -175,6 +177,13 @@ class DB():
 							value TEXT,\
 							UNIQUE(server_id, setting))")
 
+						# Raffle weights table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_weights (\
+							server_id INTEGER NOT NULL,\
+							user_id INTEGER NOT NULL,\
+							weight NUMERIC NOT NULL,\
+							UNIQUE(server_id, user_id))")
+
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
 
@@ -236,6 +245,24 @@ class DB():
 
 						await cursor.execute("PRAGMA user_version = 3")
 						_log.info("Database upgraded to version: 3")
+
+						await db.commit()
+
+					if schema_version == 3:
+						_log.info("Upgrading database to version 4")
+
+						# Raffle weights table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_weights (\
+							server_id INTEGER NOT NULL,\
+							user_id INTEGER NOT NULL,\
+							weight NUMERIC NOT NULL,\
+							UNIQUE(server_id, user_id))")
+
+						# Remove chatfilter table
+						await cursor.execute("DROP TABLE chatfilter")
+
+						await cursor.execute("PRAGMA user_version = 4")
+						_log.info("Database upgraded to version: 4")
 
 						await db.commit()
 
