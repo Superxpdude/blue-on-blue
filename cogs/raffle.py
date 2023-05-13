@@ -692,7 +692,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 			)
 			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
 			_log.info(f"[{interaction.guild.name}|{interaction.guild.id}] Raffle weight for ({user.display_name}|{user.id})" \
-	     		" set to {weight} by ({interaction.user.display_name}|{interaction.user.id})")
+	     		f" set to {weight} by ({interaction.user.display_name}|{interaction.user.id})")
 			await interaction.response.send_message(embed = embed)
 
 
@@ -727,7 +727,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 			)
 			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
 			_log.info(f"[{interaction.guild.name}|{interaction.guild.id}] Raffle weight for ({user.display_name}|{user.id})" \
-	     		" increased by {increase} to {weight} by ({interaction.user.display_name}|{interaction.user.id})")
+	     		f" increased by {increase} to {weight} by ({interaction.user.display_name}|{interaction.user.id})")
 			await interaction.response.send_message(embed = embed)
 
 
