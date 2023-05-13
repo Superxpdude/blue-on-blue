@@ -179,6 +179,7 @@ class RaffleObject():
 					winners: tuple[discord.Member] = tuple(weighted_sample_without_replacement(eligible, weights, winnerCount))
 					for w in winners:
 						await db.raffleWeight.setWeight(self.view.guild.id, w.id, 1.0 - (await self.view.bot.serverConfig.raffleweight_increase.get(self.view.guild.id)))
+					await db.commit()
 					_log.debug(f"Raffle winners: {[f'({w.display_name}|{w.id})' for w in winners]}")
 					return winners
 			else:
@@ -216,7 +217,15 @@ class RaffleObject():
 				embed.add_field(name = "Winners", value = "None", inline=False)
 			else:
 				embed.add_field(name = "Winners", value = ", ".join(map(lambda x: x.mention ,winners)), inline = False)
-			embed.add_field(name = "Participants", value = ", ".join(map(lambda x: x.mention ,self.participants)), inline = False)
+
+			if self.mission:
+				participantStrings = []
+				async with self.view.bot.db.connect() as db:
+					for u in self.participants:
+						participantStrings.append(f"{u.mention}`({await db.raffleWeight.getWeight(self.view.guild.id, u.id)})`")
+				embed.add_field(name = "Participants", value = ", ".join(participantStrings), inline = False)
+			else:
+				embed.add_field(name = "Participants", value = ", ".join(map(lambda x: x.mention ,self.participants)), inline = False)
 
 		return embed
 
