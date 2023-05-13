@@ -1,6 +1,15 @@
 from .base import BaseTable
 from datetime import datetime, timezone
 import discord
+from typing import NamedTuple
+
+
+class PingInfo(NamedTuple):
+	id: int
+	server_id: int
+	name: str
+	alias: int | None
+
 
 class Pings(BaseTable):
 	"""Ping table class"""
@@ -492,3 +501,107 @@ class Pings(BaseTable):
 				if "user_id" in p.keys():
 					userIDList.append(p["user_id"])
 			return tuple(userIDList)
+
+
+	async def server_pings(self, guildID: int, *, search: str | None = None, beforeTime: datetime | None = None) -> tuple[str]:
+		"""Retrieves a tuple of ping tags for a server
+
+		Parameters
+		----------
+		guildID : int
+			Discord guild ID
+		search : str | None, optional
+			Only return results matching the search string if present, by default None
+		beforeTime: datetime.datetime | None, optional
+			Only return results before this timestamp. Does nothing if search is used.
+
+		Returns
+		-------
+		tuple[str]
+			Tuple of ping tags
+		"""
+		async with self.db.connection.cursor() as cursor:
+			if search is not None:
+				# Search string present.
+				# ("SELECT ping_name FROM pings WHERE server_id = ? AND ping_name LIKE ? AND alias_for IS NULL", (interaction.guild.id,"%"+tag+"%",))
+				await cursor.execute("SELECT ping_name FROM :table_name WHERE server_id = :server_id AND ping_name LIKE :search AND alias_for IS NULL",
+			 		{
+						"table_name": self._tableName,
+						"server_id": guildID,
+						"search": f"%{search}%"
+					}
+				)
+			elif beforeTime is not None:
+				# Before time specified. Only return results last used before this time
+				await cursor.execute("SELECT ping_name FROM :table_name WHERE server_id = :server_id AND last_used_time < :time AND alias_for IS NULL",
+					{
+						"table_name": self._tableName,
+						"server_id": guildID,
+						"time": round(beforeTime.timestamp())
+					}
+				)
+			else:
+				# No search string. Return all pings.
+				await cursor.execute("SELECT ping_name FROM :table_name WHERE server_id = :server_id AND alias_for IS NULL",
+					{
+						"table_name": self._tableName,
+						"server_id": guildID
+					}
+				)
+			pingResults: list[str] = []
+			for p in (await cursor.fetchall()):
+				if "ping_name" in p.keys():
+					pingResults.append(p["ping_name"])
+
+			return tuple(pingResults)
+
+
+	async def ping_info(self, tag: str, guildID: int) -> PingInfo:
+		"""Retrieves information about a ping
+
+		Parameters
+		----------
+		tag : str
+			Tag to retrieve
+		guildID : int
+			Discord guild ID
+
+		Returns
+		-------
+		PingInfo
+			Named tuple of ping information
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT * FROM :table_name WHERE server_id = :server_id AND ping_name = :ping",
+				{"table_name": self._tableName, "server_id": guildID, "ping": tag.casefold()}
+			)
+			pingInfo = await cursor.fetchone()
+
+			return PingInfo(
+				pingInfo["id"],
+				pingInfo["server_id"],
+				pingInfo["ping_name"],
+				pingInfo["alias_for"]
+			)
+
+
+	async def migrate_ping(self, fromID: int, toID: int) -> None:
+		"""Migrates users and aliases from one ping to another
+
+		Parameters
+		----------
+		fromID : int
+			Ping ID to migrate from
+		toID : int
+			Ping ID to migrate to
+		"""
+		async with self.db.connection.cursor() as cursor:
+			# Migrate users
+			await cursor.execute("UPDATE :table_name SET ping_id = :toID WHERE ping_id = :fromID",
+				{"table_name": self._userTable, "toID": toID, "fromID": fromID}
+			)
+			# Migrate aliases
+			await cursor.execute("UPDATE :table_name SET alias_for = :toID WHERE alias_for = :fromID",
+				{"table_name": self._tableName, "toID": toID, "fromID": fromID}
+			)

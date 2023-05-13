@@ -2,9 +2,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-import asqlite
-from datetime import datetime, timezone, timedelta
-from typing import Literal, List
+from datetime import timedelta
+from typing import Literal
 
 import blueonblue
 from blueonblue.defines import PING_EMBED_COLOUR
@@ -47,285 +46,6 @@ def check_ascii(text: str) -> bool:
 		return True
 
 
-async def ping_exists(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> bool:
-	"""Check if a ping exists in the database for a specific guild.
-	If the ping exists, returns True. Otherwise returns False.
-	"""
-	tag = tag.casefold() # Ensure that our ping is lowercase
-	await cursor.execute("SELECT id FROM pings WHERE server_id = :server_id AND ping_name = :ping", {"server_id": guild.id, "ping": tag})
-	ping = await cursor.fetchone()
-	if ping is None: # Ping does not exist
-		return False
-	else: # Ping exists
-		return True
-
-
-async def ping_is_alias(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> bool:
-	"""Gets the alias reference for a ping.
-	Returns True if the ping exists AND is an alias. Otherwise returns False."""
-	tag = tag.casefold()
-	await cursor.execute("SELECT alias_for FROM pings WHERE server_id = :server_id AND ping_name = :ping AND alias_for IS NOT NULL", {"server_id": guild.id, "ping": tag})
-	is_alias = await cursor.fetchone()
-	if is_alias is None: # Alias is null, or ping doesn't exist
-		return False
-	else: # Alias is not null, and therefore exists
-		return True
-
-
-async def ping_get_id(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> int | None:
-	"""Gets the ID reference for a ping.
-	If the ping is an alias, get the alias ID. Otherwise, get the ping ID.
-	Returns None if the ping was not found."""
-	tag = tag.casefold()
-	await cursor.execute("SELECT id, alias_for FROM pings WHERE server_id = :server_id AND ping_name = :ping", {"server_id": guild.id, "ping": tag})
-	ping = await cursor.fetchone()
-
-	if ping is None: # Ping does not exist
-		return None
-	else: # Ping exists
-		if ping["alias_for"] is not None:
-			return ping["alias_for"]
-		else:
-			return ping["id"]
-
-
-async def ping_get_name(id: int, cursor: asqlite.Cursor) -> str | None:
-	"""Gets the name of a ping from its ID.
-	If the ping cannot be found, returns None."""
-	await cursor.execute("SELECT ping_name FROM pings WHERE id = :id", {"id": id})
-	pingData = await cursor.fetchone()
-
-	if pingData is None: # Ping does not exist
-		return None
-	else: # Ping exists
-		if pingData["ping_name"] is not None:
-			return pingData["ping_name"]
-		else: # We couldn't find the ping name
-			return None
-
-
-async def ping_get_alias_names(id: int, cursor: asqlite.Cursor) -> List[str]:
-	"""Gets the names of all aliases for a given ping.
-	Returns a list containing all names.
-	When no aliases are present, the returned list will be empty."""
-	aliasNames = []
-	await cursor.execute("SELECT ping_name FROM pings WHERE alias_for = :pingID", {"pingID": id})
-	aliasData = await cursor.fetchall()
-	for a in aliasData:
-		aliasNames.append(a["ping_name"])
-	return aliasNames
-
-
-async def ping_create(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
-	"""Creates a ping in the database.
-	Use ping_exists() to check if the ping exists or not first."""
-	tag = tag.casefold()
-	time = round(datetime.now(timezone.utc).timestamp()) # Get the current time in timestamp format
-	await cursor.execute("INSERT INTO pings (server_id, ping_name, last_used_time) VALUES (:server_id, :ping, :time)",
-		{"server_id": guild.id, "ping": tag, "time": time})
-
-
-async def ping_delete(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
-	"""Removes a ping from the database"""
-	tag = tag.casefold()
-	ping_id = await ping_get_id(tag, guild, cursor)
-	await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND id = :ping)", {"server_id": guild.id, "ping": ping_id})
-
-
-async def ping_create_alias(tag: str, pingID: int, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
-	"""Creates an alias for an existing ping"""
-	tag = tag.casefold()
-	await cursor.execute("INSERT INTO pings (server_id, ping_name, alias_for) VALUES (:server_id, :alias, :pingID)",
-		{"server_id": guild.id, "alias": tag, "pingID": pingID})
-
-
-async def ping_delete_alias(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
-	"""Deletes an alias for an existing ping"""
-	tag = tag.casefold()
-	await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND ping_name = :tag AND alias_for IS NOT NULL)",
-		{"server_id": guild.id, "tag": tag})
-
-
-async def ping_update_time(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> None:
-	"""Updates the "last used time" of a ping in the database."""
-	tag = tag.casefold()
-	time = round(datetime.now(timezone.utc).timestamp()) # Get the current time in timestamp format
-	ping_id = await ping_get_id(tag, guild, cursor)
-	await cursor.execute("UPDATE pings SET last_used_time = :time WHERE id = :ping", {"time": time, "ping": ping_id}) # Ping IDs are globally unique
-
-
-async def ping_add_user(tag: str, guild: discord.Guild, user: discord.Member, cursor: asqlite.Cursor) -> bool:
-	"""Adds a user to a ping.
-	Checks if the ping is an alias, and handles it accordingly.
-	Returns False if an error was encountered."""
-	tag = tag.casefold()
-	# Get the ID of the ping
-	ping_id = await ping_get_id(tag, guild, cursor)
-	if ping_id is not None: # Ping exists.
-		await cursor.execute("INSERT OR REPLACE INTO ping_users (server_id, ping_id, user_id) VALUES (:server_id, :ping, :user_id)",
-			{"server_id": guild.id, "ping": ping_id, "user_id": user.id})
-		return True
-	else: # Ping does not exist. Could not add user to ping.
-		return False
-
-
-async def ping_remove_user(tag: str, guild: discord.Guild, user: discord.Member, cursor: asqlite.Cursor) -> bool:
-	"""Removes a user from a ping.
-	Checks if the ping is an alias, and handles it accordingly.
-	Returns False if an error was encountered."""
-	tag = tag.casefold()
-	# Get the ID of the ping
-	ping_id = await ping_get_id(tag, guild, cursor)
-	if ping_id is not None: # Ping exists.
-		# This doesn't actually need a server reference, since ping IDs must be globally unique.
-		await cursor.execute("DELETE FROM ping_users WHERE (ping_id = :ping AND user_id = :user_id)",
-			{"ping": ping_id, "user_id": user.id})
-		return True
-	else: # Ping does not exist. Could not remove user from ping.
-		return False
-
-
-async def ping_remove_user_by_id(pingID: int, userID: int, cursor: asqlite.Cursor) -> bool:
-	"""Removes a user from a ping.
-	Requires a ping ID and user ID
-	Returns False if an error was encountered."""
-	# This doesn't need a server reference, since ping IDs must be globally unique.
-	await cursor.execute("DELETE FROM ping_users WHERE (ping_id = :ping AND user_id = :user_id)",
-		{"ping": pingID, "user_id": userID})
-	return True
-
-
-async def ping_has_user(tag: str, guild: discord.Guild, user: discord.Member, cursor: asqlite.Cursor) -> bool:
-	"""Checks if a user is already in a ping.
-	Returns True if the user is in the ping.
-	Otherwise, returns False."""
-	tag = tag.casefold()
-	# Get the ID of the ping
-	ping_id = await ping_get_id(tag, guild, cursor)
-	if ping_id is not None: # Ping exists.
-		await cursor.execute("SELECT user_id FROM ping_users WHERE server_id = :server_id AND ping_id = :ping AND user_id = :user_id",
-			{"server_id": guild.id, "ping": ping_id, "user_id": user.id})
-		userPing = await cursor.fetchone()
-		if userPing is not None: # User exists in ping.
-			return True
-		else: # Ping exists. User is not in ping.
-			return False
-	else: # Ping does not exist. User could not be in ping.
-		return False
-
-
-async def ping_count_users(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> int:
-	"""Returns the number of users present in a ping.
-	Pings that don't exist will return -1."""
-	tag = tag.casefold()
-	# Get the ID of the ping
-	ping_id = await ping_get_id(tag, guild, cursor)
-	if ping_id is None: # Ping does not exist
-		return -1
-	else: # Ping exists
-		await cursor.execute("SELECT COUNT(*) FROM ping_users WHERE server_id = :server_id AND ping_id = :ping", {"server_id": guild.id, "ping": ping_id})
-		userCount = await cursor.fetchone()
-		return userCount[0] # This entry has to be on the return. The await can't be subscripted.
-
-
-async def ping_count_active_users(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> int:
-	"""Returns the number of users present in a ping that are currently in the server.
-	This is slower than ping_count_users().
-	Pings that don't exist will return -1."""
-	tag = tag.casefold()
-	# Get the ID of the ping
-	ping_id = await ping_get_id(tag, guild, cursor)
-	if ping_id is None: # Ping does not exist
-		return -1
-	else: # Ping exists
-		await cursor.execute("SELECT user_id FROM ping_users WHERE ping_id = :ping", {"ping": ping_id})
-		userIDs = await cursor.fetchall()
-		userCount = 0 # Start our count
-		for u in userIDs:
-			user = guild.get_member(u["user_id"])
-			if user is not None:
-				userCount += 1 # Increment usercount by 1
-		# Return our usercount
-		return userCount
-
-
-async def ping_get_user_ids_by_id(id: int, cursor: asqlite.Cursor) -> list[int]:
-	"""Returns a list of user IDs present in a ping by using the ping ID.
-	Empty or invalid pings will return an empty list."""
-	userIDList = [] # Create our empty user ID list
-	# Grab data from the DB
-	await cursor.execute("SELECT user_id FROM ping_users WHERE ping_id = :ping", {"ping": id})
-	pingData = await cursor.fetchall()
-	for p in pingData:
-		if "user_id" in p.keys():
-			userIDList.append(p["user_id"])
-	# Return our list of userIDs
-	return userIDList
-
-
-async def create_ping_embed(tag: str, guild: discord.Guild, cursor: asqlite.Cursor) -> discord.Embed | None:
-	"""Creates a "ping info" embed using the name and guild of a ping."""
-	tag = tag.casefold()
-	# Get the ID of the ping
-	pingID = await ping_get_id(tag, guild, cursor)
-	# If the ping was not found
-	if pingID is None:
-		return None
-	else:
-		# We have a ping ID
-		return await create_ping_embed_from_id(pingID, guild, cursor)
-
-
-async def create_ping_embed_from_id(
-		id: int,
-		guild: discord.Guild,
-		cursor: asqlite.Cursor,
-		*,
-		title_prefix: str | None = None
-	) -> discord.Embed:
-	"""Creates a "ping info" embed using the ID of a ping.
-	"title_prefix" is an optional argument that adds a "prefix" to the title of the resulting embed."""
-	# Get the name of the ping
-	pingName = await ping_get_name(id, cursor)
-	#if pingName is None:
-	#	return None
-	# Get user names
-	pingUserIDs = await ping_get_user_ids_by_id(id, cursor)
-	pingUserNames = []
-	for user in pingUserIDs:
-		member = guild.get_member(user)
-		if member is not None:
-			pingUserNames.append(member.display_name)
-	# Get aliases for the ping
-	pingAliases = await ping_get_alias_names(id, cursor)
-
-	# Convert pingUsers and pingAliases to the format we need for the embed
-	# This put backticks around each entry in the array
-	#pingUserTexts = list(map(lambda n: f"`{n}`", pingUserNames))
-	#pingAliasTexts = list(map(lambda n: f"`{n}`", pingAliases))
-
-	if title_prefix is not None:
-		# Prefix present
-		embedTitle = f"{title_prefix} Ping: {pingName} | Users: {len(pingUserNames)}"
-	else:
-		embedTitle = f"Ping: {pingName} | Users: {len(pingUserNames)}"
-
-	# Now that we have all of our info, start creating our embed
-	embed = discord.Embed(
-		colour = PING_EMBED_COLOUR,
-		title = embedTitle,
-		description = f"```{', '.join(pingUserNames)}```"
-	)
-	if len(pingAliases) > 0:
-		embed.add_field(
-			name = "Aliases",
-			value = f"```{', '.join(pingAliases)}```",
-			inline = True
-		)
-	# Return the generated embed
-	return embed
-
-
 class Pings(commands.Cog, name = "ping"):
 	"""Ping users by a tag."""
 	def __init__(self, bot, *args, **kwargs):
@@ -337,22 +57,14 @@ class Pings(commands.Cog, name = "ping"):
 	async def cog_load(self):
 		"""Initializes the cache for the cog"""
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Update the cache for all guilds
-				for guild in self.bot.guilds:
-					await self._update_ping_cache(guild, cursor)
+			# Update the cache for all guilds
+			for guild in self.bot.guilds:
+				await self._update_ping_cache(db, guild.id)
 
-	async def _update_ping_cache(self, guild: discord.Guild, cursor: asqlite.Cursor):
+	async def _update_ping_cache(self, db: blueonblue.db.DBConnection, guildID: int):
 		"""Updates the bot's ping cache for a specific guild"""
-		await cursor.execute("SELECT ping_name FROM pings WHERE server_id = :server_id AND alias_for IS NULL", {"server_id": guild.id})
-		pingData = await cursor.fetchall()
-		pingResults: list[str] = []
-		for p in pingData:
-			if "ping_name" in p.keys():
-				pingResults.append(p["ping_name"])
+		self.pingCache[guildID] = (await db.pings.server_pings(guildID))
 
-		# Set the value for the cache
-		self.pingCache[guild.id] = pingResults
 
 	async def ping_autocomplete(self, interaction: discord.Interaction, current: str):
 		"""Function to handle autocompletion of pings present in a guild"""
@@ -362,6 +74,66 @@ class Pings(commands.Cog, name = "ping"):
 		else:
 			# Command called in guild, and cache exists for that guild
 			return[app_commands.Choice(name=ping, value=ping) for ping in self.pingCache[interaction.guild.id] if current.lower() in ping.lower()][:25]
+
+
+	async def create_ping_embed(
+			self,
+			db: blueonblue.db.DBConnection,
+			pingID: int,
+			guild: discord.Guild,
+			*,
+			title_prefix: str | None = None
+		) -> discord.Embed:
+		"""Creates a "ping info" embed using the name and guild of a ping.
+
+		Parameters
+		----------
+		db : blueonblue.db.DBConnection
+			Blue on blue DB connection
+		pingID : int
+			Ping ID
+		guild : discord.Guild
+			Discord guild
+		title_prefix : str | None, optional
+			Adds a "prefix" to the title of the resulting embed, by default None
+
+		Returns
+		-------
+		discord.Embed
+			Discord embed
+		"""
+		# Get the name for the ping
+		pingName = await db.pings.get_name(pingID)
+		pingUserNames = []
+		for user in (await db.pings.get_user_ids_by_ping_id(pingID)):
+			member = guild.get_member(user)
+			if member is not None:
+				pingUserNames.append(member.display_name)
+
+		# Get aliases for the ping
+		pingAliases = await db.pings.get_alias_names(pingID)
+
+		if title_prefix is not None:
+			# Prefix present
+			embedTitle = f"{title_prefix} Ping: {pingName} | Users: {len(pingUserNames)}"
+		else:
+			embedTitle = f"Ping: {pingName} | Users: {len(pingUserNames)}"
+
+		# Now that we have all of our info, start creating our embed
+		embed = discord.Embed(
+			colour = PING_EMBED_COLOUR,
+			title = embedTitle,
+			description = f"```{', '.join(pingUserNames)}```"
+		)
+		if len(pingAliases) > 0:
+			embed.add_field(
+				name = "Aliases",
+				value = f"```{', '.join(pingAliases)}```",
+				inline = True
+			)
+		# Return the generated embed
+		return embed
+
 
 	# Establish app command groups
 	pingGroup = app_commands.Group(
@@ -392,38 +164,37 @@ class Pings(commands.Cog, name = "ping"):
 
 		# Begin our DB section
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				response = None
-				ping_id = await ping_get_id(tag, interaction.guild, cursor) # Get the ID of the ping (or none if it doesn't exist)
-				if ping_id is None:
-					# Ping does not exist
-					response = f"The tag `{tag}` does not exist. Try `/pinglist` for a list of active pings."
+			response = None
+			ping_id = await db.pings.get_id(tag, interaction.guild.id) # Get the ID of the ping (or none if it doesn't exist)
+			if ping_id is None:
+				# Ping does not exist
+				response = f"The tag `{tag}` does not exist. Try `/pinglist` for a list of active pings."
+			else:
+				# Ping exists
+				pingUserIDs = await db.pings.get_user_ids_by_ping_id(ping_id)
+				pingMentions: list[str] = []
+				for userID in pingUserIDs:
+					# Try to get the member object from the user ID
+					member = interaction.guild.get_member(userID)
+					if member is not None:
+						# Member is present in the guild
+						pingMentions.append(member.mention)
+
+				# Check to see if we have any valid members
+				if len(pingMentions) > 0:
+					# Ping has users
+					# Update the "last used time"
+					await db.pings.update_ping_time(tag, interaction.guild.id)
+					response = f"{interaction.user.mention} has pinged `{tag}`: " + " ".join(pingMentions) # Create the ping message
 				else:
-					# Ping exists
-					pingUserIDs = await ping_get_user_ids_by_id(ping_id, cursor)
-					pingMentions: list[str] = []
-					for userID in pingUserIDs:
-						# Try to get the member object from the user ID
-						member = interaction.guild.get_member(userID)
-						if member is not None:
-							# Member is present in the guild
-							pingMentions.append(member.mention)
+					# Ping is empty
+					response = f"Ping `{tag}` appears to be empty. Performing cleanup." # Inform the user
+					await db.pings.delete_tag(tag, interaction.guild.id)
 
-					# Check to see if we have any valid members
-					if len(pingMentions) > 0:
-						# Ping has users
-						# Update the "last used time"
-						await ping_update_time(tag, interaction.guild, cursor)
-						response = f"{interaction.user.mention} has pinged `{tag}`: " + " ".join(pingMentions) # Create the ping message
-					else:
-						# Ping is empty
-						response = f"Ping `{tag}` appears to be empty. Performing cleanup." # Inform the user
-						await ping_delete(tag, interaction.guild, cursor)
+			await db.commit() # Write data to the database
 
-				await db.commit() # Write data to the database
-
-				# Send a response to the user.
-				await interaction.response.send_message(response)
+			# Send a response to the user.
+			await interaction.response.send_message(response)
 
 	@pingGroup.command(name = "me")
 	@app_commands.describe(tag = "Name of ping")
@@ -442,47 +213,46 @@ class Pings(commands.Cog, name = "ping"):
 
 		# Begin our DB section
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				response = None
-				# Check if the user in in that ping list
-				# Get the ping ID, and check if the ping exists
-				if await ping_exists(tag, interaction.guild, cursor): # Ping exists
-					# Check if the user is in the ping
-					if await ping_has_user(tag, interaction.guild, interaction.user, cursor):
-						# User already in ping
-						success = await ping_remove_user(tag, interaction.guild, interaction.user, cursor)
-						if success:
-							response = f"{interaction.user.mention} You have been removed from ping: `{tag}`"
-						else:
-							response = f"{interaction.user.mention} There was an error removing you from ping: `{tag}`"
-
-						# Check to see if the ping has any users left
-						userCount = await ping_count_users(tag, interaction.guild, cursor)
-						if userCount <= 0: # No users left in ping.
-							await ping_delete(tag, interaction.guild, cursor)
-							await self._update_ping_cache(interaction.guild, cursor)
+			response = None
+			# Check if the user in in that ping list
+			# Get the ping ID, and check if the ping exists
+			if await db.pings.exists(tag, interaction.guild.id): # Ping exists
+				# Check if the user is in the ping
+				if await db.pings.has_user(tag, interaction.guild.id, interaction.user.id):
+					# User already in ping
+					success = await db.pings.remove_user(tag, interaction.guild.id, interaction.user.id)
+					if success:
+						response = f"{interaction.user.mention} You have been removed from ping: `{tag}`"
 					else:
-						# User not already in ping
-						success = await ping_add_user(tag, interaction.guild, interaction.user, cursor)
-						if success:
-							response = f"{interaction.user.mention} You have been added to ping: `{tag}`"
-						else:
-							response = f"{interaction.user.mention} There was an error adding you to ping: `{tag}`"
+						response = f"{interaction.user.mention} There was an error removing you from ping: `{tag}`"
 
-				else: # Ping does not exist
-					# We need to create the ping
-					await ping_create(tag, interaction.guild, cursor)
-					await self._update_ping_cache(interaction.guild, cursor)
-					# Add the user to the ping
-					success = await ping_add_user(tag, interaction.guild, interaction.user, cursor)
+					# Check to see if the ping has any users left
+					userCount = await db.pings.count_users(tag, interaction.guild.id)
+					if userCount <= 0: # No users left in ping.
+						await db.pings.delete_tag(tag, interaction.guild.id)
+						await self._update_ping_cache(db, interaction.guild.id)
+				else:
+					# User not already in ping
+					success = await db.pings.add_user(tag, interaction.guild.id, interaction.user.id)
 					if success:
 						response = f"{interaction.user.mention} You have been added to ping: `{tag}`"
 					else:
 						response = f"{interaction.user.mention} There was an error adding you to ping: `{tag}`"
-				await db.commit() # Write data to the database
 
-				# Send a response to the user.
-				await interaction.response.send_message(response)
+			else: # Ping does not exist
+				# We need to create the ping
+				await db.pings.create(tag, interaction.guild.id)
+				await self._update_ping_cache(db, interaction.guild.id)
+				# Add the user to the ping
+				success = await db.pings.add_user(tag, interaction.guild.id, interaction.user.id)
+				if success:
+					response = f"{interaction.user.mention} You have been added to ping: `{tag}`"
+				else:
+					response = f"{interaction.user.mention} There was an error adding you to ping: `{tag}`"
+			await db.commit() # Write data to the database
+
+			# Send a response to the user.
+			await interaction.response.send_message(response)
 
 	@pingGroup.command(name = "list")
 	@app_commands.describe(mode = "Operation mode. 'All' lists all pings. 'Me' returns your pings.")
@@ -575,75 +345,68 @@ class Pings(commands.Cog, name = "ping"):
 
 		# Begin our DB section
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				response = None
-				# Search to see if our ping exists
-				await cursor.execute("SELECT id, alias_for FROM pings WHERE server_id = :server_id AND ping_name = :ping", {"server_id": interaction.guild.id, "ping": tag})
-				pingInfo = await cursor.fetchone()
-				pingEmbed = None # Initialize the ping variable in case we don't set it
-				if pingInfo is not None:
-					# We found a direct match for that ping
-					alias = None
-					if pingInfo["alias_for"] is not None:
-						# Ping is an alias
-						pingID = pingInfo["alias_for"]
-						alias = await ping_get_name(pingID, cursor)
-					else:
-						# Ping is not an alias
-						pingID = pingInfo["id"]
-					# Retrieve a list of users subscribed to the referenced ping
-					pingUserData = await ping_get_user_ids_by_id(pingID, cursor)
-					pingUserNames = []
-					for p in pingUserData:
-						member = interaction.guild.get_member(p)
-						if member is not None: # If we could find the user
-							pingUserNames.append(member.display_name)
+			response = None
+			pingEmbed = None # Initialize the ping variable in case we don't set it
 
-					# Check if we have any aliases
-					pingAliasNames = await ping_get_alias_names(pingID, cursor)
+			# Search to see if our ping exists
+			if (await db.pings.exists(tag, interaction.guild.id)):
+				# We found a direct match for that ping
+				pingInfo = await db.pings.ping_info(tag, interaction.guild.id)
+				alias = None
+				if pingInfo.alias is not None:
+					# Ping is an alias
+					pingID = pingInfo.alias
+					alias = await db.pings.get_name(pingID)
+				else:
+					# Ping is not an alias
+					pingID = pingInfo.id
+				# Retrieve a list of users subscribed to the referenced ping
+				pingUserData = await db.pings.get_user_ids_by_ping_id(pingID)
+				pingUserNames = []
+				for p in pingUserData:
+					member = interaction.guild.get_member(p)
+					if member is not None: # If we could find the user
+						pingUserNames.append(member.display_name)
 
-					# Check if we have any active users in the ping
-					if len(pingUserNames) > 0:
-						# We have active users in the ping
-						pingEmbed = await create_ping_embed_from_id(pingID, interaction.guild, cursor)
-					else:
-						# No active users in the ping
-						if alias is None:
-							# Tag is not an alias
-							if len(pingAliasNames) > 0: # If we have any aliases, note them
-								response = f"Tag `{tag}` (aliases: `{', '.join(pingAliasNames)}`) is a valid ping, but has no users that are currently in this server."
-							else:
-								response = f"Tag `{tag}` is a valid ping, but has no users that are currently in this server."
+				# Check if we have any aliases
+				pingAliasNames = await db.pings.get_alias_names(pingID)
+
+				# Check if we have any active users in the ping
+				if len(pingUserNames) > 0:
+					# We have active users in the ping
+					pingEmbed = await self.create_ping_embed(db, pingID, interaction.guild)
+				else:
+					# No active users in the ping
+					if alias is None:
+						# Tag is not an alias
+						if len(pingAliasNames) > 0: # If we have any aliases, note them
+							response = f"Tag `{tag}` (aliases: `{', '.join(pingAliasNames)}`) is a valid ping, but has no users that are currently in this server."
 						else:
-							# Tag is an alias
-							response = f"Tag `{tag}` is an alias for `{alias}` which is a valid ping, but has no users that are currently in this server."
-				else:
-					# No direct match. Search for pings matching that tag.
-					# This can't be used with a dict for parameters, since the LIKE statement won't be happy with it
-					await cursor.execute("SELECT ping_name FROM pings WHERE server_id = ? AND ping_name LIKE ? AND alias_for IS NULL", (interaction.guild.id,"%"+tag+"%",))
-					pingData = await cursor.fetchall()
-					pingResults: list[str] = []
-					for p in pingData:
-						if p["ping_name"] is not None: # Ensure that we have a ping name
-							pingResults.append(p["ping_name"])
-					# Now that we have our ping names, we can form our response
-					if len(pingResults) > 0:
-						# We have at least one ping response
-						pingEmbed = discord.Embed(
-							title = f"Ping search for `{tag}`",
-							colour = PING_EMBED_COLOUR,
-							#description = ", ".join(map(lambda n: f"`{n}`", sorted(pingResults, key=str.casefold)))
-							description = f"```{', '.join(sorted(pingResults, key=str.casefold))}```"
-						)
+							response = f"Tag `{tag}` is a valid ping, but has no users that are currently in this server."
 					else:
-						# We did not find any search results
-						response = f"{interaction.user.mention}, there are no tags for the search term: `{tag}`"
-
-				# Send our response
-				if pingEmbed is not None:
-					await interaction.response.send_message(response, embed = pingEmbed)
+						# Tag is an alias
+						response = f"Tag `{tag}` is an alias for `{alias}` which is a valid ping, but has no users that are currently in this server."
+			else:
+				# No direct match. Search for pings matching that tag.
+				pingResults = await db.pings.server_pings(interaction.guild.id, search = tag)
+				# Now that we have our ping names, we can form our response
+				if len(pingResults) > 0:
+					# We have at least one ping response
+					pingEmbed = discord.Embed(
+						title = f"Ping search for `{tag}`",
+						colour = PING_EMBED_COLOUR,
+						#description = ", ".join(map(lambda n: f"`{n}`", sorted(pingResults, key=str.casefold)))
+						description = f"```{', '.join(sorted(pingResults, key=str.casefold))}```"
+					)
 				else:
-					await interaction.response.send_message(response)
+					# We did not find any search results
+					response = f"{interaction.user.mention}, there are no tags for the search term: `{tag}`"
+
+			# Send our response
+			if pingEmbed is not None:
+				await interaction.response.send_message(response, embed = pingEmbed)
+			else:
+				await interaction.response.send_message(response)
 
 	@pingAdmin.command(name = "alias")
 	@app_commands.describe(
@@ -657,60 +420,59 @@ class Pings(commands.Cog, name = "ping"):
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Check if we need to create or destroy the alias
-				if tag is not None:
-					# Create an alias
-					if await ping_exists(alias, interaction.guild, cursor):
-						# Ping already exists with this tag
-						# Check if the ping is an alias
-						if await ping_is_alias(alias, interaction.guild, cursor):
-							# Ping is an alias
-							# Get the name of the primary ping
-							primaryID = await ping_get_id(alias, interaction.guild, cursor)
-							if primaryID is not None:
-								primaryName = await ping_get_name(primaryID, cursor)
-								await interaction.response.send_message(f"The alias `{alias}` already exists for the ping `{primaryName}`. Please clear the alias before trying to reassign it.", ephemeral=True)
-							else:
-								await interaction.response.send_message(f"The alias `{alias}` already exists. Please clear the alias before trying to reassign it.", ephemeral=True)
-						else:
-							# Ping is not an alias
-							await interaction.response.send_message(f"A ping already exists with the tag `{alias}`. If you want to turn this tag into an alias, the ping must be deleted first.", ephemeral=True)
-					else:
-						# Ping does not already exist with the alias tag
-						primaryID = await ping_get_id(tag, interaction.guild, cursor)
+			# Check if we need to create or destroy the alias
+			if tag is not None:
+				# Create an alias
+				if await db.pings.exists(alias, interaction.guild.id):
+					# Ping already exists with this tag
+					# Check if the ping is an alias
+					if await db.pings.is_alias(alias, interaction.guild.id):
+						# Ping is an alias
+						# Get the name of the primary ping
+						primaryID = await db.pings.get_id(alias, interaction.guild.id)
 						if primaryID is not None:
-							primaryName = await ping_get_name(primaryID, cursor)
-							await ping_create_alias(alias, primaryID, interaction.guild, cursor)
-							await db.commit() # Commit changes
-							await interaction.response.send_message(f"Alias `{alias}` created for ping `{primaryName}`")
+							primaryName = await db.pings.get_name(primaryID)
+							await interaction.response.send_message(f"The alias `{alias}` already exists for the ping `{primaryName}`. Please clear the alias before trying to reassign it.", ephemeral=True)
 						else:
-							await interaction.response.send_message(f"The ping `{tag}` does not exist. Alias could not be created.", ephemeral=True)
+							await interaction.response.send_message(f"The alias `{alias}` already exists. Please clear the alias before trying to reassign it.", ephemeral=True)
+					else:
+						# Ping is not an alias
+						await interaction.response.send_message(f"A ping already exists with the tag `{alias}`. If you want to turn this tag into an alias, the ping must be deleted first.", ephemeral=True)
+				else:
+					# Ping does not already exist with the alias tag
+					primaryID = await db.pings.get_id(tag, interaction.guild.id)
+					if primaryID is not None:
+						primaryName = await db.pings.get_name(primaryID)
+						await db.pings.create_alias(alias, primaryID, interaction.guild.id)
+						await db.commit() # Commit changes
+						await interaction.response.send_message(f"Alias `{alias}` created for ping `{primaryName}`")
+					else:
+						await interaction.response.send_message(f"The ping `{tag}` does not exist. Alias could not be created.", ephemeral=True)
+
+			else:
+				# Tag does not exist. Destroy alias
+				# Check if it exists first though to display an error message
+				aliasExists = await db.pings.is_alias(alias, interaction.guild.id)
+				if aliasExists:
+					# Alias exists, destroy it
+					primaryID = await db.pings.get_id(alias, interaction.guild.id)
+					await db.pings.delete_alias(alias, interaction.guild.id)
+					await db.commit() # Commit changes
+					if primaryID is not None:
+						# Primary ping identified
+						primaryName = await db.pings.get_name(primaryID)
+						# Get aliases for the primary ping
+						primaryAliases = await db.pings.get_alias_names(primaryID)
+						msg = f"Alias `{alias}` has been removed for ping `{primaryName}`"
+						if len(primaryAliases) > 0:
+							msg += f" (aliases: `{', '.join(primaryAliases)}`)"
+						await interaction.response.send_message(msg)
+					else:
+						# Primary ping unknown
+						await interaction.response.send_message(f"Alias `{alias}` has been removed")
 
 				else:
-					# Tag does not exist. Destroy alias
-					# Check if it exists first though to display an error message
-					aliasExists = await ping_is_alias(alias, interaction.guild, cursor)
-					if aliasExists:
-						# Alias exists, destroy it
-						primaryID = await ping_get_id(alias, interaction.guild, cursor)
-						await ping_delete_alias(alias, interaction.guild, cursor)
-						await db.commit() # Commit changes
-						if primaryID is not None:
-							# Primary ping identified
-							primaryName = await ping_get_name(primaryID, cursor)
-							# Get aliases for the primary ping
-							primaryAliases = await ping_get_alias_names(primaryID, cursor)
-							msg = f"Alias `{alias}` has been removed for ping `{primaryName}`"
-							if len(primaryAliases) > 0:
-								msg += f" (aliases: `{', '.join(primaryAliases)}`)"
-							await interaction.response.send_message(msg)
-						else:
-							# Primary ping unknown
-							await interaction.response.send_message(f"Alias `{alias}` has been removed")
-
-					else:
-						await interaction.response.send_message(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
+					await interaction.response.send_message(f"The alias `{alias}` does not exist. If you are trying to create an alias, please specify a ping to bind the alias to.", ephemeral=True)
 
 	@pingAdmin.command(name = "merge")
 	@app_commands.describe(
@@ -727,108 +489,105 @@ class Pings(commands.Cog, name = "ping"):
 
 		# Begin our DB section
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Get the names of the pings for our two pings
-				fromID = await ping_get_id(merge_from, interaction.guild, cursor)
-				if fromID is not None:
-					fromName = await ping_get_name(fromID, cursor)
-				else:
-					fromName = None
+			# Get the names of the pings for our two pings
+			fromID = await db.pings.get_id(merge_from, interaction.guild.id)
+			if fromID is not None:
+				fromName = await db.pings.get_name(fromID)
+			else:
+				fromName = None
 
-				toID = await ping_get_id(merge_to, interaction.guild, cursor)
-				if toID is not None:
-					toName = await ping_get_name(toID, cursor)
-				else:
-					toName = None
+			toID = await db.pings.get_id(merge_to, interaction.guild.id)
+			if toID is not None:
+				toName = await db.pings.get_name(toID)
+			else:
+				toName = None
 
-				# Make sure these pings exist
-				if fromName is None or fromID is None:
-					# "From" ping not found
-					await interaction.response.send_message(f"The ping `{merge_from}` does not exist. Please specify a valid ping to be merged.", ephemeral=True)
-					return
-				if toName is None or toID is None:
-					# "To" ping not found
-					await interaction.response.send_message(f"The ping `{merge_to}` does not exist. Please specify a valid ping to merge to.", ephemeral=True)
-					return
+			# Make sure these pings exist
+			if fromName is None or fromID is None:
+				# "From" ping not found
+				await interaction.response.send_message(f"The ping `{merge_from}` does not exist. Please specify a valid ping to be merged.", ephemeral=True)
+				return
+			if toName is None or toID is None:
+				# "To" ping not found
+				await interaction.response.send_message(f"The ping `{merge_to}` does not exist. Please specify a valid ping to merge to.", ephemeral=True)
+				return
 
-				# Get aliases and usercounts for the pings if they exist
-				fromAliases = await ping_get_alias_names(fromID, cursor)
-				fromUserCount = await ping_count_active_users(merge_from, interaction.guild, cursor)
+			# Get aliases and usercounts for the pings if they exist
+			fromAliases = await db.pings.get_alias_names(fromID)
+			fromUserCount = await db.pings.count_active_users(merge_from, interaction.guild)
 
-				toAliases = await ping_get_alias_names(toID, cursor)
-				toUserCount = await ping_count_active_users(merge_to, interaction.guild, cursor)
+			toAliases = await db.pings.get_alias_names(toID)
+			toUserCount = await db.pings.count_active_users(merge_to, interaction.guild)
 
-				# Start preparing our message
-				# Set up our alias texts first
-				if len(fromAliases) > 0:
-					fromAliasText = f", aliases: `{', '.join(fromAliases)}`"
-				else:
-					fromAliasText = ""
-				if len(toAliases) > 0:
-					toAliasText = f", aliases: `{', '.join(toAliases)}`"
-				else:
-					toAliasText = ""
+			# Start preparing our message
+			# Set up our alias texts first
+			if len(fromAliases) > 0:
+				fromAliasText = f", aliases: `{', '.join(fromAliases)}`"
+			else:
+				fromAliasText = ""
+			if len(toAliases) > 0:
+				toAliasText = f", aliases: `{', '.join(toAliases)}`"
+			else:
+				toAliasText = ""
 
-				# Create our texts for the "from" and "to" pings
-				#fromText = f"`{fromName}` (users: `{fromUserCount}`{fromAliasText})"
-				#toText = f"`{toName}` (users: `{toUserCount}`{toAliasText})"
+			# Create our texts for the "from" and "to" pings
+			#fromText = f"`{fromName}` (users: `{fromUserCount}`{fromAliasText})"
+			#toText = f"`{toName}` (users: `{toUserCount}`{toAliasText})"
 
-				# Set up our message and view
-				messageText = f"{interaction.user.mention}, you are about to merge the following pings. This action is **irreversible**."
-				view = blueonblue.views.ConfirmViewDanger(interaction.user, confirm="Merge")
-				pingEmbeds = [
-					await create_ping_embed_from_id(fromID, interaction.guild, cursor, title_prefix="Merge from"),
-					await create_ping_embed_from_id(toID, interaction.guild, cursor, title_prefix="Merge to")
-				]
-				await interaction.response.send_message(messageText, view = view, embeds=pingEmbeds)
-				view.message = await interaction.original_response()
-				# Wait for the view to finish
-				await view.wait()
+			# Set up our message and view
+			messageText = f"{interaction.user.mention}, you are about to merge the following pings. This action is **irreversible**."
+			view = blueonblue.views.ConfirmViewDanger(interaction.user, confirm="Merge")
+			pingEmbeds = [
+				await self.create_ping_embed(db, fromID, interaction.guild, title_prefix="Merge from"),
+				await self.create_ping_embed(db, toID, interaction.guild, title_prefix="Merge to")
+			]
+			await interaction.response.send_message(messageText, view = view, embeds=pingEmbeds)
+			view.message = await interaction.original_response()
+			# Wait for the view to finish
+			await view.wait()
 
-				# Once we have a response, continue
-				if view.response:
-					# Action confirmed
-					# We need to first clear any duplicate users from the ping to be merged
-					fromUsers = await ping_get_user_ids_by_id(fromID, cursor)
-					toUsers = await ping_get_user_ids_by_id(toID, cursor)
-					deleteUsers = []
-					# Get a list of users that need to be cleared from the "from" ping
-					for u in fromUsers:
-						if u in toUsers:
-							deleteUsers.append(u)
-					# Remove duplicate users from the "from" ping
-					for d in deleteUsers:
-						await ping_remove_user_by_id(fromID, d, cursor)
-					# Now that our duplicate users have been removed from their pings, migrate all users and aliases
-					await cursor.execute("UPDATE ping_users SET ping_id = :toID WHERE ping_id = :fromID", {"toID": toID, "fromID": fromID})
-					# Migrate existing aliases
-					await cursor.execute("UPDATE pings SET alias_for = :toID WHERE alias_for = :fromID", {"toID": toID, "fromID": fromID})
-					# Delete the old ping
-					await ping_delete(fromName, interaction.guild, cursor)
-					# Create an alias linking the old ping to the new ping
-					await ping_create_alias(fromName, toID, interaction.guild, cursor)
+			# Once we have a response, continue
+			if view.response:
+				# Action confirmed
+				# We need to first clear any duplicate users from the ping to be merged
+				fromUsers = await db.pings.get_user_ids_by_ping_id(fromID)
+				toUsers = await db.pings.get_user_ids_by_ping_id(toID)
+				deleteUsers = []
+				# Get a list of users that need to be cleared from the "from" ping
+				for u in fromUsers:
+					if u in toUsers:
+						deleteUsers.append(u)
+				# Remove duplicate users from the "from" ping
+				for d in deleteUsers:
+					await db.pings.remove_user_by_id(fromID, d)
+				# Now that our duplicate users have been removed from their pings, migrate all users and aliases
+				await db.pings.migrate_ping(fromID, toID)
+				# Delete the old ping
+				await db.pings.delete_tag(fromName, interaction.guild.id)
+				# Create an alias linking the old ping to the new ping
+				await db.pings.create_alias(fromName, toID, interaction.guild.id)
 
-					# Update the cache
-					await self._update_ping_cache(interaction.guild, cursor)
+				# Update the cache
+				await self._update_ping_cache(db, interaction.guild.id)
 
-					# Commit changes
-					await db.commit()
+				# Commit changes
+				await db.commit()
 
-					# Get new information about our final ping
-					toAliasesNew = await ping_get_alias_names(toID, cursor)
-					toTextNew = f"`{toName}`"
-					if len(toAliasesNew) > 0:
-						toTextNew += f" (aliases: `{', '.join(toAliasesNew)}`)"
-					# Send our confirmation
-					await interaction.followup.send(f"Ping `{fromName}` has been successfully merged into {toTextNew}.")
+				# Get new information about our final ping
+				toAliasesNew = await db.pings.get_alias_names(toID)
+				toTextNew = f"`{toName}`"
+				if len(toAliasesNew) > 0:
+					toTextNew += f" (aliases: `{', '.join(toAliasesNew)}`)"
+				# Send our confirmation
+				await interaction.followup.send(f"Ping `{fromName}` has been successfully merged into {toTextNew}.")
 
-				elif not view.response:
-					# Action cancelled
-					await interaction.followup.send(f"Merge action cancelled.")
+			elif not view.response:
+				# Action cancelled
+				await interaction.followup.send(f"Merge action cancelled.")
 
-				else:
-					# Notify the user that the action timed out
-					await interaction.followup.send("Pending ping merge has timed out", ephemeral=True)
+			else:
+				# Notify the user that the action timed out
+				await interaction.followup.send("Pending ping merge has timed out", ephemeral=True)
 
 	@pingAdmin.command(name = "delete")
 	@app_commands.describe(tag = "Ping to delete")
@@ -840,41 +599,40 @@ class Pings(commands.Cog, name = "ping"):
 		# We need to search for the ping
 		# Begin our DB section
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Get our ping ID
-				pingID = await ping_get_id(tag, interaction.guild, cursor)
-				# Make sure we actually have a ping
-				if pingID is None:
-					await interaction.response.send_message(f"I could not find a ping for the tag: `{tag}`", ephemeral=True)
-					return
-				# Get the name of our main ping (in case our given tag was an alias)
-				pingName = await ping_get_name(pingID, cursor)
-				if pingName is None:
-					await interaction.response.send_message(f"I could not find a ping for the tag: `{tag}`", ephemeral=True)
-					return
+			# Get our ping ID
+			pingID = await db.pings.get_id(tag, interaction.guild.id)
+			# Make sure we actually have a ping
+			if pingID is None:
+				await interaction.response.send_message(f"I could not find a ping for the tag: `{tag}`", ephemeral=True)
+				return
+			# Get the name of our main ping (in case our given tag was an alias)
+			pingName = await db.pings.get_name(pingID)
+			if pingName is None:
+				await interaction.response.send_message(f"I could not find a ping for the tag: `{tag}`", ephemeral=True)
+				return
 
-				# Set up our message
-				msg = f"{interaction.user.mention}, you are about to delete the following ping. This action is **irreversible**."
-				pingEmbed = await create_ping_embed_from_id(pingID, interaction.guild, cursor)
+			# Set up our message
+			msg = f"{interaction.user.mention}, you are about to delete the following ping. This action is **irreversible**."
+			pingEmbed = await self.create_ping_embed(db, pingID, interaction.guild)
 
-				view = blueonblue.views.ConfirmViewDanger(interaction.user, confirm="Delete")
-				await interaction.response.send_message(msg, embed = pingEmbed, view = view)
-				view.message = await interaction.original_response()
-				await view.wait()
+			view = blueonblue.views.ConfirmViewDanger(interaction.user, confirm="Delete")
+			await interaction.response.send_message(msg, embed = pingEmbed, view = view)
+			view.message = await interaction.original_response()
+			await view.wait()
 
-				# Once we have a response, continue
-				if view.response:
-					# Action confirmed
-					# Pretty straightforward, just delete the ping. SQLite foreign keys should handle the rest.
-					await ping_delete(pingName, interaction.guild, cursor)
-					await self._update_ping_cache(interaction.guild, cursor) # Update the cache
-					await interaction.followup.send(f"The ping `{pingName}` has been permanently deleted.")
-				elif not view.response:
-					# Action cancelled
-					await interaction.followup.send(f"Delete action cancelled.")
-				else:
-					# Notify the user that the action timed out
-					await interaction.followup.send("Pending ping delete has timed out", ephemeral=True)
+			# Once we have a response, continue
+			if view.response:
+				# Action confirmed
+				# Pretty straightforward, just delete the ping. SQLite foreign keys should handle the rest.
+				await db.pings.delete_tag(pingName, interaction.guild.id)
+				await self._update_ping_cache(db, interaction.guild.id) # Update the cache
+				await interaction.followup.send(f"The ping `{pingName}` has been permanently deleted.")
+			elif not view.response:
+				# Action cancelled
+				await interaction.followup.send(f"Delete action cancelled.")
+			else:
+				# Notify the user that the action timed out
+				await interaction.followup.send("Pending ping delete has timed out", ephemeral=True)
 
 	@pingAdmin.command(name = "purge")
 	@app_commands.describe(
@@ -887,67 +645,62 @@ class Pings(commands.Cog, name = "ping"):
 
 		# Start our DB block
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Start getting a list of all pings that are old enough to be up for deletion
-				# Get a timestamp of the specified time
-				timeThreshold = discord.utils.utcnow() - timedelta(days=days_since_last_use)
-				timeStamp = round(timeThreshold.timestamp())
-				# Use this timestamp to search for pings
-				await cursor.execute("SELECT ping_name FROM pings WHERE server_id = :server_id AND last_used_time < :time AND alias_for IS NULL",
-					{"server_id": interaction.guild.id, "time": timeStamp})
-				pingData = await cursor.fetchall()
-				pingNames = []
-				for p in pingData:
-					# Ping names cannot be null/None
-					if (await ping_count_active_users(p["ping_name"], interaction.guild, cursor) < user_threshold):
-						pingNames.append(p["ping_name"])
-				# Now that we have a list of ping names, we can continue
-				if len(pingNames) > 0:
-					# At least one ping was found
-					# Prepare our message and view
-					#msg = f"{ctx.author.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago). "\
-					#	f"This action is **irreversible**.\n```{', '.join(pingNames)}```"
-					msg = f"{interaction.user.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago)."
-					pingEmbed = discord.Embed(
-						title = f"Pings pending deletion",
-						colour = PING_EMBED_COLOUR,
-						#description = ", ".join(map(lambda n: f"`{n}`", sorted(pingNames, key=str.casefold)))
-						description = f"```{', '.join(sorted(pingNames, key=str.casefold))}```"
-					)
-					view = blueonblue.views.ConfirmViewDanger(interaction.user, confirm="Purge")
-					await interaction.response.send_message(msg, embed = pingEmbed, view = view)
-					view.message = await interaction.original_response()
-					await view.wait()
+			# Start getting a list of all pings that are old enough to be up for deletion
+			# Get a timestamp of the specified time
+			timeThreshold = discord.utils.utcnow() - timedelta(days=days_since_last_use)
 
-					# Handle the response
-					if view.response:
-						# Action confirmed
-						# Delete all pings that met our search criteria
-						for p in pingNames:
-							await ping_delete(p, interaction.guild, cursor)
-						# Update the cache
-						await self._update_ping_cache(interaction.guild, cursor)
-						await interaction.followup.send(f"Pings have been successfully purged.")
-					elif not view.response:
-						# Action cancelled
-						await interaction.followup.send(f"Purge action cancelled.")
-					else:
-						# Notify the user that the action timed out
-						await interaction.followup.send("Pending ping purge has timed out", ephemeral=True)
+			# Get a list of pings that haven't been used recently
+			pingNames = []
+			for p in (await db.pings.server_pings(interaction.guild.id, beforeTime = timeThreshold)):
+				# Ping names cannot be null/None
+				if (await db.pings.count_active_users(p, interaction.guild) < user_threshold):
+					pingNames.append(p)
+			# Now that we have a list of ping names, we can continue
+			if len(pingNames) > 0:
+				# At least one ping was found
+				# Prepare our message and view
+				#msg = f"{ctx.author.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago). "\
+				#	f"This action is **irreversible**.\n```{', '.join(pingNames)}```"
+				msg = f"{interaction.user.mention}, you are about to permanently delete the following pings due to inactivity (less than `{user_threshold}` users, last used more than `{days_since_last_use}` days ago)."
+				pingEmbed = discord.Embed(
+					title = f"Pings pending deletion",
+					colour = PING_EMBED_COLOUR,
+					#description = ", ".join(map(lambda n: f"`{n}`", sorted(pingNames, key=str.casefold)))
+					description = f"```{', '.join(sorted(pingNames, key=str.casefold))}```"
+				)
+				view = blueonblue.views.ConfirmViewDanger(interaction.user, confirm="Purge")
+				await interaction.response.send_message(msg, embed = pingEmbed, view = view)
+				view.message = await interaction.original_response()
+				await view.wait()
 
+				# Handle the response
+				if view.response:
+					# Action confirmed
+					# Delete all pings that met our search criteria
+					for p in pingNames:
+						await db.pings.delete_tag(p, interaction.guild.id)
+					# Update the cache
+					await self._update_ping_cache(db, interaction.guild.id)
+					await interaction.followup.send(f"Pings have been successfully purged.")
+				elif not view.response:
+					# Action cancelled
+					await interaction.followup.send(f"Purge action cancelled.")
 				else:
-					# Did not find any pings matching search criteria
-					await interaction.response.send_message(f"{interaction.user.mention}, there were no pings found with fewer than `{user_threshold}` users that were last used more than `{days_since_last_use}` days ago.")
+					# Notify the user that the action timed out
+					await interaction.followup.send("Pending ping purge has timed out", ephemeral=True)
+
+			else:
+				# Did not find any pings matching search criteria
+				await interaction.response.send_message(f"{interaction.user.mention}, there were no pings found with fewer than `{user_threshold}` users that were last used more than `{days_since_last_use}` days ago.")
 
 	@commands.Cog.listener()
 	async def on_ready(self):
 		"""Update our ping cache on reconnection.
 		This needs to wait until the bot is ready, since it relies on being able to grab a list of guilds that the bot is in."""
 		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Update the cache for all guilds
-				for guild in self.bot.guilds:
-					await self._update_ping_cache(guild, cursor)
+			# Update the cache for all guilds
+			for guild in self.bot.guilds:
+				await self._update_ping_cache(db, guild.id)
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(Pings(bot))
