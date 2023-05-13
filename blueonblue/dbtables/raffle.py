@@ -2,7 +2,6 @@ from .base import BaseTable
 
 class RaffleWeights(BaseTable):
 	"""Raffle Weights table class"""
-	_tableName = "raffle_weights"
 
 
 	async def getWeight(self, guildID: int, userID: int) -> float:

@@ -13,8 +13,7 @@ class PingInfo(NamedTuple):
 
 class Pings(BaseTable):
 	"""Ping table class"""
-	_tableName = "pings"
-	_userTable  = "ping_users"
+
 
 	async def exists(self, tag: str, guildID: int) -> bool:
 		"""Checks if a tag exists in the database for a specific guild.
@@ -33,8 +32,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT id FROM :table_name WHERE server_id = :server_id AND ping_name = :ping",
-				{"table_name": self._tableName, "server_id": guildID, "ping": tag.casefold()}
+				"SELECT id FROM pings WHERE server_id = :server_id AND ping_name = :ping",
+				{"server_id": guildID, "ping": tag.casefold()}
 			)
 			ping = await cursor.fetchone()
 			# Return false if ping is none, true otherwise
@@ -58,8 +57,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT alias_for FROM :table_name WHERE server_id = :server_id AND ping_name = :ping AND alias_for IS NOT NULL",
-				{"table_name": self._tableName, "server_id": guildID, "ping": tag.casefold()}
+				"SELECT alias_for FROM pings WHERE server_id = :server_id AND ping_name = :ping AND alias_for IS NOT NULL",
+				{"server_id": guildID, "ping": tag.casefold()}
 			)
 			ping = await cursor.fetchone()
 			# Return false if ping is none, true otherwise
@@ -85,8 +84,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT id, alias_for FROM :table_name WHERE server_id = :server_id AND ping_name = :ping",
-				{"table_name": self._tableName, "server_id": guildID, "ping": tag.casefold()}
+				"SELECT id, alias_for FROM pings WHERE server_id = :server_id AND ping_name = :ping",
+				{"server_id": guildID, "ping": tag.casefold()}
 			)
 			ping = await cursor.fetchone()
 
@@ -118,8 +117,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT ping_name FROM :table_name WHERE id = :id",
-				{"table_name": self._tableName, "id": id}
+				"SELECT ping_name FROM pings WHERE id = :id",
+				{"id": id}
 			)
 			ping = await cursor.fetchone()
 
@@ -146,8 +145,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT ping_name FROM :table_name WHERE alias_for = :id",
-				{"table_name": self._tableName, "id": id}
+				"SELECT ping_name FROM pings WHERE alias_for = :id",
+				{"id": id}
 			)
 			aliasData = await cursor.fetchall()
 
@@ -169,9 +168,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"INSERT INTO :table_name (server_id, ping_name, last_used_time) VALUES (:server_id, :ping, :time)",
+				"INSERT INTO pings (server_id, ping_name, last_used_time) VALUES (:server_id, :ping, :time)",
 				{
-					"table_name": self._tableName,
 					"server_id": guildID,
      				"ping": tag.casefold(),
 					"time": round(datetime.now(timezone.utc).timestamp())
@@ -190,9 +188,8 @@ class Pings(BaseTable):
 			Discord guild ID
 		"""
 		async with self.db.connection.cursor() as cursor:
-			await cursor.execute("DELETE FROM :table_name WHERE (server_id = :server_id AND ping_name = :ping)",
+			await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND ping_name = :ping)",
 				{
-					"table_name": self._tableName,
 					"server_id": guildID,
      				"ping": tag.casefold()
 				}
@@ -208,9 +205,8 @@ class Pings(BaseTable):
 			Ping ID to delete
 		"""
 		async with self.db.connection.cursor() as cursor:
-			await cursor.execute("DELETE FROM :table_name WHERE (id = :id)",
+			await cursor.execute("DELETE FROM pings WHERE (id = :id)",
 				{
-					"table_name": self._tableName,
      				"id": id
 				}
 			)
@@ -229,9 +225,8 @@ class Pings(BaseTable):
 			Discord guild ID
 		"""
 		async with self.db.connection.cursor() as cursor:
-			await cursor.execute("INSERT INTO :table_name (server_id, ping_name, alias_for) VALUES (:server_id, :alias, :id)",
+			await cursor.execute("INSERT INTO pings (server_id, ping_name, alias_for) VALUES (:server_id, :alias, :id)",
 				{
-					"table_name": self._tableName,
 					"server_id": guildID,
 					"alias": alias.casefold(),
      				"id": targetID,
@@ -250,9 +245,8 @@ class Pings(BaseTable):
 			Discord guild ID
 		"""
 		async with self.db.connection.cursor() as cursor:
-			await cursor.execute("DELETE FROM :table_name WHERE (server_id = :server_id AND ping_name = :alias AND alias_for IS NOT NULL)",
+			await cursor.execute("DELETE FROM pings WHERE (server_id = :server_id AND ping_name = :alias AND alias_for IS NOT NULL)",
 				{
-					"table_name": self._tableName,
 					"server_id": guildID,
 					"alias": alias.casefold()
 				}
@@ -272,9 +266,8 @@ class Pings(BaseTable):
 		async with self.db.connection.cursor() as cursor:
 			time = round(datetime.now(timezone.utc).timestamp()) # Get the current time in timestamp format
 			pingID = await self.get_id(tag, guildID)
-			await cursor.execute("UPDATE :table_name SET last_used_time = :time WHERE id = :id",
+			await cursor.execute("UPDATE pings SET last_used_time = :time WHERE id = :id",
 				{
-					"table_name": self._tableName,
 					"time": time,
 					"id": pingID
 				}
@@ -301,9 +294,8 @@ class Pings(BaseTable):
 		async with self.db.connection.cursor() as cursor:
 			pingID = await self.get_id(tag, guildID)
 			if pingID is not None:
-				await cursor.execute("INSERT OR REPLACE INTO :table_name (server_id, ping_id, user_id) VALUES (:server_id, :ping, :user_id)",
+				await cursor.execute("INSERT OR REPLACE INTO ping_users (server_id, ping_id, user_id) VALUES (:server_id, :ping, :user_id)",
 					{
-						"table_name": self._userTable,
 						"server_id": guildID,
 						"ping": pingID,
 						"user_id": userID
@@ -335,9 +327,8 @@ class Pings(BaseTable):
 			pingID = await self.get_id(tag, guildID)
 			if pingID is not None:
 				# No server reference needed here. Ping IDs must be globally unique.
-				await cursor.execute("DELETE FROM :table_name WHERE (ping_id = :ping AND user_id = :user_id)",
+				await cursor.execute("DELETE FROM ping_users WHERE (ping_id = :ping AND user_id = :user_id)",
 					{
-						"table_name": self._userTable,
 						"ping": pingID,
 						"user_id": userID
 					}
@@ -363,9 +354,8 @@ class Pings(BaseTable):
 			If the user was removed from the ping
 		"""
 		async with self.db.connection.cursor() as cursor:
-			await cursor.execute("DELETE FROM :table_name WHERE (ping_id = :ping AND user_id = :user_id)",
+			await cursor.execute("DELETE FROM ping_users WHERE (ping_id = :ping AND user_id = :user_id)",
 				{
-					"table_name": self._userTable,
 					"ping": pingID,
 					"user_id": userID
 				}
@@ -394,9 +384,8 @@ class Pings(BaseTable):
 			pingID = await self.get_id(tag, guildID)
 			if pingID is not None:
 				# No server reference needed here. Ping IDs must be globally unique.
-				await cursor.execute("SELECT user_id FROM :table_name WHERE server_id = :server_id AND ping_id = :ping AND user_id = :user_id",
+				await cursor.execute("SELECT user_id FROM ping_users WHERE server_id = :server_id AND ping_id = :ping AND user_id = :user_id",
 					{
-						"table_name": self._userTable,
 						"server_id": guildID,
 						"ping": pingID,
 						"user_id": userID
@@ -429,9 +418,8 @@ class Pings(BaseTable):
 			if pingID is None:
 				return -1
 			else: # Ping exists
-				await cursor.execute("SELECT COUNT(*) FROM :table_name WHERE ping_id = :ping",
+				await cursor.execute("SELECT COUNT(*) FROM ping_users WHERE ping_id = :ping",
 					{
-						"table_name": self._userTable,
 						"ping": pingID
 					}
 				)
@@ -460,9 +448,8 @@ class Pings(BaseTable):
 			if pingID is None:
 				return -1
 			else: # Ping exists
-				await cursor.execute("SELECT user_id FROM :table_name WHERE ping_id = :ping",
+				await cursor.execute("SELECT user_id FROM ping_users WHERE ping_id = :ping",
 					{
-						"table_name": self._userTable,
 						"ping": pingID
 					}
 				)
@@ -490,9 +477,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			userIDList = []
-			await cursor.execute("SELECT user_id FROM :table_name WHERE ping_id = :ping",
+			await cursor.execute("SELECT user_id FROM ping_users WHERE ping_id = :ping",
 				{
-					"table_name": self._userTable,
 					"ping": pingID
 				}
 			)
@@ -524,27 +510,24 @@ class Pings(BaseTable):
 			if search is not None:
 				# Search string present.
 				# ("SELECT ping_name FROM pings WHERE server_id = ? AND ping_name LIKE ? AND alias_for IS NULL", (interaction.guild.id,"%"+tag+"%",))
-				await cursor.execute("SELECT ping_name FROM :table_name WHERE server_id = :server_id AND ping_name LIKE :search AND alias_for IS NULL",
+				await cursor.execute("SELECT ping_name FROM pings WHERE server_id = :server_id AND ping_name LIKE :search AND alias_for IS NULL",
 			 		{
-						"table_name": self._tableName,
 						"server_id": guildID,
 						"search": f"%{search}%"
 					}
 				)
 			elif beforeTime is not None:
 				# Before time specified. Only return results last used before this time
-				await cursor.execute("SELECT ping_name FROM :table_name WHERE server_id = :server_id AND last_used_time < :time AND alias_for IS NULL",
+				await cursor.execute("SELECT ping_name FROM pings WHERE server_id = :server_id AND last_used_time < :time AND alias_for IS NULL",
 					{
-						"table_name": self._tableName,
 						"server_id": guildID,
 						"time": round(beforeTime.timestamp())
 					}
 				)
 			else:
 				# No search string. Return all pings.
-				await cursor.execute("SELECT ping_name FROM :table_name WHERE server_id = :server_id AND alias_for IS NULL",
+				await cursor.execute("SELECT ping_name FROM pings WHERE server_id = :server_id AND alias_for IS NULL",
 					{
-						"table_name": self._tableName,
 						"server_id": guildID
 					}
 				)
@@ -573,8 +556,8 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT * FROM :table_name WHERE server_id = :server_id AND ping_name = :ping",
-				{"table_name": self._tableName, "server_id": guildID, "ping": tag.casefold()}
+				"SELECT * FROM pings WHERE server_id = :server_id AND ping_name = :ping",
+				{"server_id": guildID, "ping": tag.casefold()}
 			)
 			pingInfo = await cursor.fetchone()
 
@@ -598,10 +581,10 @@ class Pings(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			# Migrate users
-			await cursor.execute("UPDATE :table_name SET ping_id = :toID WHERE ping_id = :fromID",
-				{"table_name": self._userTable, "toID": toID, "fromID": fromID}
+			await cursor.execute("UPDATE ping_users SET ping_id = :toID WHERE ping_id = :fromID",
+				{"toID": toID, "fromID": fromID}
 			)
 			# Migrate aliases
-			await cursor.execute("UPDATE :table_name SET alias_for = :toID WHERE alias_for = :fromID",
-				{"table_name": self._tableName, "toID": toID, "fromID": fromID}
+			await cursor.execute("UPDATE pings SET alias_for = :toID WHERE alias_for = :fromID",
+				{"toID": toID, "fromID": fromID}
 			)
