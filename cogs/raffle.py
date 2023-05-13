@@ -657,7 +657,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 			weight = await db.raffleWeight.getWeight(interaction.guild.id, user.id)
 			embed = discord.Embed(
 				title = "Raffle Weight",
-				description = f"Weight for {user.display_name}: `{weight}`",
+				description = f"Weight for {user.mention}: `{weight}`",
 				colour = RAFFLE_EMBED_COLOUR
 			)
 			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
@@ -687,7 +687,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 			await db.commit()
 			embed = discord.Embed(
 				title = "Raffle Weight",
-				description = f"Weight for {user.display_name} set to: `{weight}`",
+				description = f"Weight for {user.mention} set to: `{weight}`",
 				colour = RAFFLE_EMBED_COLOUR
 			)
 			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
@@ -722,7 +722,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 			await db.commit()
 			embed = discord.Embed(
 				title = "Raffle Weight",
-				description = f"Weight for {user.display_name} increased by `{increase}` to `{weight}`",
+				description = f"Weight for {user.mention} increased by `{increase}` to `{weight}`",
 				colour = RAFFLE_EMBED_COLOUR
 			)
 			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
