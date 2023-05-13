@@ -156,7 +156,7 @@ class Pings(BaseTable):
 			return tuple(aliasNames)
 
 
-	async def create(self, tag: str, guildID: int) -> None:
+	async def create(self, tag: str, guildID: int) -> int:
 		"""Creates a ping using the given tag.
 
 		Parameters
@@ -165,6 +165,11 @@ class Pings(BaseTable):
 			Tag to use
 		guildID : int
 			Discord guild ID
+
+		Returns
+		-------
+		int
+			Ping ID of created ping
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
@@ -175,6 +180,8 @@ class Pings(BaseTable):
 					"time": round(datetime.now(timezone.utc).timestamp())
 				}
 			)
+			await cursor.execute("SELECT last_insert_rowid() as db_id")
+			return (await cursor.fetchone())["db_id"]
 
 
 	async def delete_tag(self, tag: str, guildID: int) -> None:
@@ -418,12 +425,12 @@ class Pings(BaseTable):
 			if pingID is None:
 				return -1
 			else: # Ping exists
-				await cursor.execute("SELECT COUNT(*) FROM ping_users WHERE ping_id = :ping",
+				await cursor.execute("SELECT COUNT(*) as count FROM ping_users WHERE ping_id = :ping",
 					{
 						"ping": pingID
 					}
 				)
-				return (await cursor.fetchone())[0]
+				return (await cursor.fetchone())["count"]
 
 
 	async def count_active_users(self, tag: str, guild: discord.Guild) -> int:
