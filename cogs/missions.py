@@ -390,6 +390,8 @@ class Missions(commands.Cog, name = "Missions"):
 					if error.status not in [404]:
 						_log.warning(f"Received HTTP error {error.status} from wiki when retrieving mission image for: {missionName}")
 					pass
+				except aiohttp.ClientConnectorError as error:
+					_log.warning(f"Unable to connect to mission wiki at {wikiURL} to retrieve mission images")
 				except:
 					raise
 
