@@ -219,7 +219,7 @@ class RaffleObject():
 				participantStrings = []
 				async with self.view.bot.db.connect() as db:
 					for u in self.participants:
-						participantStrings.append(f"{u.mention}`({await db.raffleWeight.getWeight(self.view.guild.id, u.id)})`")
+						participantStrings.append(f"{u.mention}`({await db.raffleWeight.getWeight(self.view.guild.id, u.id):.1f})`")
 				embed.add_field(name = "Participants", value = ", ".join(participantStrings), inline = False)
 			else:
 				embed.add_field(name = "Participants", value = ", ".join(map(lambda x: x.mention ,self.participants)), inline = False)
@@ -657,7 +657,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 			weight = await db.raffleWeight.getWeight(interaction.guild.id, user.id)
 			embed = discord.Embed(
 				title = "Raffle Weight",
-				description = f"Weight for {user.mention}: `{weight}`",
+				description = f"Weight for {user.mention}: `{weight:.1f}`",
 				colour = RAFFLE_EMBED_COLOUR
 			)
 			embed.set_author(name = user.display_name, icon_url = user.display_avatar)
