@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import gspread_asyncio
 from gspread.utils import ValueInputOption
 from google.oauth2.service_account import Credentials
-import pboutil
+import pbokit
 import re
 from typing import TypedDict
 
@@ -24,7 +24,6 @@ from blueonblue.defines import (
 
 import logging
 _log = logging.getLogger(__name__)
-
 
 
 ISO_8601_FORMAT = "%Y-%m-%d"
@@ -479,7 +478,8 @@ class Missions(commands.Cog, name = "Missions"):
 		# Start doing some validation on the contents of the mission file
 		try:
 			missionFileBytes = await missionfile.read()
-			missionPBO = pboutil.PBOFile.from_bytes(missionFileBytes)
+			#missionPBO = pboutil.PBOFile.from_bytes(missionFileBytes)
+			missionPBO = pbokit.PBO.from_bytes(missionFileBytes)
 		except:
 			await interaction.followup.send("I encountered an error verifying the validity of your mission file."
 				"\nPlease ensure that you are submitting a mission in PBO format, exported from the Arma 3 editor.")
@@ -487,13 +487,9 @@ class Missions(commands.Cog, name = "Missions"):
 
 		# PBO file is good, scan the description.ext
 		try:
-			descriptionFile: str|None = None
-			for f in missionPBO.filenames():
-				f: str
-				if f.lower() == "description.ext":
-					descriptionFile: str|None = missionPBO.file_as_bytes(f).decode()
-					break
-			if descriptionFile is None:
+			if missionPBO.has_file("description.ext"):
+				descriptionFile = missionPBO["description.ext"].as_str()
+			else:
 				raise Exception
 		except:
 			await interaction.followup.send("I encountered an issue reading your mission's `description.ext` file."
