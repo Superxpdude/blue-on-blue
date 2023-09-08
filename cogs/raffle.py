@@ -133,8 +133,8 @@ class RaffleObject():
 
 	async def selectWinners(self,
 		winnerCount: int | None = None,
-		excluded: tuple[discord.User|discord.Member] | None = None
-	) -> tuple[discord.User|discord.Member]:
+		excluded: tuple[discord.User|discord.Member, ...] | None = None
+	) -> tuple[discord.User|discord.Member, ...]:
 		"""Selects a number of winners for the raffle
 
 		Parameters
@@ -176,7 +176,7 @@ class RaffleObject():
 					weights = [await db.raffleWeight.getWeight(self.view.guild.id, p.id) for p in self.participants]
 					_log.debug(f"Raffle participants: {[f'({e.display_name}|{e.id})' for e in eligible]}")
 					_log.debug(f"Raffle weights: {weights}")
-					winners: tuple[discord.Member] = tuple(weighted_sample_without_replacement(eligible, weights, winnerCount))
+					winners: tuple[discord.Member, ...] = tuple(weighted_sample_without_replacement(eligible, weights, winnerCount))
 					_log.debug(f"Raffle winners: {[f'({w.display_name}|{w.id})' for w in winners]}")
 					return winners
 			else:
@@ -186,7 +186,7 @@ class RaffleObject():
 			return tuple()
 
 
-	async def endRaffleEmbed(self, winners: tuple[discord.User | discord.Member] | None = None) -> discord.Embed:
+	async def endRaffleEmbed(self, winners: tuple[discord.User | discord.Member, ...] | None = None) -> discord.Embed:
 		"""Creates an embed with the raffle details
 		Automatically selects a number of winners based on the the stored winners value
 

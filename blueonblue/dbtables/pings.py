@@ -128,7 +128,7 @@ class Pings(BaseTable):
 				return ping["ping_name"]
 
 
-	async def get_alias_names(self, id: int) -> tuple[str]:
+	async def get_alias_names(self, id: int) -> tuple[str, ...]:
 		"""Gets the names of all aliases for a given ping.
 		Returns a tuple containing all names.
 		When no aliases are present, the returned tuple will be empty.
@@ -468,7 +468,7 @@ class Pings(BaseTable):
 				return userCount
 
 
-	async def get_user_ids_by_ping_id(self, pingID: int) -> tuple[int]:
+	async def get_user_ids_by_ping_id(self, pingID: int) -> tuple[int, ...]:
 		"""Returns a tuple of user IDs present in a ping by using the ping ID.
 		Empty or invalid pings will return an empty list.
 
@@ -496,7 +496,7 @@ class Pings(BaseTable):
 			return tuple(userIDList)
 
 
-	async def server_pings(self, guildID: int, *, search: str | None = None, beforeTime: datetime | None = None) -> tuple[str]:
+	async def server_pings(self, guildID: int, *, search: str | None = None, beforeTime: datetime | None = None) -> tuple[str, ...]:
 		"""Retrieves a tuple of ping tags for a server
 
 		Parameters
