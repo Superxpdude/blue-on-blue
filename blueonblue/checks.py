@@ -22,7 +22,7 @@ class UserUnauthorized(app_commands.AppCommandError):
 
 class ChannelUnauthorized(app_commands.AppCommandError):
 	"""Command can only be used in specified channels"""
-	channels: tuple[int]
+	channels: tuple[int, ...]
 
 	def __init__(self, *channels, **kwargs):
 		super().__init__(**kwargs)
@@ -31,7 +31,7 @@ class ChannelUnauthorized(app_commands.AppCommandError):
 
 class MissingServerConfigs(app_commands.AppCommandError):
 	"""Command is missing server config options"""
-	configs: tuple[str]
+	configs: tuple[str, ...]
 
 	def __init__(self, *configs: str, **kwargs):
 		super().__init__(**kwargs)
