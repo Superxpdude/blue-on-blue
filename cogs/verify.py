@@ -6,24 +6,11 @@ import aiohttp
 
 import blueonblue
 from blueonblue.defines import VERIFY_EMBED_COLOUR
+from blueonblue.lib import steam
 
 import logging
 _log = logging.getLogger(__name__)
 
-
-# Exceptions
-class MissingSteamID(Exception):
-	"""Exception used when a Steam ID could not be found"""
-	def __init__(self, status: int | None = None):
-		self.status = status
-
-class InvalidSteamURL(Exception):
-	"""Exception used when an invalid Steam profile URL format was provided"""
-	pass
-
-class NoSteamUserFound(Exception):
-	"""Exception raised when no users are returned by a Steam API search"""
-	pass
 
 # Discord views
 class VerifySteamView(blueonblue.views.AuthorResponseViewBase):
@@ -58,7 +45,7 @@ class VerifyButton(discord.ui.Button):
 		await interaction.response.defer(ephemeral=True)
 		# Check the steam profile to see if it has the token set
 		try:
-			verified = await steam_check_token(self.view.bot, self.view.steamID, str(interaction.user.id))
+			verified = await steam.check_guild_token(self.view.bot, self.view.steamID, str(interaction.user.id))
 		except aiohttp.ClientResponseError as error:
 			_log.warning(f"Received response code [{error.status}] from the Steam API when checking steam URL")
 			await interaction.followup.send(steam_return_error_text(error.status))
@@ -94,7 +81,7 @@ class VerifyButton(discord.ui.Button):
 			# If we're in a guild, the user *must* be a member
 			assert isinstance(interaction.user, discord.Member)
 			try:
-				groupMembership = await steam_check_group_membership(self.view.bot, interaction.guild.id, self.view.steamID)
+				groupMembership = await steam.in_guild_group(self.view.bot, interaction.guild.id, self.view.steamID)
 				if not groupMembership:
 					# User not in group
 					applyUrl = await self.view.bot.serverConfig.group_apply_url.get(interaction.guild)
@@ -150,7 +137,7 @@ class CheckInButton(discord.ui.Button):
 		await interaction.response.defer()
 
 		try:
-			groupMembership = await steam_check_group_membership(self.view.bot, interaction.guild.id, self.view.steamID)
+			groupMembership = await steam.in_guild_group(self.view.bot, interaction.guild.id, self.view.steamID)
 			if not groupMembership:
 				# User not in group
 				applyUrl = await self.view.bot.serverConfig.group_apply_url.get(interaction.guild)
@@ -184,189 +171,6 @@ class CheckInButton(discord.ui.Button):
 			checkInChannel = await self.view.bot.serverConfig.channel_check_in.get(interaction.guild)
 			if isinstance(checkInChannel, discord.TextChannel):
 				await checkInChannel.send(f"Member {interaction.user.mention} verified with steam account: http://steamcommunity.com/profiles/{self.view.steamID}")
-
-
-async def steam_getID64(bot: blueonblue.BlueOnBlueBot, url: str) -> str:
-	"""|coro|
-
-	Converts a Steam profile URL to a Steam64ID
-
-	Parameters
-	----------
-	url : str
-		The full URL of the steam profile to search.
-
-	Returns
-	-------
-	str
-		The Steam64ID
-
-	Raises
-	------
-	MissingSteamID
-		Raised if the SteamID could not be found without other errors.
-	InvalidSteamURL
-		Invalid format for Steam Profile URL provided
-	"""
-
-	# We need to figure out the "profile" part from the main URL
-	# Steam profile URLs can be in two formats: /profiles/*** or /id/***
-	# We need to handle both of them
-	if "/profiles/" in url:
-		# Split the string at the "profiles/" entry, and remove everything but the profile part
-		steamID_str = url.split("profiles/", 1)[-1].replace("/","")
-		if steamID_str.isnumeric(): # SteamID64s are integers in string form
-			return steamID_str # Return the steamID as a string
-		else:
-			raise MissingSteamID()
-	elif "/id/" in url:
-		# With an "ID" url, we're going to have to use the steam API to get the steamID
-		# Start by splitting the URL to grab the vanity part
-		vanity = url.split("id/", 1)[-1]
-		# Vanity URLs will *sometimes* have a forward slash at the end. Trim that if we find it.
-		if vanity.endswith("/"):
-			vanity = vanity[:-1]
-
-		# Make our request to the steam API
-		async with bot.httpSession.get("https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/", params = {
-			"key": bot.config.steam_api_token,
-			"vanityurl": vanity
-		}) as response:
-			responseData = (await response.json())["response"]
-			if ("steamid" in responseData) and (responseData["steamid"].isnumeric()):
-				return responseData["steamid"]
-			else:
-				raise MissingSteamID(response.status)
-	else:
-		raise InvalidSteamURL()
-
-
-async def steam_check_group_membership(bot: blueonblue.BlueOnBlueBot, guildID: int, steamID: str) -> bool:
-	"""|coro|
-
-	Uses a SteamID64 to check if a user is in a guild's specified Steam group.
-
-	Checks using the short GroupID that can be found on the group edit page.
-
-	Parameters
-	----------
-	bot : blueonblue.BlueOnBlueBot
-		The bot object.
-	guildID : int
-		The ID of the Discord Guild for which we get the steam group.
-	steamID64 : int
-		SteamID64 of the user.
-
-	Returns
-	-------
-	bool
-		If the steam account was part of the steam group
-	"""
-	async with bot.httpSession.get(
-		"https://api.steampowered.com/ISteamUser/GetUserGroupList/v1/",
-		params = {
-			"key": bot.config.steam_api_token,
-			"steamid": steamID
-		}
-	) as response:
-		# Get our response data
-		responseData = (await response.json())["response"]
-		# Get our group list in dict form
-		groupList = []
-		if "groups" in responseData:
-			for g in responseData["groups"]:
-				groupList.append(int(g["gid"])) # Append the group ID to the group list
-		# Get the steam group from the config
-		steamGroupID = await bot.serverConfig.steam_group_id.get(guildID)
-		if steamGroupID in groupList:
-			return True
-		else:
-			return False
-
-
-async def steam_check_token(bot: blueonblue.BlueOnBlueBot, steamID: str, token: str) -> bool:
-	"""|coro|
-
-	Uses a saved SteamID64 to check if a user has placed the verification token in their profile.
-
-	Parameters
-	----------
-	bot : blueonblue.BlueOnBlueBot
-		The bot object.
-	userID : int
-		Discord ID of the user.
-	token : str
-		Verification token to check
-
-	Returns
-	-------
-	bool
-		If the token is in the Steam Profile real name field
-	"""
-	# Make our web request
-	async with bot.httpSession.get(
-		"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
-		params = {
-			"key": bot.config.steam_api_token,
-			"steamids": steamID
-		}
-	) as response:
-		# Get our response data
-		playerData = (await response.json())["response"]["players"]
-		# If we have no entries, return None
-		if len(playerData) == 0:
-			raise NoSteamUserFound()
-		# Check if we have a "realname" value in the playerdata
-		if "realname" in playerData[0]:
-			# Real name is in playerdata
-			if token in playerData[0]["realname"]:
-				# Stored token in real name
-				return True
-			else:
-				# Stored token not in real name
-				return False
-		else:
-			# With no realname, we have no match
-			return False
-
-
-async def steam_get_display_name(bot: blueonblue.BlueOnBlueBot, steamID: str) -> str:
-	"""|coro|
-
-	Retrieves the display name of a Steam profile using their SteamID64
-
-	Parameters
-	----------
-	bot : blueonblue.BlueOnBlueBot
-		The bot object
-	steamID : str
-		Steam64ID of the user
-
-	Returns
-	-------
-	str
-		Display name of the user
-
-	Raises
-	------
-	NoSteamUserFound
-		Could not locate the user by SteamID
-	"""
-	# Make our web request
-	async with bot.httpSession.get(
-		"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
-		params = {
-			"key": bot.config.steam_api_token,
-			"steamids": steamID
-		}
-	) as response:
-		# Get our response data
-		playerData = (await response.json())["response"]["players"]
-		# If we have no entries, raise an error
-		if len(playerData) == 0:
-			raise NoSteamUserFound()
-		# We have a user, return their real name
-		return playerData[0]["personaname"]
 
 
 async def assign_roles(bot: blueonblue.BlueOnBlueBot, guild: discord.Guild, user: discord.Member) -> bool:
@@ -478,13 +282,13 @@ class Verify(commands.GroupCog, group_name = "verify"):
 
 		# Get the user's SteamID64
 		try:
-			steamID = await steam_getID64(self.bot, steam_url)
+			steamID = await steam.getID64(self.bot, steam_url)
 		except aiohttp.ClientResponseError as error:
 			if error.status not in [400, 403]:
 				_log.warning(f"Received response code [{error.status}] from the Steam API when checking steam URL")
 			await interaction.followup.send(steam_return_error_text(error.status))
 			return
-		except InvalidSteamURL:
+		except steam.InvalidSteamURL:
 			await interaction.followup.send("Invalid Steam URL format. Please use the *full* URL to your Steam profile.")
 			return
 		except:
@@ -495,7 +299,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 		# If the command is used in a guild, check that the user is in the provided steam group
 		if interaction.guild is not None:
 			try:
-				groupMembership = await steam_check_group_membership(self.bot, interaction.guild.id, steamID)
+				groupMembership = await steam.in_guild_group(self.bot, interaction.guild.id, steamID)
 				if not groupMembership:
 					# User not in group
 					applyUrl = await self.bot.serverConfig.group_apply_url.get(interaction.guild)
@@ -550,7 +354,7 @@ class Verify(commands.GroupCog, group_name = "verify"):
 					steamID: int = userData["steam64_id"]
 					# Get the user's steam display name
 					try:
-						steamInfo = (await steam_get_display_name(self.bot, str(steamID)), steamID)
+						steamInfo = (await steam.get_display_name(self.bot, str(steamID)), steamID)
 					except:
 						_log.exception("Error retrieving profile name from steam")
 						pass
