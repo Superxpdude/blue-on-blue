@@ -162,6 +162,7 @@ class DB():
 								u.display_name,\
 								u.user_id as discord_id,\
 								v.steam64_id,\
+								m.start_time,\
 								((julianday(m.end_time) - julianday(m.start_time)) * 1440)AS mission_duration,\
 								p.duration as player_session,\
 								(SELECT COUNT(*) FROM arma_stats_players pp WHERE pp.mission_id = m.id) as user_attendance\
@@ -260,6 +261,35 @@ class DB():
 
 						# Remove chatfilter table
 						await cursor.execute("DROP TABLE chatfilter")
+
+						await cursor.execute("PRAGMA user_version = 4")
+						_log.info("Database upgraded to version: 4")
+
+						await db.commit()
+
+					if schema_version == 4:
+						_log.info("Upgrading database to version 5")
+
+						# Arma stats view
+						await cursor.execute("DROP VIEW mission_attendance_view")
+						await cursor.execute("CREATE VIEW mission_attendance_view AS\
+							SELECT\
+								m.id,\
+								m.main_op,\
+								m.server_id,\
+								m.api_id,\
+								m.file_name,\
+								u.display_name,\
+								u.user_id as discord_id,\
+								v.steam64_id,\
+								m.start_time,\
+								((julianday(m.end_time) - julianday(m.start_time)) * 1440)AS mission_duration,\
+								p.duration as player_session,\
+								(SELECT COUNT(*) FROM arma_stats_players pp WHERE pp.mission_id = m.id) as user_attendance\
+							FROM arma_stats_missions m\
+								INNER JOIN arma_stats_players p on p.mission_id = m.id\
+								INNER JOIN verify v on v.steam64_id = p.steam_id\
+								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
 
 						await cursor.execute("PRAGMA user_version = 4")
 						_log.info("Database upgraded to version: 4")
