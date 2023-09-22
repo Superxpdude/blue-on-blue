@@ -43,6 +43,7 @@ SCONF_ARMA_STATS_URL						= "arma_stats_url"
 SCONF_ARMA_STATS_MIN_DURATION				= "arma_stats_min_duration"
 SCONF_ARMA_STATS_MIN_PLAYERS				= "arma_stats_min_players"
 SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD	= "arma_stats_participation_threshold"
+SCONF_ARMA_STATS_LEADERBOARD_DAYS			= "arma_stats_leaderboard_days"
 
 
 # Bot timezone

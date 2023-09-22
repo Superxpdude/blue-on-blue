@@ -128,7 +128,11 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 
 	@app_commands.command()
 	@app_commands.guild_only()
-	async def leaderboard(self, interaction: discord.Interaction):
+	@app_commands.choices(board = [
+		app_commands.Choice(name = "Recent", value = 1),
+		app_commands.Choice(name = "All-Time", value = 0),
+	])
+	async def leaderboard(self, interaction: discord.Interaction, board: app_commands.Choice[int]):
 		"""Displays the Arma stats leaderboard
 
 		Parameters
@@ -142,44 +146,79 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
 		mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
 		mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(interaction.guild)
+		leaderboard_recent_days = await self.bot.serverConfig.arma_stats_leaderboard_recent_days.get(interaction.guild)
+
+		embedType: str
 
 		# Start the DB block
 		async with self.bot.db.connect() as db:
 			async with db.connection.cursor() as cursor:
 				# Read config values
 
-
 				# Query the database to get our leaderboard
-				await cursor.execute(
-					"SELECT\
-						discord_id,\
-						steam64_id,\
-						display_name,\
-						COUNT(steam64_id) as mission_count\
-					FROM\
-						mission_attendance_view\
-					WHERE\
-						server_id = :serverid AND\
-						player_session >= :duration AND\
-						(main_op IS NOT NULL OR\
-						(mission_duration >= :min_time AND\
-						user_attendance >= :min_players))\
-					GROUP BY\
-						steam64_id\
-					ORDER BY\
-						mission_count DESC",
-					{
-						"serverid": interaction.guild.id,
-						"duration": mission_participation_threshold,
-						"min_time": mission_min_duration,
-						"min_players": mission_min_players
-					}
-				)
+				if board.value == 0:
+					embedType = "All-Time"
+					await cursor.execute(
+						"SELECT\
+							discord_id,\
+							steam64_id,\
+							display_name,\
+							COUNT(steam64_id) as mission_count\
+						FROM\
+							mission_attendance_view\
+						WHERE\
+							server_id = :serverid AND\
+							player_session >= :duration AND\
+							(main_op IS NOT NULL OR\
+							(mission_duration >= :min_time AND\
+							user_attendance >= :min_players))\
+						GROUP BY\
+							steam64_id\
+						ORDER BY\
+							mission_count DESC",
+						{
+							"serverid": interaction.guild.id,
+							"duration": mission_participation_threshold,
+							"min_time": mission_min_duration,
+							"min_players": mission_min_players
+						}
+					)
+				else:
+					embedType = f"Recent ({leaderboard_recent_days} days)"
+					await cursor.execute(
+						"SELECT\
+							discord_id,\
+							steam64_id,\
+							display_name,\
+							COUNT(steam64_id) as mission_count\
+						FROM\
+							mission_attendance_view\
+						WHERE\
+							server_id = :serverid AND\
+							player_session >= :duration AND\
+							(main_op IS NOT NULL OR\
+							(mission_duration >= :min_time AND\
+							user_attendance >= :min_players)) AND\
+							start_time >= :start_time\
+						GROUP BY\
+							steam64_id\
+						ORDER BY\
+							mission_count DESC",
+						{
+							"serverid": interaction.guild.id,
+							"duration": mission_participation_threshold,
+							"min_time": mission_min_duration,
+							"min_players": mission_min_players,
+							"start_time": (
+								discord.utils.utcnow() - datetime.timedelta(days = leaderboard_recent_days)
+							).isoformat(),
+						}
+					)
 				data = await cursor.fetchmany(leaderboard_count)
 
 		# We no longer need the database connection, so we can close the context manager
 		embed = discord.Embed(
-			title = "Mission Leaderboard",
+			title = f"Mission Leaderboard - {embedType}",
 			color = ARMASTATS_EMBED_COLOUR
 		)
 

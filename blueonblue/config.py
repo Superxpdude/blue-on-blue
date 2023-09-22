@@ -22,7 +22,8 @@ from .defines import (
 	SCONF_ARMA_STATS_URL,
 	SCONF_ARMA_STATS_MIN_DURATION,
 	SCONF_ARMA_STATS_MIN_PLAYERS,
-	SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD
+	SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD,
+	SCONF_ARMA_STATS_LEADERBOARD_DAYS,
 )
 
 import logging
@@ -684,6 +685,7 @@ class ServerConfig:
 		self.arma_stats_min_duration = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_DURATION, default = "90")
 		self.arma_stats_min_players = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_PLAYERS, default = "10")
 		self.arma_stats_participation_threshold = ServerConfigFloatDefault(bot, SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD, default = "0.5")
+		self.arma_stats_leaderboard_recent_days = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_LEADERBOARD_DAYS, default = "90")
 
 		# Initialize our options dict
 		self.options: dict[str, ServerConfigOption] = {}
