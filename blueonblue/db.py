@@ -16,7 +16,7 @@ __all__ = [
 	"DBConnection"
 ]
 
-DBVERSION = 4
+DBVERSION = 5
 
 class DBConnection():
 	"""BlueonBlue database connection class.
@@ -291,8 +291,8 @@ class DB():
 								INNER JOIN verify v on v.steam64_id = p.steam_id\
 								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
 
-						await cursor.execute("PRAGMA user_version = 4")
-						_log.info("Database upgraded to version: 4")
+						await cursor.execute("PRAGMA user_version = 5")
+						_log.info("Database upgraded to version: 5")
 
 						await db.commit()
 
