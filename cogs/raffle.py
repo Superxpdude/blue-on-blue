@@ -467,10 +467,11 @@ class Raffle(commands.Cog, name = "Raffle"):
 			raffleEmbeds.append(await r.endRaffleEmbed(winners=raffleWinners))
 
 		# Reset raffle weights
-		async with self.bot.db.connect() as db:
-			for w in allWinners:
-				await db.raffleWeight.setWeight(interaction.guild.id, w.id, 1.0 - (await self.bot.serverConfig.raffleweight_increase.get(interaction.guild.id)))
-			await db.commit()
+		if weighted:
+			async with self.bot.db.connect() as db:
+				for w in allWinners:
+					await db.raffleWeight.setWeight(interaction.guild.id, w.id, 1.0 - (await self.bot.serverConfig.raffleweight_increase.get(interaction.guild.id)))
+				await db.commit()
 
 		await interaction.followup.send(embeds = raffleEmbeds)
 
@@ -530,10 +531,11 @@ class Raffle(commands.Cog, name = "Raffle"):
 			raffleEmbeds.append(await r.endRaffleEmbed(winners=winners))
 
 		# Reset raffle weights
-		async with self.bot.db.connect() as db:
-			for w in allWinners:
-				await db.raffleWeight.setWeight(interaction.guild.id, w.id, 1.0 - (await self.bot.serverConfig.raffleweight_increase.get(interaction.guild.id)))
-			await db.commit()
+		if weighted:
+			async with self.bot.db.connect() as db:
+				for w in allWinners:
+					await db.raffleWeight.setWeight(interaction.guild.id, w.id, 1.0 - (await self.bot.serverConfig.raffleweight_increase.get(interaction.guild.id)))
+				await db.commit()
 
 		await interaction.followup.send(embeds = raffleEmbeds)
 
