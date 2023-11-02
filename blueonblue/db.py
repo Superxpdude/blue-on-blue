@@ -16,7 +16,7 @@ __all__ = [
 	"DBConnection"
 ]
 
-DBVERSION = 5
+DBVERSION = 6
 
 class DBConnection():
 	"""BlueonBlue database connection class.
@@ -185,6 +185,25 @@ class DB():
 							weight NUMERIC NOT NULL,\
 							UNIQUE(server_id, user_id))")
 
+						# Raffle groups table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_groups (\
+							id INTEGER PRIMARY KEY AUTOINCREMENT,\
+							server_id INTEGER NOT NULL,\
+							end_time TEXT NOT NULL)")
+
+						# Raffle data table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_data (\
+							id INTEGER PRIMARY KEY AUTOINCREMENT,\
+							group_id INTEGER NOT NULL,\
+							title TEXT NOT NULL,\
+							FOREIGN KEY (group_id) REFERENCES raffle_groups (id) ON DELETE CASCADE)")
+
+						# Raffle users table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_users (\
+							raffle_id INTEGER NOT NULL,\
+							discord_id INTEGER NOT NULL,\
+							FOREIGN KEY (raffle_id) REFERENCES raffle_data (id) ON DELETE CASCADE)")
+
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
 
@@ -293,6 +312,33 @@ class DB():
 
 						await cursor.execute("PRAGMA user_version = 5")
 						_log.info("Database upgraded to version: 5")
+
+						await db.commit()
+
+					if schema_version == 5:
+						_log.info("Upgrading database to version 6")
+
+						# Raffle groups table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_groups (\
+							id INTEGER PRIMARY KEY AUTOINCREMENT,\
+							server_id INTEGER NOT NULL,\
+							end_time TEXT NOT NULL)")
+
+						# Raffle data table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_data (\
+							id INTEGER PRIMARY KEY AUTOINCREMENT,\
+							group_id INTEGER NOT NULL,\
+							title TEXT NOT NULL,\
+							FOREIGN KEY (group_id) REFERENCES raffle_groups (id) ON DELETE CASCADE)")
+
+						# Raffle users table
+						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_users (\
+							raffle_id INTEGER NOT NULL,\
+							discord_id INTEGER NOT NULL,\
+							FOREIGN KEY (raffle_id) REFERENCES raffle_data (id) ON DELETE CASCADE)")
+
+						await cursor.execute("PRAGMA user_version = 6")
+						_log.info("Database upgraded to version: 6")
 
 						await db.commit()
 
