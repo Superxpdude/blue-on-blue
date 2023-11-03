@@ -1,4 +1,5 @@
 from .base import BaseTable
+from datetime import datetime, timezone
 
 class RaffleWeights(BaseTable):
 	"""Raffle Weights table class"""
@@ -72,4 +73,52 @@ class RaffleWeights(BaseTable):
 					(SELECT weight FROM raffle_weights WHERE user_id = :user_id) + :increase\
 				)",
 				{"server_id": guildID, "user_id": userID, "increase": increase, "max": maxWeight}
+			)
+
+
+class Raffles(BaseTable):
+	"""Raffle tables class"""
+
+
+	async def createGroup(self, guildID: int, endTime: datetime) -> int:
+		"""Creates a raffle group in the database
+
+		Parameters
+		----------
+		guildID : int
+			Guild ID
+		endTime : datetime
+			End time for the raffle group
+
+		Returns
+		-------
+		int
+			Database ID of the raffle group
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"INSERT INTO raffle_groups (server_id, end_time) VALUES (:server_id, :end_time)",
+				{
+					"server_id": guildID,
+					"end_time": round(datetime.now(timezone.utc).timestamp())
+				}
+			)
+			await cursor.execute("SELECT last_insert_rowid() as db_id")
+			return (await cursor.fetchone())["db_id"]
+
+
+	async def setGroupMessageID(self, groupID: int, messageID: int) -> None:
+		"""Sets the message ID for a raffle group
+
+		Parameters
+		----------
+		groupID : int
+			Group database ID
+		messageID : int
+			Discord message ID
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"UPDATE raffle_groups SET message_id = :message_id WHERE id = :group_id",
+				{ "group_id": groupID, "message_id": messageID}
 			)

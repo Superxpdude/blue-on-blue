@@ -189,7 +189,8 @@ class DB():
 						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_groups (\
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							server_id INTEGER NOT NULL,\
-							end_time TEXT NOT NULL)")
+							end_time TEXT NOT NULL,\
+							message_id INT)")
 
 						# Raffle data table
 						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_data (\
