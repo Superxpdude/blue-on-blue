@@ -733,5 +733,45 @@ class Raffle(commands.Cog, name = "Raffle"):
 			await interaction.response.send_message(embed = embed)
 
 
+	debugGroup = app_commands.Group(
+		name="raffledebug",
+		description="Raffle debug commands",
+		guild_only=True,
+		default_permissions=discord.Permissions(manage_messages=True)
+	)
+
+
+	@debugGroup.command(name = "creategroup")
+	async def debug_creategroup(self, interaction: discord.Interaction, duration: int):
+		"""DEBUG: Creates a raffle group
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord Interaction
+		duration : int
+			Duration in minutes
+		"""
+		assert interaction.guild is not None
+		endTime = discord.utils.utcnow() + datetime.timedelta(minutes = duration)
+
+		async with self.bot.db.connect() as db:
+			groupID = await db.raffle.createGroup(interaction.guild.id, endTime, True)
+			await interaction.response.send_message(f"Created raffle group: `{groupID}`\nEnd time: {discord.utils.format_dt(endTime,'R')}")
+			messageID = await interaction.original_response()
+			await db.raffle.setGroupMessageID(groupID, messageID.id)
+			await db.commit()
+
+
+	@debugGroup.command(name = "deletegroup")
+	async def debug_deletegroup(self, interaction: discord.Interaction, groupid: int):
+		assert interaction.guild is not None
+
+		async with self.bot.db.connect() as db:
+			await db.raffle.deleteGroup(groupid)
+			await interaction.response.send_message(f"Deleted group: `{groupid}`")
+			await db.commit()
+
+
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(Raffle(bot))

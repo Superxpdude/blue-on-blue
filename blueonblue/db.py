@@ -29,6 +29,7 @@ class DBConnection():
 
 		# Initialize tables
 		self.raffleWeight = dbtables.RaffleWeights(self)
+		self.raffle = dbtables.Raffles(self)
 		self.pings = dbtables.Pings(self)
 
 	async def commit(self) -> None:
