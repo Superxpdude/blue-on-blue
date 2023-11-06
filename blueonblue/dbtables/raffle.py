@@ -127,6 +127,28 @@ class Raffles(BaseTable):
 			)
 
 
+	async def groupExists(self, groupID: int) -> bool:
+		"""Checks if a raffle group exists
+
+		Parameters
+		----------
+		groupID : int
+			Raffle group ID to check
+
+		Returns
+		-------
+		bool
+			If the raffle group exists
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT id FROM raffle_groups WHERE id = :group_id",
+				{"group_id": groupID}
+			)
+
+			return (await cursor.fetchone()) is not None
+
+
 	async def deleteGroup(self, groupID: int) -> None:
 		"""Deletes a raffle group
 

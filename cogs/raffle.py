@@ -765,12 +765,24 @@ class Raffle(commands.Cog, name = "Raffle"):
 
 	@debugGroup.command(name = "deletegroup")
 	async def debug_deletegroup(self, interaction: discord.Interaction, groupid: int):
+		"""DEBUG: Deletes a raffle group
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord Interaction
+		groupid : int
+			Raffle group ID
+		"""
 		assert interaction.guild is not None
 
 		async with self.bot.db.connect() as db:
-			await db.raffle.deleteGroup(groupid)
-			await interaction.response.send_message(f"Deleted group: `{groupid}`")
-			await db.commit()
+			if await db.raffle.groupExists(groupid):
+				await db.raffle.deleteGroup(groupid)
+				await interaction.response.send_message(f"Deleted group: `{groupid}`")
+				await db.commit()
+			else:
+				await interaction.response.send_message(f"Group `{groupid}` does not exist.")
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
