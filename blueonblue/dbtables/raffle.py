@@ -102,7 +102,7 @@ class Raffles(BaseTable):
 				"INSERT INTO raffle_groups (server_id, end_time, exclusive) VALUES (:server_id, :end_time, :exclusive)",
 				{
 					"server_id": guildID,
-					"end_time": round(endTime.timestamp()),
+					"end_time": endTime.isoformat(),
 					"exclusive": exclusive,
 				}
 			)
@@ -137,7 +137,7 @@ class Raffles(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"DELETE FROM raffle_groups WHERE (group_id = :group_id)",
+				"DELETE FROM raffle_groups WHERE (id = :group_id)",
 				{"group_id": groupID}
 			)
 
