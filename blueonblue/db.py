@@ -190,6 +190,7 @@ class DB():
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							server_id INTEGER NOT NULL,\
 							end_time TEXT NOT NULL,\
+							exclusive INTEGER NOT NULL,\
 							message_id INT)")
 
 						# Raffle data table
@@ -197,6 +198,7 @@ class DB():
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							group_id INTEGER NOT NULL,\
 							title TEXT NOT NULL,\
+							winners INTEGER NOT NULL,\
 							FOREIGN KEY (group_id) REFERENCES raffle_groups (id) ON DELETE CASCADE)")
 
 						# Raffle users table
@@ -323,13 +325,16 @@ class DB():
 						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_groups (\
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							server_id INTEGER NOT NULL,\
-							end_time TEXT NOT NULL)")
+							end_time TEXT NOT NULL,\
+							exclusive INTEGER NOT NULL,\
+							message_id INT)")
 
 						# Raffle data table
 						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_data (\
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							group_id INTEGER NOT NULL,\
 							title TEXT NOT NULL,\
+							winners INTEGER NOT NULL,\
 							FOREIGN KEY (group_id) REFERENCES raffle_groups (id) ON DELETE CASCADE)")
 
 						# Raffle users table

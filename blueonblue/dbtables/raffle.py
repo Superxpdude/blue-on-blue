@@ -1,5 +1,5 @@
 from .base import BaseTable
-from datetime import datetime, timezone
+from datetime import datetime
 
 class RaffleWeights(BaseTable):
 	"""Raffle Weights table class"""
@@ -80,7 +80,7 @@ class Raffles(BaseTable):
 	"""Raffle tables class"""
 
 
-	async def createGroup(self, guildID: int, endTime: datetime) -> int:
+	async def createGroup(self, guildID: int, endTime: datetime, exclusive: bool = False) -> int:
 		"""Creates a raffle group in the database
 
 		Parameters
@@ -89,6 +89,8 @@ class Raffles(BaseTable):
 			Guild ID
 		endTime : datetime
 			End time for the raffle group
+		exclusive : bool, optional
+			Exclusive winners for raffles in this group, by default False
 
 		Returns
 		-------
@@ -97,10 +99,11 @@ class Raffles(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"INSERT INTO raffle_groups (server_id, end_time) VALUES (:server_id, :end_time)",
+				"INSERT INTO raffle_groups (server_id, end_time, exclusive) VALUES (:server_id, :end_time, :exclusive)",
 				{
 					"server_id": guildID,
-					"end_time": round(datetime.now(timezone.utc).timestamp())
+					"end_time": round(endTime.timestamp()),
+					"exclusive": exclusive,
 				}
 			)
 			await cursor.execute("SELECT last_insert_rowid() as db_id")
@@ -120,5 +123,143 @@ class Raffles(BaseTable):
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
 				"UPDATE raffle_groups SET message_id = :message_id WHERE id = :group_id",
-				{ "group_id": groupID, "message_id": messageID}
+				{"group_id": groupID, "message_id": messageID}
 			)
+
+
+	async def deleteGroup(self, groupID: int) -> None:
+		"""Deletes a raffle group
+
+		Parameters
+		----------
+		groupID : int
+			Group ID of the group to delete
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"DELETE FROM raffle_groups WHERE (group_id = :group_id)",
+				{"group_id": groupID}
+			)
+
+
+	async def createRaffle(self, groupID: int, title: str, winners: int = 1) -> int:
+		"""Creates a raffle entry
+
+		Parameters
+		----------
+		groupID : int
+			Raffle group ID to associate the raffle with
+		title : str
+			Raffle title
+		winners : int, optional
+			Winner count, by default 1
+
+		Returns
+		-------
+		int
+			Database ID of the raffle
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"INSERT INTO raffle_data (group_id, title, winners) VALUES (:group_id, :title, :winners)",
+				{
+					"group_id": groupID,
+					"title": title,
+					"winners": winners,
+				}
+			)
+			await cursor.execute("SELECT last_insert_rowid() as db_id")
+			return (await cursor.fetchone())["db_id"]
+
+
+	async def addRaffleUser(self, raffleID: int, discordID: int) -> None:
+		"""Adds a user to a raffle
+
+		Parameters
+		----------
+		raffleID : int
+			Raffle ID to add the user to
+		discordID : int
+			Discord ID of the user
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"INSERT INTO raffle_users (raffle_id, discord_id) VALUES (:raffle_id, :discord_id)",
+				{
+					"raffle_id": raffleID,
+					"discord_id": discordID,
+				}
+			)
+
+
+	async def removeRaffleUser(self, raffleID: int, discordID: int) -> None:
+		"""Removes a user from a raffle
+
+		Parameters
+		----------
+		raffleID : int
+			Raffle ID to remove the user from
+		discordID : int
+			Discord ID of the user
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute("\
+				DELETE FROM raffle_users WHERE (\
+				raffle_id = :raffle_id,\
+				discord_id = :discord_id)",
+				{
+					"raffle_id": raffleID,
+					"discord_id": discordID,
+				}
+			)
+
+
+	async def userInRaffle(self, raffleID: int, discordID: int) -> bool:
+		"""Checks if a user is already in a raffle.
+
+		Parameters
+		----------
+		raffleID : int
+			Raffle ID to check
+		discordID : int
+			Discord ID of the user
+
+		Returns
+		-------
+		bool
+			If the user is in the raffle
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT discord_id FROM raffle_users WHERE (raffle_id = :raffle_id, discord_id = :discord_id)",
+				{"raffle_id": raffleID, "discord_id": discordID}
+			)
+			userData = await cursor.fetchone()
+
+			return userData is not None
+
+
+	async def getRaffleParticipants(self, raffleID: int) -> tuple[int,...]:
+		"""Gets discord IDs for all participants of a raffle
+
+		Parameters
+		----------
+		raffleID : int
+			Raffle ID
+
+		Returns
+		-------
+		tuple[int,...]
+			Tuple of participant discord IDs
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT discord_id FROM raffle_users WHERE raffle_id = :raffle_id",
+				{"raffle_id": raffleID}
+			)
+			userData = await cursor.fetchall()
+
+			users = []
+			for u in userData:
+				users.append(u["discord_id"])
+			return tuple(users)
