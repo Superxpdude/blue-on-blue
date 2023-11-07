@@ -80,7 +80,7 @@ class Raffles(BaseTable):
 	"""Raffle tables class"""
 
 
-	async def createGroup(self, guildID: int, endTime: datetime, exclusive: bool = False) -> int:
+	async def createGroup(self, guildID: int, endTime: datetime, exclusive: bool = False, weighted: bool = False) -> int:
 		"""Creates a raffle group in the database
 
 		Parameters
@@ -99,11 +99,13 @@ class Raffles(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"INSERT INTO raffle_groups (server_id, end_time, exclusive) VALUES (:server_id, :end_time, :exclusive)",
+				"INSERT INTO raffle_groups (server_id, end_time, exclusive, weighted)\
+				VALUES (:server_id, :end_time, :exclusive, :weighted)",
 				{
 					"server_id": guildID,
 					"end_time": endTime.isoformat(),
 					"exclusive": exclusive,
+					"weighted": weighted,
 				}
 			)
 			await cursor.execute("SELECT last_insert_rowid() as db_id")

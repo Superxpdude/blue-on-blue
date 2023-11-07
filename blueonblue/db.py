@@ -192,6 +192,7 @@ class DB():
 							server_id INTEGER NOT NULL,\
 							end_time TEXT NOT NULL,\
 							exclusive INTEGER NOT NULL,\
+							weighted INTEGER NOT NULL,\
 							message_id INT)")
 
 						# Raffle data table
@@ -328,6 +329,7 @@ class DB():
 							server_id INTEGER NOT NULL,\
 							end_time TEXT NOT NULL,\
 							exclusive INTEGER NOT NULL,\
+							weighted INTEGER NOT NULL,\
 							message_id INT)")
 
 						# Raffle data table
