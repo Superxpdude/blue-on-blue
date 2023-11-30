@@ -5,13 +5,10 @@ from discord.ext import commands
 import asyncio
 import datetime
 import random
+import re
 
 import blueonblue
 from blueonblue.defines import RAFFLE_EMBED_COLOUR
-
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-	import re
 
 import logging
 _log = logging.getLogger(__name__)
@@ -90,10 +87,15 @@ class RaffleButton(
 	async def callback(self, interaction: discord.Interaction) -> None:
 		assert isinstance(interaction.client, blueonblue.BlueOnBlueBot)
 		async with interaction.client.db.connect() as db:
-			inRaffle = await db.raffle.userInRaffle(self.raffleID, interaction.user.id)
-			if inRaffle:
+			# Check if the raffle actually exists
+			if not (await db.raffle.raffleExists(self.raffleID)):
+				await interaction.response.send_message("Error: Raffle does not exist", ephemeral=True)
+				return
+
+			# Check if the user is in the raffle
+			if await db.raffle.userInRaffle(self.raffleID, interaction.user.id):
 				await db.raffle.removeRaffleUser(self.raffleID, interaction.user.id)
-				await interaction.response.send_message("You have left the raffle")
+				await interaction.response.send_message("You have left the raffle", ephemeral=True)
 				# raffleName = await db.raffle.getRaffleName(self.raffleID)
 				# await interaction.response.send_message(
 				# 	f"You are already in the raffle for {raffleName}\nIf you would like to leave the raffle, press the button below",
@@ -103,6 +105,7 @@ class RaffleButton(
 				# )
 			else:
 				await db.raffle.addRaffleUser(self.raffleID, interaction.user.id)
+				await interaction.response.send_message("You have joined the raffle", ephemeral=True)
 			pass
 
 
@@ -434,6 +437,15 @@ class Raffle(commands.Cog, name = "Raffle"):
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
+
+	async def cog_load(self):
+		"""Add the dynamic item entry for the raffle button"""
+		self.bot.add_dynamic_items(RaffleButton)
+
+
+	async def cog_unload(self):
+		"""Remove the dynamic item entry for the raffle button"""
+		self.bot.remove_dynamic_items(RaffleButton)
 
 
 	# Create app command groups
@@ -825,6 +837,42 @@ class Raffle(commands.Cog, name = "Raffle"):
 				await db.commit()
 			else:
 				await interaction.response.send_message(f"Group `{groupid}` does not exist.")
+
+
+	@debugGroup.command(name = "createraffle")
+	async def debug_createraffle(self, interaction: discord.Interaction, title: str, groupid: int):
+		"""DEBUG: Creates a raffle under a specified group
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord Interaction
+		groupid : int
+			Raffle group ID
+		"""
+		async with self.bot.db.connect() as db:
+			if await db.raffle.groupExists(groupid):
+				raffleid = await db.raffle.createRaffle(groupid, title)
+				await db.commit()
+				await interaction.response.send_message(f"Raffle `{raffleid}` created")
+			else:
+				await interaction.response.send_message(f"Raffle group {groupid} does not exist.")
+
+
+	@debugGroup.command(name = "button")
+	async def debug_button(self, interaction: discord.Interaction, raffleid: int):
+		"""DEBUG: Creates a raffle button
+
+		Parameters
+		----------
+		interacton : discord.Interaction
+			Discord Interaction
+		raffleid : int
+			Raffle ID
+		"""
+		view = discord.ui.View(timeout=None)
+		view.add_item(RaffleButton(raffleid, f"Raffle: {raffleid}"))
+		await interaction.response.send_message(view = view)
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):

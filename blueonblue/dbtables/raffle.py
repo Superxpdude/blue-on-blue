@@ -196,6 +196,16 @@ class Raffles(BaseTable):
 			return (await cursor.fetchone())["db_id"]
 
 
+	async def raffleExists(self, raffleID: int) -> bool:
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT id FROM raffle_data WHERE id = :raffle_id",
+				{"raffle_id": raffleID}
+			)
+			data = await cursor.fetchone()
+			return data is not None
+
+
 	async def getRaffleName(self, raffleID: int) -> str:
 		"""Retrieves the name of a raffle
 
@@ -255,7 +265,7 @@ class Raffles(BaseTable):
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute("\
 				DELETE FROM raffle_users WHERE (\
-				raffle_id = :raffle_id,\
+				raffle_id = :raffle_id AND\
 				discord_id = :discord_id)",
 				{
 					"raffle_id": raffleID,
@@ -281,7 +291,7 @@ class Raffles(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT discord_id FROM raffle_users WHERE (raffle_id = :raffle_id, discord_id = :discord_id)",
+				"SELECT discord_id FROM raffle_users WHERE (raffle_id = :raffle_id AND discord_id = :discord_id)",
 				{"raffle_id": raffleID, "discord_id": discordID}
 			)
 			userData = await cursor.fetchone()
