@@ -9,6 +9,9 @@ import random
 import blueonblue
 from blueonblue.defines import RAFFLE_EMBED_COLOUR
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+	import re
 
 import logging
 _log = logging.getLogger(__name__)
@@ -62,6 +65,45 @@ def weighted_sample_without_replacement(population: list | tuple, weights: list 
     result = [population[i] for i in order[-k:]]
     result.reverse()
     return result
+
+
+class RaffleButton(
+	discord.ui.DynamicItem[discord.ui.Button],
+	template = r"rafflebutton:(?P<raffleID>\d+)",
+):
+	def __init__(self, raffleID: int, label: str | None = None) -> None:
+		self.raffleID = raffleID
+		super().__init__(
+			discord.ui.Button(
+				label = label,
+				style = discord.ButtonStyle.primary,
+				custom_id = f"rafflebutton:{raffleID}",
+			)
+		)
+
+	@classmethod
+	async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
+		assert isinstance(interaction.client, blueonblue.BlueOnBlueBot)
+		raffleID = int(match["raffleID"])
+		return cls(raffleID)
+
+	async def callback(self, interaction: discord.Interaction) -> None:
+		assert isinstance(interaction.client, blueonblue.BlueOnBlueBot)
+		async with interaction.client.db.connect() as db:
+			inRaffle = await db.raffle.userInRaffle(self.raffleID, interaction.user.id)
+			if inRaffle:
+				await db.raffle.removeRaffleUser(self.raffleID, interaction.user.id)
+				await interaction.response.send_message("You have left the raffle")
+				# raffleName = await db.raffle.getRaffleName(self.raffleID)
+				# await interaction.response.send_message(
+				# 	f"You are already in the raffle for {raffleName}\nIf you would like to leave the raffle, press the button below",
+				# 	ephemeral=True,
+				# 	delete_after=30,
+				# 	view=RaffleLeaveView(self.raffle, self.view)
+				# )
+			else:
+				await db.raffle.addRaffleUser(self.raffleID, interaction.user.id)
+			pass
 
 
 class RaffleObject():

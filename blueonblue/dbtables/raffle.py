@@ -196,6 +196,32 @@ class Raffles(BaseTable):
 			return (await cursor.fetchone())["db_id"]
 
 
+	async def getRaffleName(self, raffleID: int) -> str:
+		"""Retrieves the name of a raffle
+
+		Parameters
+		----------
+		raffleID : int
+			Raffle ID to use
+
+		Returns
+		-------
+		str
+			Retrieved name of the raffle
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT title FROM raffle_data WHERE raffle_id = :raffle_id",
+				{"raffle_id": raffleID}
+			)
+			raffleData = await cursor.fetchone()
+
+			if raffleData is not None:
+				return raffleData["title"]
+			else:
+				return "Error"
+
+
 	async def addRaffleUser(self, raffleID: int, discordID: int) -> None:
 		"""Adds a user to a raffle
 
