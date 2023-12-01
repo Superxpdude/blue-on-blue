@@ -172,6 +172,41 @@ class Raffles(BaseTable):
 			)
 
 
+	async def getGroupParticipants(self, groupID: int) -> dict[int, list[int]]:
+		"""Retrieves all participants in raffles present in a group
+
+		Parameters
+		----------
+		groupID : int
+			Raffle group ID
+
+		Returns
+		-------
+		dict[int, str]
+			Dict with keys of raffle IDs, and values consisting of lists of participant IDs
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT u.raffle_id, u.discord_id\
+				FROM raffle_groups as g\
+				INNER JOIN raffle_data as d ON d.group_id = g.id\
+				INNER JOIN raffle_users as u ON u.raffle_id = d.id\
+				WHERE g.id = :group_id",
+				{"group_id": groupID}
+			)
+
+			data: dict[int, list[int]] = {}
+			response = await cursor.fetchall()
+
+			for row in response:
+				raffleID: int = row["raffle_id"]
+				discordID: int = row["discord_id"]
+				data.setdefault(raffleID, [])
+				data[raffleID].append(discordID)
+
+			return data
+
+
 	async def groupWeighted(self, groupID: int) -> bool:
 		"""Checks if a raffle group is weighted
 
