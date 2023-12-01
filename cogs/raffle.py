@@ -70,13 +70,12 @@ class RaffleButton(
 ):
 	def __init__(self, raffleID: int, label: str | None = None) -> None:
 		self.raffleID = raffleID
-		super().__init__(
-			discord.ui.Button(
-				label = label,
-				style = discord.ButtonStyle.primary,
-				custom_id = f"rafflebutton:{raffleID}",
-			)
-		)
+		super().__init__(discord.ui.Button(
+			label = label,
+			style = discord.ButtonStyle.primary,
+			custom_id = f"rafflebutton:{raffleID}",
+		))
+
 
 	@classmethod
 	async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
@@ -84,29 +83,74 @@ class RaffleButton(
 		raffleID = int(match["raffleID"])
 		return cls(raffleID)
 
+
 	async def callback(self, interaction: discord.Interaction) -> None:
 		assert isinstance(interaction.client, blueonblue.BlueOnBlueBot)
+		assert isinstance(interaction.message, discord.Message)
+		assert isinstance(self.view, discord.ui.View)
 		async with interaction.client.db.connect() as db:
 			# Check if the raffle actually exists
 			if not (await db.raffle.raffleExists(self.raffleID)):
-				await interaction.response.send_message("Error: Raffle does not exist", ephemeral=True)
+				await interaction.response.send_message(
+					"This raffle has already closed",
+					ephemeral=True,
+					delete_after=30
+				)
 				return
 
+			raffleName = await db.raffle.getRaffleName(self.raffleID)
 			# Check if the user is in the raffle
 			if await db.raffle.userInRaffle(self.raffleID, interaction.user.id):
-				await db.raffle.removeRaffleUser(self.raffleID, interaction.user.id)
-				await interaction.response.send_message("You have left the raffle", ephemeral=True)
-				# raffleName = await db.raffle.getRaffleName(self.raffleID)
-				# await interaction.response.send_message(
-				# 	f"You are already in the raffle for {raffleName}\nIf you would like to leave the raffle, press the button below",
-				# 	ephemeral=True,
-				# 	delete_after=30,
-				# 	view=RaffleLeaveView(self.raffle, self.view)
-				# )
+				await interaction.response.send_message(
+					f"You are already in the raffle for {raffleName}\nIf you would like to leave the raffle, press the button below",
+					ephemeral=True,
+					delete_after=30,
+					view=RaffleLeaveViewNew(self.raffleID, raffleName)
+				)
 			else:
 				await db.raffle.addRaffleUser(self.raffleID, interaction.user.id)
-				await interaction.response.send_message("You have joined the raffle", ephemeral=True)
-			pass
+				await interaction.response.send_message(
+					f"You have joined the raffle: {interaction.message.jump_url}",
+					ephemeral=True,
+					delete_after=30
+				)
+				await db.commit()
+
+
+class RaffleLeaveButtonNew(discord.ui.Button):
+	def __init__(self,
+		raffleID: int,
+		raffleName: str,
+		*args,
+		style: discord.ButtonStyle = discord.ButtonStyle.danger,
+		**kwargs
+	):
+		self.raffleID = raffleID
+		self.raffleName = raffleName
+		super().__init__(*args,
+			style = style,
+			label = f"Leave {self.raffleName}",
+			**kwargs,
+		)
+
+
+	async def callback(self, interaction: discord.Interaction):
+		assert isinstance(interaction.client, blueonblue.BlueOnBlueBot)
+		async with interaction.client.db.connect() as db:
+			await db.raffle.removeRaffleUser(self.raffleID, interaction.user.id)
+			await db.commit()
+
+		await interaction.response.send_message(
+			f"You have been removed from the raffle for {self.raffleName}",
+			ephemeral = True,
+			delete_after = 30
+		)
+
+
+class RaffleLeaveViewNew(discord.ui.View):
+	def __init__(self, raffleID: int, raffleName: str):
+		super().__init__(timeout = 30)
+		self.add_item(RaffleLeaveButtonNew(raffleID, raffleName))
 
 
 class RaffleObject():

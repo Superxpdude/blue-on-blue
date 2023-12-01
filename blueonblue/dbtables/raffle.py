@@ -197,6 +197,18 @@ class Raffles(BaseTable):
 
 
 	async def raffleExists(self, raffleID: int) -> bool:
+		"""Checks if a given raffle ID exists
+
+		Parameters
+		----------
+		raffleID : int
+			Raffle ID to check
+
+		Returns
+		-------
+		bool
+			If the raffle exists in the database
+		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
 				"SELECT id FROM raffle_data WHERE id = :raffle_id",
@@ -221,7 +233,7 @@ class Raffles(BaseTable):
 		"""
 		async with self.db.connection.cursor() as cursor:
 			await cursor.execute(
-				"SELECT title FROM raffle_data WHERE raffle_id = :raffle_id",
+				"SELECT title FROM raffle_data WHERE id = :raffle_id",
 				{"raffle_id": raffleID}
 			)
 			raffleData = await cursor.fetchone()
