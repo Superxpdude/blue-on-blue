@@ -1,5 +1,15 @@
 from .base import BaseTable
 from datetime import datetime
+from typing import NamedTuple
+
+class GroupInfo(NamedTuple):
+	groupID: int
+	guildID: int
+	endTime: datetime
+	exclusive: bool
+	weighted: bool
+	messageID: int
+
 
 class RaffleWeights(BaseTable):
 	"""Raffle Weights table class"""
@@ -127,6 +137,86 @@ class Raffles(BaseTable):
 				"UPDATE raffle_groups SET message_id = :message_id WHERE id = :group_id",
 				{"group_id": groupID, "message_id": messageID}
 			)
+
+
+	async def getGroupData(self, groupID: int) -> GroupInfo | None:
+		"""Retrieves information about a raffle group from the database
+
+		Parameters
+		----------
+		groupID : int
+			Raffle group ID
+
+		Returns
+		-------
+		GroupInfo
+			Raffle group info
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT * FROM raffle_groups WHERE id = :group_id",
+				{"group_id": groupID}
+			)
+			response = await cursor.fetchone()
+
+			if response is None:
+				return None
+
+			return GroupInfo(
+				response["id"],
+				response["server_id"],
+				datetime.fromisoformat(response["end_time"]),
+				response["exclusive"],
+				response["weighted"],
+				response["message_id"]
+			)
+
+
+	async def groupWeighted(self, groupID: int) -> bool:
+		"""Checks if a raffle group is weighted
+
+		Parameters
+		----------
+		groupID : int
+			Raffle group ID
+
+		Returns
+		-------
+		bool
+			Raffle group is weighted
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT weighted FROM raffle_groups WHERE id = :group_id",
+				{"group_id": groupID}
+			)
+			return (await cursor.fetchone()) is not None
+
+
+	async def groupGetRaffles(self, groupID: int) -> tuple[int,...]:
+		"""Retrieves the raffle IDs of all raffles in a group.
+
+		Parameters
+		----------
+		groupID : int
+			Group ID to check
+
+		Returns
+		-------
+		tuple[int,...]
+			Raffle IDs
+		"""
+		async with self.db.connection.cursor() as cursor:
+			await cursor.execute(
+				"SELECT id FROM raffle_data WHERE group_id = :group_id",
+				{"group_id": groupID}
+			)
+
+			data = await cursor.fetchall()
+			raffles: list[int] = []
+			for row in data:
+				raffles.append(row["id"])
+			return tuple(raffles)
 
 
 	async def groupExists(self, groupID: int) -> bool:

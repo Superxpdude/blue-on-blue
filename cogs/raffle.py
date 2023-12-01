@@ -482,6 +482,7 @@ class Raffle(commands.Cog, name = "Raffle"):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
+
 	async def cog_load(self):
 		"""Add the dynamic item entry for the raffle button"""
 		self.bot.add_dynamic_items(RaffleButton)
@@ -490,6 +491,47 @@ class Raffle(commands.Cog, name = "Raffle"):
 	async def cog_unload(self):
 		"""Remove the dynamic item entry for the raffle button"""
 		self.bot.remove_dynamic_items(RaffleButton)
+
+
+	async def build_embed(self, groupID: int) -> discord.Embed | None:
+		"""Builds a discord embed for a raffle group
+
+		Parameters
+		----------
+		groupID : int
+			Raffle group
+
+		Returns
+		-------
+		discord.Embed
+			Discord embed for raffle group
+		"""
+		async with self.bot.db.connect() as db:
+			groupData = await db.raffle.getGroupData(groupID)
+
+		if groupData is None:
+			return None
+
+		ended = (discord.utils.utcnow() >= groupData.endTime)
+		endText = "ended" if ended else "ends"
+		embed = discord.Embed(
+			title = f"🎉 {'Mission Raffle' if groupData.weighted else 'Raffle'} ({endText} {discord.utils.format_dt(groupData.endTime,'R')})",
+			description = "Click the corresponding button below to enter the raffle!",
+			color = RAFFLE_EMBED_COLOUR
+		)
+
+		footerText = "Numbers above represent number of entrants in the raffle"
+		if groupData.exclusive:
+			footerText += "\nExclusive Winners: Enabled"
+		embed.set_footer(text = footerText)
+
+		# for r in self.raffles:
+		# 	if r.winners > 1:
+		# 		embed.add_field(name = f"{r.name} ({r.winners} winners)", value = r.participantCount(), inline = True)
+		# 	else:
+		# 		embed.add_field(name = f"{r.name}", value = r.participantCount(), inline = True)
+
+		return embed
 
 
 	# Create app command groups
@@ -881,6 +923,24 @@ class Raffle(commands.Cog, name = "Raffle"):
 				await db.commit()
 			else:
 				await interaction.response.send_message(f"Group `{groupid}` does not exist.")
+
+
+	@debugGroup.command(name = "embed")
+	async def debug_embed(self, interaction: discord.Interaction, groupid: int):
+		"""DEBUG: Sends a raffle group embed
+
+		Parameters
+		----------
+		interaction : discord.Interaction
+			Discord interaction
+		groupid : int
+			Raffle group ID
+		"""
+		embed = await self.build_embed(groupid)
+		if embed is not None:
+			await interaction.response.send_message(f"Embed for group `{groupid}`", embed = embed)
+		else:
+			await interaction.response.send_message(f"Group `{groupid}` not found")
 
 
 	@debugGroup.command(name = "createraffle")
