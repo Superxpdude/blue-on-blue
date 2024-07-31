@@ -6,10 +6,13 @@ import subprocess
 import blueonblue
 
 import logging
+
 _log = logging.getLogger(__name__)
 
-class BotControl(commands.Cog, name = "Bot Control"):
+
+class BotControl(commands.Cog, name="Bot Control"):
 	"""Commands that control the bot's core functionality."""
+
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
@@ -38,8 +41,10 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		try:
 			await self.bot.load_extension("cogs." + cog)
 			# If we have a debug ID set, copy global commands to the guild
-			if self.bot.slashDebugID is not None:
-				self.bot.tree.copy_global_to(guild = discord.Object(self.bot.slashDebugID))
+			if self.bot.config.debug_server is not None:
+				self.bot.tree.copy_global_to(
+					guild=discord.Object(self.bot.config.debug_server)
+				)
 		except Exception as e:
 			await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
 			_log.exception(f"Failed to load extension: {cog}")
@@ -54,14 +59,14 @@ class BotControl(commands.Cog, name = "Bot Control"):
 
 		Cog name is case sensitive.
 		Cogs must be placed in the "cogs" folder on the bot."""
-		if cog != "botcontrol": # Prevent unloading botcontrol
+		if cog != "botcontrol":  # Prevent unloading botcontrol
 			try:
 				await self.bot.unload_extension("cogs." + cog)
 				# If we have a debug ID set, we need to update our copied commands
-				if self.bot.slashDebugID is not None:
-					guildObject = discord.Object(self.bot.slashDebugID)
-					self.bot.tree.clear_commands(guild = guildObject)
-					self.bot.tree.copy_global_to(guild = guildObject)
+				if self.bot.config.debug_server is not None:
+					guildObject = discord.Object(self.bot.config.debug_server)
+					self.bot.tree.clear_commands(guild=guildObject)
+					self.bot.tree.copy_global_to(guild=guildObject)
 			except Exception as e:
 				await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
 				_log.exception(f"Error unloading extension: {cog}")
@@ -69,7 +74,9 @@ class BotControl(commands.Cog, name = "Bot Control"):
 				await ctx.send("**`SUCCESS`**")
 				_log.info(f"Unloaded extension: {cog}")
 		else:
-			await ctx.send(f"You cannot unload the bot control module! Try using `{ctx.prefix}cogreload` instead.")
+			await ctx.send(
+				f"You cannot unload the bot control module! Try using `{ctx.prefix}cogreload` instead."
+			)
 
 	@commands.command()
 	@commands.is_owner()
@@ -81,10 +88,10 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		try:
 			await self.bot.reload_extension("cogs." + cog)
 			# If we have a debug ID set, we need to rebuild our copied commands
-			if self.bot.slashDebugID is not None:
-				guildObject = discord.Object(self.bot.slashDebugID)
-				self.bot.tree.clear_commands(guild = guildObject)
-				self.bot.tree.copy_global_to(guild = guildObject)
+			if self.bot.config.debug_server is not None:
+				guildObject = discord.Object(self.bot.config.debug_server)
+				self.bot.tree.clear_commands(guild=guildObject)
+				self.bot.tree.copy_global_to(guild=guildObject)
 		except Exception as e:
 			await ctx.send(f"**`ERROR:`** {type(e).__name__} - {e}")
 			_log.exception(f"Failed to reload extension: {cog}")
@@ -103,7 +110,8 @@ class BotControl(commands.Cog, name = "Bot Control"):
 		out = subprocess.run(["git", "pull"], check=True, stdout=subprocess.PIPE).stdout
 		outstr = out.decode("utf-8")
 
-		await msg.edit(content = f"Performing git pull\n```{outstr}```")
+		await msg.edit(content=f"Performing git pull\n```{outstr}```")
+
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
 	await bot.add_cog(BotControl(bot))
