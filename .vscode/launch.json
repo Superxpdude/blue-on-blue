@@ -12,11 +12,10 @@
 			"console": "integratedTerminal",
 			"module": "blueonblue",
 			"subProcess": true,
-			"args": [
-			]
+			"args": []
 		},
 		{
-			"name": "Debug Bot",
+			"name": "Start Bot: Debug",
 			"type": "debugpy",
 			"request": "launch",
 			"cwd": "${workspaceFolder}",
