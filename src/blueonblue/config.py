@@ -27,8 +27,8 @@ from blueonblue.defines import (
 	SCONF_RAFFLEWEIGHT_INCREASE,
 	SCONF_RAFFLEWEIGHT_MAX,
 	SCONF_ROLE_GOLD,
-	SCONF_ROLE_JAIL,
-	SCONF_ROLE_MEMBER,
+	SCONF_ROLE_TIMEOUT,
+	SCONF_ROLE_VERIFY,
 	SCONF_STEAM_GROUP_ID,
 )
 
@@ -655,8 +655,8 @@ class ServerConfig:
 
 		# Server roles
 		self.role_gold = ServerConfigRole(bot, SCONF_ROLE_GOLD)
-		self.role_jail = ServerConfigRole(bot, SCONF_ROLE_JAIL)
-		self.role_member = ServerConfigRole(bot, SCONF_ROLE_MEMBER)
+		self.role_timeout = ServerConfigRole(bot, SCONF_ROLE_TIMEOUT)
+		self.role_verify = ServerConfigRole(bot, SCONF_ROLE_VERIFY)
 
 		# Steam Group and verify URL
 		self.steam_group_id = ServerConfigInteger(bot, SCONF_STEAM_GROUP_ID)
