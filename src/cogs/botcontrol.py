@@ -39,7 +39,7 @@ class BotControl(commands.Cog, name="Bot Control"):
 		Cog name is case sensitive.
 		Cogs must be placed in the "cogs" folder on the bot."""
 		try:
-			await self.bot.load_extension("src.cogs." + cog)
+			await self.bot.load_extension("cogs." + cog)
 			# If we have a debug ID set, copy global commands to the guild
 			if self.bot.config.debug_server is not None:
 				self.bot.tree.copy_global_to(
@@ -61,7 +61,7 @@ class BotControl(commands.Cog, name="Bot Control"):
 		Cogs must be placed in the "cogs" folder on the bot."""
 		if cog != "botcontrol":  # Prevent unloading botcontrol
 			try:
-				await self.bot.unload_extension("src.cogs." + cog)
+				await self.bot.unload_extension("cogs." + cog)
 				# If we have a debug ID set, we need to update our copied commands
 				if self.bot.config.debug_server is not None:
 					guildObject = discord.Object(self.bot.config.debug_server)
@@ -86,7 +86,7 @@ class BotControl(commands.Cog, name="Bot Control"):
 		Cog name is case sensitive.
 		Cogs must be placed in the "cogs" folder on the bot."""
 		try:
-			await self.bot.reload_extension("src.cogs." + cog)
+			await self.bot.reload_extension("cogs." + cog)
 			# If we have a debug ID set, we need to rebuild our copied commands
 			if self.bot.config.debug_server is not None:
 				guildObject = discord.Object(self.bot.config.debug_server)
