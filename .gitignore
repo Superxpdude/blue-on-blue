@@ -19,5 +19,5 @@ venv/
 /logs
 /data
 /config
-/cogs/test
+/src/cogs/test
 /temp

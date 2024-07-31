@@ -112,7 +112,7 @@ class BlueOnBlueBot(commands.Bot):
 		# Load our extensions
 		for ext in initial_extensions:
 			try:
-				await self.load_extension("cogs." + ext)
+				await self.load_extension("src.cogs." + ext)
 			except Exception:
 				_log.exception(f"Failed to load extension: {ext}")
 			else:
