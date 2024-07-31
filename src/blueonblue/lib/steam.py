@@ -1,20 +1,27 @@
-import blueonblue
 import logging
 
+import blueonblue
+
 _log = logging.getLogger(__name__)
+
 
 # Exceptions
 class MissingSteamID(Exception):
 	"""Exception used when a Steam ID could not be found"""
+
 	def __init__(self, status: int | None = None):
 		self.status = status
 
+
 class InvalidSteamURL(Exception):
 	"""Exception used when an invalid Steam profile URL format was provided"""
+
 	pass
+
 
 class NoSteamUserFound(Exception):
 	"""Exception raised when no users are returned by a Steam API search"""
+
 	pass
 
 
@@ -47,9 +54,9 @@ async def getID64(bot: blueonblue.BlueOnBlueBot, url: str) -> str:
 	# We need to handle both of them
 	if "/profiles/" in url:
 		# Split the string at the "profiles/" entry, and remove everything but the profile part
-		steamID_str = url.split("profiles/", 1)[-1].replace("/","")
-		if steamID_str.isnumeric(): # SteamID64s are integers in string form
-			return steamID_str # Return the steamID as a string
+		steamID_str = url.split("profiles/", 1)[-1].replace("/", "")
+		if steamID_str.isnumeric():  # SteamID64s are integers in string form
+			return steamID_str  # Return the steamID as a string
 		else:
 			_log.debug(f"Could not find steamID from url: {url}")
 			raise MissingSteamID()
@@ -62,22 +69,26 @@ async def getID64(bot: blueonblue.BlueOnBlueBot, url: str) -> str:
 			vanity = vanity[:-1]
 
 		# Make our request to the steam API
-		async with bot.httpSession.get("https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/", params = {
-			"key": bot.config.steam_api_token,
-			"vanityurl": vanity
-		}) as response:
+		async with bot.httpSession.get(
+			"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/",
+			params={"key": bot.config.steam_api_token, "vanityurl": vanity},
+		) as response:
 			responseData = (await response.json())["response"]
 			if ("steamid" in responseData) and (responseData["steamid"].isnumeric()):
 				return responseData["steamid"]
 			else:
-				_log.debug(f"Error {response.status} retrieving steamID from vanity url: {vanity}")
+				_log.debug(
+					f"Error {response.status} retrieving steamID from vanity url: {vanity}"
+				)
 				raise MissingSteamID(response.status)
 	else:
 		_log.debug(f"Could not retrieve Steam ID from invalid profile URL: {url}")
 		raise InvalidSteamURL()
 
 
-async def in_guild_group(bot: blueonblue.BlueOnBlueBot, guildID: int, steamID: str) -> bool:
+async def in_guild_group(
+	bot: blueonblue.BlueOnBlueBot, guildID: int, steamID: str
+) -> bool:
 	"""|coro|
 
 	Uses a SteamID64 to check if a user is in a guild's specified Steam group.
@@ -100,10 +111,7 @@ async def in_guild_group(bot: blueonblue.BlueOnBlueBot, guildID: int, steamID: s
 	"""
 	async with bot.httpSession.get(
 		"https://api.steampowered.com/ISteamUser/GetUserGroupList/v1/",
-		params = {
-			"key": bot.config.steam_api_token,
-			"steamid": steamID
-		}
+		params={"key": bot.config.steam_api_token, "steamid": steamID},
 	) as response:
 		# Get our response data
 		responseData = (await response.json())["response"]
@@ -111,7 +119,7 @@ async def in_guild_group(bot: blueonblue.BlueOnBlueBot, guildID: int, steamID: s
 		groupList = []
 		if "groups" in responseData:
 			for g in responseData["groups"]:
-				groupList.append(int(g["gid"])) # Append the group ID to the group list
+				groupList.append(int(g["gid"]))  # Append the group ID to the group list
 		# Get the steam group from the config
 		steamGroupID = await bot.serverConfig.steam_group_id.get(guildID)
 		if steamGroupID in groupList:
@@ -120,7 +128,9 @@ async def in_guild_group(bot: blueonblue.BlueOnBlueBot, guildID: int, steamID: s
 			return False
 
 
-async def check_guild_token(bot: blueonblue.BlueOnBlueBot, steamID: str, token: str) -> bool:
+async def check_guild_token(
+	bot: blueonblue.BlueOnBlueBot, steamID: str, token: str
+) -> bool:
 	"""|coro|
 
 	Uses a saved SteamID64 to check if a user has placed the verification token in their profile.
@@ -142,10 +152,7 @@ async def check_guild_token(bot: blueonblue.BlueOnBlueBot, steamID: str, token: 
 	# Make our web request
 	async with bot.httpSession.get(
 		"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
-		params = {
-			"key": bot.config.steam_api_token,
-			"steamids": steamID
-		}
+		params={"key": bot.config.steam_api_token, "steamids": steamID},
 	) as response:
 		# Get our response data
 		playerData = (await response.json())["response"]["players"]
@@ -192,10 +199,7 @@ async def get_display_name(bot: blueonblue.BlueOnBlueBot, steamID: str) -> str:
 	# Make our web request
 	async with bot.httpSession.get(
 		"https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/",
-		params = {
-			"key": bot.config.steam_api_token,
-			"steamids": steamID
-		}
+		params={"key": bot.config.steam_api_token, "steamids": steamID},
 	) as response:
 		# Get our response data
 		playerData = (await response.json())["response"]["players"]
