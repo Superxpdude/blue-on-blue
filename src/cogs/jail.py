@@ -259,6 +259,13 @@ class Jail(commands.GroupCog, group_name="jail"):
 				# Send the embed information
 				await interaction.response.send_message(embed = jailEmbed)
 
+	@app_commands.command(name = "debug_list")
+	async def debug_list(self, interaction: discord.Interaction):
+		assert interaction.guild is not None
+
+		for m in filter(lambda x: x.is_timed_out(), interaction.guild.members):
+			print(f"{m.name} | Timeout: {m.timed_out_until}")
+
 	@tasks.loop(minutes=1, reconnect=True)
 	async def jail_loop(self):
 		"""Checks if users need to be released from jail"""
