@@ -21,7 +21,7 @@ initial_extensions = [
 	# "gold",
 	# "jail",
 	# "missions",
-	# "pings",
+	"pings",
 	# "raffle",
 	"utils",
 	# "verify",
