@@ -1,7 +1,7 @@
 import discord
-import tomlkit
-from tomlkit import items
 import inspect
+import pathlib
+import os
 
 from .defines import (
 	SCONF_CHANNEL_BOT,
@@ -40,44 +40,44 @@ __all__ = [
 	"ServerConfig"
 ]
 
+
+def get_config_value(name: str, defaultValue: str | None = None) -> str | None:
+	"""Retrieves a config value from a secret file or environment variable.
+
+	Returns
+	-------
+	str | None
+		Config value if found, otherwise None
+	"""
+	token: str | None = None
+	filepath = pathlib.Path(f"./config/{name}")
+	if filepath.is_file():
+		# File exists. Read the file to get the token.
+		with open(filepath) as file:
+			token = file.read()
+	else:
+		# File does not exist. Read the environment variable.
+		# Only try to read the environment variable if it actually exists.
+		if name in os.environ:
+			token = os.environ[name]
+
+	# If we couldn't find the token, return a default value if one was provided.
+	if token is None and defaultValue is not None:
+		token = defaultValue
+
+	return token
+
+
 class BotConfig:
 	"""Config abstraction class
 
-	Abstracts the base config storage away from other modules.
-	Handles converting toml-compatible types to the types required for actual execution."""
-	def __init__(self, configFile: str):
-		# Read our existing config file
-		with open(configFile, "r") as file:
-			_log.debug(f"Reading config file: {configFile}")
-			self.toml = tomlkit.parse(file.read())
-
-		# Set default values for our parameters
-		self.toml.setdefault("prefix", "$$")
-		self.toml.setdefault("debug_server", -1)
-		self.toml.setdefault("steam_api_token", "")
-		self.toml.setdefault("google_api_file", "config/google_api.json")
-
-		# Write any missing values back to the config file
-		with open(configFile, "w") as file:
-			file.write(tomlkit.dumps(self.toml))
-
-	@property
-	def prefix(self) -> str:
-		return str(self.toml["prefix"])
-
-	@property
-	def debug_server(self) -> int:
-		value = self.toml["debug_server"]
-		assert isinstance(value, items.Integer)
-		return int(value)
-
-	@property
-	def steam_api_token(self) -> str:
-		return str(self.toml["steam_api_token"])
-
-	@property
-	def google_api_file(self) -> str:
-		return str(self.toml["google_api_file"])
+	Provides a place to store bot configuration values."""
+	def __init__(self):
+		# Read config values from environment variables
+		debugServerValue = get_config_value("DEBUG_SERVER")
+		self.debug_server = int(debugServerValue) if debugServerValue is not None else None
+		self.prefix = get_config_value("COMMAND_PREFIX", "$$")
+		self.steam_api_token = get_config_value("STEAM_TOKEN")
 
 
 class ServerConfigOption:
@@ -687,3 +687,4 @@ class ServerConfig:
 		for m in inspect.getmembers(self):
 			if isinstance(m[1], ServerConfigOption):
 				self.options[m[0]] = m[1]
+

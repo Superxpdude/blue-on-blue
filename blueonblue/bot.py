@@ -27,7 +27,7 @@ class BlueOnBlueBot(commands.Bot):
 
 	def __init__(self):
 		# Set up our core config
-		self.config = config.BotConfig("config/config.toml")
+		self.config = config.BotConfig()
 
 		# Set up our DB
 		self.db = db.DB("data/blueonblue.sqlite3")
@@ -37,9 +37,7 @@ class BlueOnBlueBot(commands.Bot):
 
 		# Store our "debug server" value for slash command testing
 		self.slashDebugID: Optional[int] = None
-		debugServerID = self.config.debug_server
-		if debugServerID > 0: # If we have an ID present
-			self.slashDebugID = debugServerID
+		self.slashDebugID = self.config.debug_server
 
 		# Set up variables for type hinting
 		self.firstStart = True
