@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 import argparse
+import logging
 import os
 
 from .bot import BlueOnBlueBot
 from .config import get_config_value
 from .log import setup_logging
-
-import logging
 
 
 def main():
