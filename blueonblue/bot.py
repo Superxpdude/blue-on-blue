@@ -11,7 +11,7 @@ from . import checks, config, db
 
 _log = logging.getLogger(__name__)
 
-__all__ = ["BlueOnBlueBot"]
+__all__ = ["BlueOnBlueBot", "BlueOnBlueTree"]
 
 initial_extensions = [
 	"botcontrol",
