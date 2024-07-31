@@ -53,7 +53,6 @@ class BotConfig:
 
 		# Set default values for our parameters
 		self.toml.setdefault("prefix", "$$")
-		self.toml.setdefault("bot_token", "")
 		self.toml.setdefault("debug_server", -1)
 		self.toml.setdefault("steam_api_token", "")
 		self.toml.setdefault("google_api_file", "config/google_api.json")
@@ -65,10 +64,6 @@ class BotConfig:
 	@property
 	def prefix(self) -> str:
 		return str(self.toml["prefix"])
-
-	@property
-	def bot_token(self) -> str:
-		return str(self.toml["bot_token"])
 
 	@property
 	def debug_server(self) -> int:

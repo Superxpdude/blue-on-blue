@@ -8,3 +8,4 @@ __pycache__
 /cogs/test
 /temp
 .coverage
+.env
