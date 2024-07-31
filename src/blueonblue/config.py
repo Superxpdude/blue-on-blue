@@ -2,7 +2,7 @@ import inspect
 import logging
 import os
 import pathlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 import discord
 
@@ -36,6 +36,14 @@ _log = logging.getLogger(__name__)
 
 
 __all__ = ["BotConfig", "ServerConfig"]
+
+
+@overload
+def get_config_value(name: str) -> str | None: ...
+
+
+@overload
+def get_config_value(name: str, defaultValue: str) -> str: ...
 
 
 def get_config_value(name: str, defaultValue: str | None = None) -> str | None:
@@ -77,7 +85,7 @@ class BotConfig:
 			int(debugServerValue) if debugServerValue is not None else None
 		)
 		self.prefix = get_config_value("COMMAND_PREFIX", "$$")
-		self.steam_api_token = get_config_value("STEAM_TOKEN")
+		self.steam_api_token: str = get_config_value("STEAM_TOKEN", "")
 
 
 class ServerConfigOption:
