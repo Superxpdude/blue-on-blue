@@ -14,9 +14,6 @@ PING_EMBED_COLOUR = 0xFFA500  # Orange
 RAFFLE_EMBED_COLOUR = 0x00FF00
 VERIFY_EMBED_COLOUR = 0xFF00D0
 
-# Jail Module
-JAIL_BLOCK_UPDATES_KEY = "jail"
-
 
 # ServerConfig option names
 SCONF_CHANNEL_BOT = "channel_bot"

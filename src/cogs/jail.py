@@ -8,7 +8,6 @@ from typing import Literal
 import blueonblue
 from .users import update_member_roles
 from blueonblue.defines import (
-	JAIL_BLOCK_UPDATES_KEY,
 	JAIL_EMBED_COLOUR,
 	SCONF_CHANNEL_MOD_ACTIVITY,
 	SCONF_ROLE_TIMEOUT,
@@ -29,42 +28,7 @@ class Jail(commands.GroupCog, group_name="jail"):
 		self.bot: blueonblue.BlueOnBlueBot = bot
 
 	async def cog_load(self):
-		"""Initializes the database for the cog.
-		Creates the tables if they don't exist."""
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Iterate through our servers to set the "block_updates" flag on the jail role
-				for guild in self.bot.guilds:
-					role = await self.bot.serverConfig.role_timeout.get(guild)
-					if role is not None:
-						# Role ID is present. Add info to the DB
-						# Check if we have an existing entry
-						await cursor.execute(
-							"SELECT role_id FROM roles WHERE block_updates = :block",
-							{"block": JAIL_BLOCK_UPDATES_KEY},
-						)
-						roleData = await cursor.fetchone()
-						if (
-							roleData is not None
-						):  # We have an existing entry for the role
-							if roleData["role_id"] != role.id:
-								# Role IDs do not match. Remove block entry from old role.
-								await cursor.execute(
-									"UPDATE roles SET block_updates = NULL WHERE server_id = :serverID AND role_id = :roleID",
-									{"serverID": guild.id, "roleID": role.id},
-								)
-						else:  # No existing entry for this block
-							await cursor.execute(
-								"INSERT OR REPLACE INTO roles (server_id, role_id, block_updates) VALUES \
-								(:serverID, :roleID, :block)",
-								{
-									"serverID": guild.id,
-									"roleID": role.id,
-									"block": JAIL_BLOCK_UPDATES_KEY,
-								},
-							)
-				await db.commit()
-
+		"""Starts the jail loop task"""
 		self.jail_loop.start()
 
 	async def cog_unload(self):
