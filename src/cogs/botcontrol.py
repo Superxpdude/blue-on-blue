@@ -22,7 +22,8 @@ class BotControl(commands.Cog, name="Bot Control"):
 	async def logout(self, ctx: commands.Context):
 		await ctx.send("Goodbye")
 		_log.info(f"Bot terminated by {ctx.author.name}")
-		await self.bot.close()
+		# Run this in a task to avoid errors with the command not finishing
+		self.bot.loop.create_task(self.bot.close())
 
 	@commands.command(brief="Synchronizes app commands")
 	@commands.is_owner()
