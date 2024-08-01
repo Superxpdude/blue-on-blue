@@ -1,0 +1,27 @@
+FROM python:3.11.9-slim as debian
+LABEL source = "https://github.com/Superxpdude/blue-on-blue"
+
+# Update installed packages
+RUN apt-get update && apt-get upgrade -y && apt-get autoremove -y && apt-get clean
+
+# Select the working directory
+WORKDIR /app
+
+# Copy necessary files to the container
+COPY ./src src
+COPY ./pyproject.toml ./
+
+# Create a python virtual environment
+ENV VIRTUAL_ENV=/opt/venv
+RUN python -m venv $VIRTUAL_ENV
+# Add the venv to the front of the path so that it gets used
+# by default for future python calls
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Install python dependencies
+RUN pip install -U pip
+RUN pip install .
+
+VOLUME ["/app/data"]
+
+ENTRYPOINT ["python", "-m", "blueonblue"]

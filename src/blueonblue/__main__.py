@@ -4,6 +4,8 @@ import logging
 import os
 import pathlib
 
+import discord
+
 from .bot import BlueOnBlueBot
 from .config import get_config_value
 from .defines import GOOGLE_API_FILE
@@ -20,9 +22,12 @@ def main():
 
 	# Start the bot
 	# Create required subfolders
-	for f in ["config", "logs", "data"]:
+	for f in ["data", "data/logs"]:
 		if not os.path.exists(f):
 			os.makedirs(f)
+
+	# Disable PyNaCL warning
+	discord.VoiceClient.warn_nacl = False
 
 	# Set up logging
 	logLevel = logging.DEBUG if args.debug else logging.INFO

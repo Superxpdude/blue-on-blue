@@ -58,7 +58,7 @@ def setup_logging(
 	"""
 
 	logHandler = logging.handlers.TimedRotatingFileHandler(
-		"logs/blueonblue.log", when="midnight", backupCount=30
+		"data/logs/blueonblue.log", when="midnight", backupCount=30
 	)
 	consoleHandler = logging.StreamHandler()
 

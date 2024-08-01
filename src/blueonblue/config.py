@@ -55,7 +55,7 @@ def get_config_value(name: str, defaultValue: str | None = None) -> str | None:
 		Config value if found, otherwise None
 	"""
 	token: str | None = None
-	filepath = pathlib.Path(f"./config/{name}")
+	filepath = pathlib.Path(f"/run/secrets/{name}")
 	if filepath.is_file():
 		# File exists. Read the file to get the token.
 		with open(filepath) as file:
