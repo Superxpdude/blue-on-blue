@@ -1,14 +1,12 @@
-import discord
-from discord import app_commands
-from discord.ext import commands
+import logging
 
 import aiohttp
-
 import blueonblue
+import discord
 from blueonblue.defines import VERIFY_EMBED_COLOUR
 from blueonblue.lib import steam
-
-import logging
+from discord import app_commands
+from discord.ext import commands
 
 _log = logging.getLogger(__name__)
 
@@ -81,7 +79,7 @@ class VerifyButton(discord.ui.Button):
 			)
 			await interaction.followup.send(steam_return_error_text(error.status))
 			return
-		except:
+		except Exception:
 			_log.exception("Error checking Steam profile")
 			await interaction.followup.send(
 				"Error encountered checking Steam profile. Please contact an administrator for assistance."
@@ -139,7 +137,7 @@ class VerifyButton(discord.ui.Button):
 				)
 				await interaction.followup.send(steam_return_error_text(error.status))
 				return
-			except:
+			except Exception:
 				_log.exception("Error checking Steam group membership")
 				await interaction.followup.send(
 					"Error encountered checking Steam group membership. Please contact an administrator for assistance."
@@ -227,7 +225,7 @@ class CheckInButton(discord.ui.Button):
 			)
 			await interaction.followup.send(steam_return_error_text(error.status))
 			return
-		except:
+		except Exception:
 			_log.exception("Error checking Steam group membership")
 			await interaction.followup.send(
 				"Error encountered checking Steam group membership. Please contact an administrator for assistance."
@@ -303,7 +301,7 @@ async def assign_roles(
 		try:
 			await user.add_roles(*userRoles, reason="User verified")
 			return True
-		except:
+		except Exception:
 			return False
 	else:
 		# No user roles stored
@@ -312,7 +310,7 @@ async def assign_roles(
 			assert memberRole is not None
 			await user.add_roles(memberRole, reason="User verified")
 			return True
-		except:
+		except Exception:
 			return False
 
 
@@ -389,7 +387,7 @@ class Verify(commands.GroupCog, group_name="verify"):
 				"Invalid Steam URL format. Please use the *full* URL to your Steam profile."
 			)
 			return
-		except:
+		except Exception:
 			_log.exception("Error getting Steam64ID")
 			await interaction.followup.send(
 				"Error encountered checking steam ID. Please contact an administrator for assistance."
@@ -418,7 +416,7 @@ class Verify(commands.GroupCog, group_name="verify"):
 				)
 				await interaction.followup.send(steam_return_error_text(error.status))
 				return
-			except:
+			except Exception:
 				_log.exception("Error checking Steam group membership")
 				await interaction.followup.send(
 					"Error encountered checking Steam group membership. Please contact an administrator for assistance."
@@ -470,7 +468,7 @@ class Verify(commands.GroupCog, group_name="verify"):
 							await steam.get_display_name(self.bot, str(steamID)),
 							steamID,
 						)
-					except:
+					except Exception:
 						_log.exception("Error retrieving profile name from steam")
 						pass
 
@@ -492,48 +490,48 @@ class Verify(commands.GroupCog, group_name="verify"):
 
 		await interaction.followup.send(embed=embed)
 
-	@commands.Cog.listener()
-	async def on_member_join(self, member: discord.Member):
-		guildSteamGroupID = await self.bot.serverConfig.steam_group_id.get(member.guild)
-		channel = await self.bot.serverConfig.channel_check_in.get(member.guild)
-		assert isinstance(channel, discord.TextChannel)
-		if (
-			(guildSteamGroupID is not None)
-			and (guildSteamGroupID > 0)
-			and (channel is not None)
-		):
-			# Only continue if we have a valid steam group ID and check in channel
-			# Start our DB block
-			async with self.bot.db.connect() as db:
-				async with db.connection.cursor() as cursor:
-					# Get the user data from the DB
-					await cursor.execute(
-						"SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL",
-						{"id": member.id},
-					)
-					userData = (
-						await cursor.fetchone()
-					)  # This will only return users that are verified
-					# Check if we have any data in the DB
-					if userData is not None:
-						# User is already verified
-						view = CheckInView(
-							self.bot, member, str(userData["steam64_id"])
-						)
-						view.message = await channel.send(
-							f"Welcome to {member.guild.name} {member.mention}. It looks like you have been here before. "
-							f"Use the button below to gain access to the server, or `/verify steam` if you need to use a "
-							"different steam account.",
-							view=view,
-						)
+	# @commands.Cog.listener()
+	# async def on_member_join(self, member: discord.Member):
+	# 	guildSteamGroupID = await self.bot.serverConfig.steam_group_id.get(member.guild)
+	# 	channel = await self.bot.serverConfig.channel_check_in.get(member.guild)
+	# 	assert isinstance(channel, discord.TextChannel)
+	# 	if (
+	# 		(guildSteamGroupID is not None)
+	# 		and (guildSteamGroupID > 0)
+	# 		and (channel is not None)
+	# 	):
+	# 		# Only continue if we have a valid steam group ID and check in channel
+	# 		# Start our DB block
+	# 		async with self.bot.db.connect() as db:
+	# 			async with db.connection.cursor() as cursor:
+	# 				# Get the user data from the DB
+	# 				await cursor.execute(
+	# 					"SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL",
+	# 					{"id": member.id},
+	# 				)
+	# 				userData = (
+	# 					await cursor.fetchone()
+	# 				)  # This will only return users that are verified
+	# 				# Check if we have any data in the DB
+	# 				if userData is not None:
+	# 					# User is already verified
+	# 					view = CheckInView(
+	# 						self.bot, member, str(userData["steam64_id"])
+	# 					)
+	# 					view.message = await channel.send(
+	# 						f"Welcome to {member.guild.name} {member.mention}. It looks like you have been here before. "
+	# 						f"Use the button below to gain access to the server, or `/verify steam` if you need to use a "
+	# 						"different steam account.",
+	# 						view=view,
+	# 					)
 
-					else:
-						# User not already verified
-						await channel.send(
-							f"Welcome to {member.guild.name} {member.mention}. To gain access to this server, "
-							f"please type `/verify steam <link-to-your-steam-profile>`. If you are not in {member.guild.name} "
-							"at the moment, please go through the regular application process to join."
-						)
+	# 				else:
+	# 					# User not already verified
+	# 					await channel.send(
+	# 						f"Welcome to {member.guild.name} {member.mention}. To gain access to this server, "
+	# 						f"please type `/verify steam <link-to-your-steam-profile>`. If you are not in {member.guild.name} "
+	# 						"at the moment, please go through the regular application process to join."
+	# 					)
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):

@@ -22,9 +22,9 @@ initial_extensions = [
 	# "jail",
 	"missions",
 	"pings",
-	# "raffle",
+	"raffle",
 	"utils",
-	# "verify",
+	"verify",
 ]
 
 
