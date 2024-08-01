@@ -1,7 +1,9 @@
+import asyncio
 import logging
 import sys
 import traceback
 from datetime import datetime
+from signal import SIGTERM
 
 import aiohttp
 import discord
@@ -26,6 +28,17 @@ initial_extensions = [
 	"utils",
 	"verify",
 ]
+
+
+class KeyboardInterruptHandler:
+	def __init__(self, bot: "BlueOnBlueBot"):
+		self.bot = bot
+		self._task = None
+
+	def __call__(self):
+		if self._task:
+			raise KeyboardInterrupt
+		self._task = asyncio.create_task(self.bot.close())
 
 
 class BlueOnBlueBot(commands.Bot):
@@ -106,9 +119,17 @@ class BlueOnBlueBot(commands.Bot):
 		Closes down the HTTP session when the bot is stopped."""
 		await self.httpSession.close()
 		await super().close()
+		_log.info("Bot stopped gracefully")
 
 	# Setup hook function to load extensions
 	async def setup_hook(self):
+		# Add a SIGTERM handler to stop the bot
+		# Ignore NotImplementedErrors on Windows systems
+		try:
+			self.loop.add_signal_handler(SIGTERM, KeyboardInterruptHandler(self))
+		except NotImplementedError:
+			pass
+
 		# Load our extensions
 		for ext in initial_extensions:
 			try:
