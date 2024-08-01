@@ -1,27 +1,26 @@
-import asqlite
-from . import dbtables
-
+import logging
+from types import TracebackType
 from typing import (
 	Optional,
 	Type,
 )
 
-from types import TracebackType
+import asqlite
 
-import logging
+from . import dbtables
+
 _log = logging.getLogger(__name__)
 
-__all__ = [
-	"DB",
-	"DBConnection"
-]
+__all__ = ["DB", "DBConnection"]
 
 DBVERSION = 5
 
-class DBConnection():
+
+class DBConnection:
 	"""BlueonBlue database connection class.
 
 	Used to manage a custom asqlite connection context manager so that the database file only needs to be defined once."""
+
 	connection: asqlite.Connection
 
 	def __init__(self, dbFile: str):
@@ -32,8 +31,7 @@ class DBConnection():
 		self.pings = dbtables.Pings(self)
 
 	async def commit(self) -> None:
-		"""Convenience function to commit changes on the connection
-		"""
+		"""Convenience function to commit changes on the connection"""
 		await self.connection.commit()
 
 	async def __aenter__(self) -> "DBConnection":
@@ -49,10 +47,11 @@ class DBConnection():
 		await self.connection.close()
 
 
-class DB():
+class DB:
 	"""Database class to initialize a connection to the bot's database
 
 	Only to be used in an async context manager"""
+
 	connection: asqlite.Connection
 
 	def __init__(self, dbFile: str):
@@ -71,14 +70,17 @@ class DB():
 			async with db.connection.cursor() as cursor:
 				schema_version = 0
 				while schema_version != DBVERSION:
-					schema_version = (await (await cursor.execute("PRAGMA user_version")).fetchone())["user_version"]
+					schema_version = (
+						await (await cursor.execute("PRAGMA user_version")).fetchone()
+					)["user_version"]
 					_log.info(f"Database Schema Version: {schema_version}")
 
 					# Database is newly created
 					if schema_version == 0:
 						_log.info("Initializing database")
 						# Arma stats tables
-						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_missions (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS arma_stats_missions (\
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							server_id INTEGER NOT NULL,\
 							api_id INTEGER NOT NULL,\
@@ -86,73 +88,93 @@ class DB():
 							start_time TEXT NOT NULL,\
 							end_time TEXT NOT NULL,\
 							main_op INTEGER,\
-							UNIQUE(server_id,api_id))")
+							UNIQUE(server_id,api_id))"
+						)
 
-						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS arma_stats_players (\
 							mission_id INTEGER NOT NULL, \
 							steam_id INTEGER NOT NULL,\
 							duration REAL NOT NULL,\
 							UNIQUE(mission_id,steam_id),\
-							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
+							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)"
+						)
 
 						# Gold module table
-						await cursor.execute("CREATE TABLE if NOT EXISTS gold (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS gold (\
 							server_id INTEGER NOT NULL,\
 							user_id INTEGER NOT NULL,\
 							expiry_time INTEGER,\
-							UNIQUE(server_id,user_id))")
+							UNIQUE(server_id,user_id))"
+						)
 
 						# Jail module table
-						await cursor.execute("CREATE TABLE if NOT EXISTS jail (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS jail (\
 							server_id INTEGER NOT NULL,\
 							user_id INTEGER NOT NULL,\
 							release_time INTEGER,\
-							UNIQUE(server_id,user_id))")
+							UNIQUE(server_id,user_id))"
+						)
 
 						# Ping module tables
-						await cursor.execute("CREATE TABLE if NOT EXISTS pings (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS pings (\
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							server_id INTEGER NOT NULL,\
 							ping_name TEXT NOT NULL,\
 							last_used_time INTEGER,\
 							alias_for INTEGER,\
 							UNIQUE(server_id,ping_name),\
-							FOREIGN KEY (alias_for) REFERENCES pings (id) ON DELETE CASCADE)")
-						await cursor.execute("CREATE TABLE if NOT EXISTS ping_users (\
+							FOREIGN KEY (alias_for) REFERENCES pings (id) ON DELETE CASCADE)"
+						)
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS ping_users (\
 							server_id INTEGER NOT NULL,\
 							ping_id INTEGER,\
 							user_id INTEGER NOT NULL,\
 							UNIQUE(server_id,ping_id,user_id),\
-							FOREIGN KEY (ping_id) REFERENCES pings (id) ON DELETE CASCADE)")
+							FOREIGN KEY (ping_id) REFERENCES pings (id) ON DELETE CASCADE)"
+						)
 
 						# Users module tables
-						await cursor.execute("CREATE TABLE if NOT EXISTS users (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS users (\
 							server_id INTEGER,\
 							user_id INTEGER,\
 							display_name TEXT,\
 							name TEXT,\
-							UNIQUE(server_id,user_id))")
-						await cursor.execute("CREATE TABLE if NOT EXISTS user_roles (\
+							UNIQUE(server_id,user_id))"
+						)
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS user_roles (\
 							server_id INTEGER,\
 							user_id INTEGER,\
 							role_id INTEGER,\
 							UNIQUE(server_id,user_id,role_id),\
-							FOREIGN KEY (role_id) REFERENCES roles (role_id) ON DELETE CASCADE)")
-						await cursor.execute("CREATE TABLE if NOT EXISTS roles(\
+							FOREIGN KEY (role_id) REFERENCES roles (role_id) ON DELETE CASCADE)"
+						)
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS roles(\
 							server_id INTEGER,\
 							role_id INTEGER PRIMARY KEY,\
 							name TEXT,\
 							block_updates TEXT,\
 							UNIQUE(server_id,role_id),\
-							UNIQUE(server_id,block_updates))")
+							UNIQUE(server_id,block_updates))"
+						)
 
 						# Verify module tables
-						await cursor.execute("CREATE TABLE if NOT EXISTS verify (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS verify (\
 							discord_id INTEGER PRIMARY KEY,\
-							steam64_id INTEGER UNIQUE)")
+							steam64_id INTEGER UNIQUE)"
+						)
 
 						# Arma stats view
-						await cursor.execute("CREATE VIEW mission_attendance_view AS\
+						await cursor.execute(
+							"CREATE VIEW mission_attendance_view AS\
 							SELECT\
 								m.id,\
 								m.main_op,\
@@ -169,21 +191,26 @@ class DB():
 							FROM arma_stats_missions m\
 								INNER JOIN arma_stats_players p on p.mission_id = m.id\
 								INNER JOIN verify v on v.steam64_id = p.steam_id\
-								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
+								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id"
+						)
 
 						# Serverconfig table
-						await cursor.execute("CREATE TABLE if NOT EXISTS serverconfig (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS serverconfig (\
 							server_id INTEGER,\
 							setting TEXT,\
 							value TEXT,\
-							UNIQUE(server_id, setting))")
+							UNIQUE(server_id, setting))"
+						)
 
 						# Raffle weights table
-						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_weights (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS raffle_weights (\
 							server_id INTEGER NOT NULL,\
 							user_id INTEGER NOT NULL,\
 							weight NUMERIC NOT NULL,\
-							UNIQUE(server_id, user_id))")
+							UNIQUE(server_id, user_id))"
+						)
 
 						await cursor.execute(f"PRAGMA user_version = {DBVERSION}")
 						_log.info(f"Database initialized to version: {DBVERSION}")
@@ -193,7 +220,8 @@ class DB():
 					if schema_version == 1:
 						_log.info("Upgrading database to version 2")
 						# Arma stats tables
-						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_missions (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS arma_stats_missions (\
 							id INTEGER PRIMARY KEY AUTOINCREMENT,\
 							server_id INTEGER NOT NULL,\
 							api_id INTEGER NOT NULL,\
@@ -201,17 +229,21 @@ class DB():
 							start_time TEXT NOT NULL,\
 							end_time TEXT NOT NULL,\
 							main_op INTEGER,\
-							UNIQUE(server_id,api_id))")
+							UNIQUE(server_id,api_id))"
+						)
 
-						await cursor.execute("CREATE TABLE if NOT EXISTS arma_stats_players (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS arma_stats_players (\
 							mission_id INTEGER NOT NULL, \
 							steam_id INTEGER NOT NULL,\
 							duration REAL NOT NULL,\
 							UNIQUE(mission_id,steam_id),\
-							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)")
+							FOREIGN KEY (mission_id) REFERENCES arma_stats_missions (id) ON DELETE CASCADE)"
+						)
 
 						# Arma stats view
-						await cursor.execute("CREATE VIEW mission_attendance_view AS\
+						await cursor.execute(
+							"CREATE VIEW mission_attendance_view AS\
 							SELECT\
 								m.id,\
 								m.main_op,\
@@ -227,7 +259,8 @@ class DB():
 							FROM arma_stats_missions m\
 								INNER JOIN arma_stats_players p on p.mission_id = m.id\
 								INNER JOIN verify v on v.steam64_id = p.steam_id\
-								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
+								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id"
+						)
 
 						await cursor.execute("PRAGMA user_version = 2")
 						_log.info("Database upgraded to version: 2")
@@ -238,11 +271,13 @@ class DB():
 						_log.info("Upgrading database to version 3")
 
 						# Serverconfig table
-						await cursor.execute("CREATE TABLE if NOT EXISTS serverconfig (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS serverconfig (\
 							server_id INTEGER,\
 							setting TEXT,\
 							value TEXT,\
-							UNIQUE(server_id, setting))")
+							UNIQUE(server_id, setting))"
+						)
 
 						await cursor.execute("PRAGMA user_version = 3")
 						_log.info("Database upgraded to version: 3")
@@ -253,11 +288,13 @@ class DB():
 						_log.info("Upgrading database to version 4")
 
 						# Raffle weights table
-						await cursor.execute("CREATE TABLE if NOT EXISTS raffle_weights (\
+						await cursor.execute(
+							"CREATE TABLE if NOT EXISTS raffle_weights (\
 							server_id INTEGER NOT NULL,\
 							user_id INTEGER NOT NULL,\
 							weight NUMERIC NOT NULL,\
-							UNIQUE(server_id, user_id))")
+							UNIQUE(server_id, user_id))"
+						)
 
 						# Remove chatfilter table
 						await cursor.execute("DROP TABLE chatfilter")
@@ -272,7 +309,8 @@ class DB():
 
 						# Arma stats view
 						await cursor.execute("DROP VIEW mission_attendance_view")
-						await cursor.execute("CREATE VIEW mission_attendance_view AS\
+						await cursor.execute(
+							"CREATE VIEW mission_attendance_view AS\
 							SELECT\
 								m.id,\
 								m.main_op,\
@@ -289,7 +327,8 @@ class DB():
 							FROM arma_stats_missions m\
 								INNER JOIN arma_stats_players p on p.mission_id = m.id\
 								INNER JOIN verify v on v.steam64_id = p.steam_id\
-								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id")
+								INNER JOIN users u on v.discord_id = u.user_id AND m.server_id = u.server_id"
+						)
 
 						await cursor.execute("PRAGMA user_version = 5")
 						_log.info("Database upgraded to version: 5")
