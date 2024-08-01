@@ -45,3 +45,7 @@ SCONF_ARMA_STATS_LEADERBOARD_DAYS = "arma_stats_leaderboard_days"
 
 # Bot timezone
 TIMEZONE = "CST6CDT"
+
+
+# File paths
+GOOGLE_API_FILE = "data/google_api.json"

@@ -20,7 +20,7 @@ initial_extensions = [
 	"config",
 	# "gold",
 	# "jail",
-	# "missions",
+	"missions",
 	"pings",
 	# "raffle",
 	"utils",
