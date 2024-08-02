@@ -20,7 +20,7 @@ initial_extensions = [
 	# "users",
 	"arma_stats",
 	"config",
-	# "gold",
+	"gold",
 	# "jail",
 	"missions",
 	"pings",
@@ -175,15 +175,11 @@ class BlueOnBlueBot(commands.Bot):
 		_log.debug(f"Command {ctx.command} invoked by {ctx.author.name}")
 
 	# On command error. Runs whenever a command fails (for any reason)
-	async def on_command_error(
-		self, ctx: commands.Context, error: commands.CommandError
-	):
+	async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
 		# Check different error types
 		# Not owner of the bot
 		if isinstance(error, commands.NotOwner):
-			await ctx.send(
-				f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`."
-			)
+			await ctx.send(f"{ctx.author.mention}, you are not authorized to use the command `{ctx.command}`.")
 
 		# Command not found
 		elif isinstance(error, commands.CommandNotFound):
@@ -194,9 +190,7 @@ class BlueOnBlueBot(commands.Bot):
 		# If we don't have a handler for that error type, execute default error code.
 		else:
 			_log.exception(f"Ignoring exception in command {ctx.command}:")
-			traceback.print_exception(
-				type(error), error, error.__traceback__, file=sys.stderr
-			)
+			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
 class BlueOnBlueTree(discord.app_commands.CommandTree):
@@ -217,9 +211,7 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 
 		if isinstance(error, discord.app_commands.errors.NoPrivateMessage):
 			# Guild-only command
-			await interaction.response.send_message(
-				"This command cannot be used in private messages", ephemeral=True
-			)
+			await interaction.response.send_message("This command cannot be used in private messages", ephemeral=True)
 
 		elif (
 			isinstance(error, discord.app_commands.errors.MissingRole)
@@ -228,9 +220,7 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 			or isinstance(error, checks.UserUnauthorized)
 		):
 			# User not authorized to use command
-			await interaction.response.send_message(
-				"You are not authorized to use this command", ephemeral=True
-			)
+			await interaction.response.send_message("You are not authorized to use this command", ephemeral=True)
 
 		elif isinstance(error, discord.app_commands.errors.BotMissingPermissions):
 			# Bot is missing permissions for the command
@@ -268,14 +258,10 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 		# If we don't have a handler for that error type, execute default error code.
 		else:
 			if interaction.command is not None:
-				_log.exception(
-					f"Ignoring exception in app command {interaction.command.name}:"
-				)
+				_log.exception(f"Ignoring exception in app command {interaction.command.name}:")
 			else:
 				# Command is none
 				_log.exception("Ignoring exception in command tree:")
-			traceback.print_exception(
-				type(error), error, error.__traceback__, file=sys.stderr
-			)
+			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 		# await super().on_error(interaction, command, error)
