@@ -486,7 +486,11 @@ class Gold(commands.GroupCog, group_name="gold"):
 						{"server_id": member.guild.id, "user_id": member.id},
 					)
 					if cursor.fetchone() is not None:
-						await member.add_roles(role, reason="Re-adding TMTM gold to joining user")
+						try:
+							await member.add_roles(role, reason="Re-adding TMTM gold to joining user")
+						except (discord.Forbidden, discord.HTTPException):
+							# Ignore reasonable errors when re-adding the role
+							pass
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
