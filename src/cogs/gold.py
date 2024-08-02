@@ -186,6 +186,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 						f"TMTM Gold has expired for user {member.mention}.",
 						allowed_mentions=discord.AllowedMentions.none(),
 					)
+
 			except discord.Forbidden:
 				if modChannel is not None:
 					await modChannel.send(
@@ -471,6 +472,21 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 				# Send the embed information
 				await interaction.response.send_message(embed=goldEmbed)
+
+	@commands.Cog.listener()
+	async def on_member_join(self, member: discord.Member):
+		role = await self.bot.serverConfig.role_gold.get(member.guild)
+		if role is not None:
+			# Check if the user has gold in the database
+			async with self.bot.db.connect() as db:
+				async with db.connection.cursor() as cursor:
+					# Get the user data from the DB
+					await cursor.execute(
+						"SELECT user_id FROM gold WHERE server_id = :server_id AND user_id = :user_id LIMIT 1",
+						{"server_id": member.guild.id, "user_id": member.id},
+					)
+					if cursor.fetchone() is not None:
+						await member.add_roles(role, reason="Re-adding TMTM gold to joining user")
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
