@@ -8,6 +8,12 @@ on:
 
 jobs:
   build:
+    name: Build container
+    uses: ./.github/workflows/build_containers.yaml
+    with:
+      tag: ${{ env.TAG }}
+
+  deploy:
     name: Deploy image
     runs-on: ubuntu-latest
     env:
@@ -15,11 +21,6 @@ jobs:
       REGISTRY: ghcr.io/superxpdude
 
     steps:
-      - name: Build container
-        uses: ./.github/workflows/build_containers.yaml
-        with:
-          tag: ${{ env.TAG }}
-
       - name: Log in to the GitHub Container registry
         uses: redhat-actions/podman-login@v1
         with:
