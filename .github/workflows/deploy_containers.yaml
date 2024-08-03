@@ -21,7 +21,7 @@ jobs:
           tag: ${{ env.TAG }}
 
       - name: Log in to the GitHub Container registry
-        uses: redhad-actions/podman-login@v1
+        uses: redhat-actions/podman-login@v1
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
