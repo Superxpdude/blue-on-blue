@@ -1,4 +1,4 @@
-FROM python:3.11.9-slim as debian
+FROM docker.io/library/python:3.11.9-slim as debian
 LABEL source = "https://github.com/Superxpdude/blue-on-blue"
 
 # Update installed packages and install tools for backups

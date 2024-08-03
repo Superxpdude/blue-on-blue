@@ -104,10 +104,7 @@ class BlueOnBlueBot(commands.Bot):
 		"""|coro|
 
 		Overwritten start function to run the bot.
-		Sets up the HTTP client and DB connections, then starts the bot."""
-		# Validate our DB version
-		await self.db.migrate_version()
-
+		Sets up the HTTP client, then starts the bot."""
 		self.httpSession = aiohttp.ClientSession(raise_for_status=True)
 		self.startTime = discord.utils.utcnow()
 		await super().start(*args, **kwargs)
