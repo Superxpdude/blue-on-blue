@@ -7,20 +7,34 @@ on:
       - "dev"
 
 jobs:
-  build:
-    name: Build container
-    uses: ./.github/workflows/build_containers.yaml
-    with:
-      tag: ${{ github.ref == 'refs/heads/main' && 'latest' || 'dev'}}
+#   build:
+#     name: Build container
+#     uses: ./.github/workflows/build_containers.yaml
+#     with:
+#       tag: ${{ github.ref == 'refs/heads/main' && 'latest' || 'dev'}}
 
   deploy:
     name: Deploy image
-    needs: build
+    # needs: build
     runs-on: ubuntu-latest
     env:
+      IMAGE_NAME: blueonblue
+      TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || 'dev'}}
       REGISTRY: ghcr.io/superxpdude
 
     steps:
+      - name: Clone the repository
+        uses: actions/checkout@v4
+
+      - name: Build container
+        id: build-image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.IMAGE_NAME }}
+          tags: ${{ env.TAG }} ${{ github.sha }}
+          containerfiles: |
+            ./Containerfile
+
       - name: Log in to the GitHub Container registry
         uses: redhat-actions/podman-login@v1
         with:
@@ -32,8 +46,8 @@ jobs:
         id: push-to-ghcr
         uses: redhat-actions/push-to-registry@v2
         with:
-          image: ${{ needs.build.outputs.image }}
-          tags: ${{ needs.build.outputs.tags }}
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
           registry: ${{ env.REGISTRY }}
 
       - name: Print image URL

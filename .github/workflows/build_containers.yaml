@@ -42,3 +42,13 @@ jobs:
           tags: ${{ inputs.tag }} ${{ github.sha }}
           containerfiles: |
             ./Containerfile
+
+      # - name: Export image
+      #   run: |
+
+
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: blueonblue
+      #     path: /
