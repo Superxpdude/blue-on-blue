@@ -11,13 +11,12 @@ jobs:
     name: Build container
     uses: ./.github/workflows/build_containers.yaml
     with:
-      tag: ${{ env.TAG }}
+      tag: ${{ github.ref == 'refs/heads/main' && 'latest' || 'dev'}}
 
   deploy:
     name: Deploy image
     runs-on: ubuntu-latest
     env:
-      TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || 'dev'}}
       REGISTRY: ghcr.io/superxpdude
 
     steps:
