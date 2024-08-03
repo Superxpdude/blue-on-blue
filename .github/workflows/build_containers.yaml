@@ -1,7 +1,15 @@
 name: Build Containers
 
 on:
+  workflow_call:
+    inputs:
+      tag:
+        required: false
+        type: string
   push:
+    branches-ignore:
+      - "main"
+      - "dev"
   pull_request:
     types: [ opened, reopened, synchronize ]
 
@@ -19,7 +27,7 @@ jobs:
       - name: Build container
         uses: redhat-actions/buildah-build@v2
         with:
-          image: ghcr.io/superxpdude/blueonblue
-          tags: dev ${{ github.sha }}
+          image: ${{ env.IMAGE_NAME}}
+          tags: ${{ inputs.tag }} ${{ github.sha }}
           containerfiles: |
             ./Containerfile
