@@ -21,7 +21,7 @@ initial_extensions = [
 	"arma_stats",
 	"config",
 	"gold",
-	# "jail",
+	"jail",
 	"missions",
 	"pings",
 	"raffle",
