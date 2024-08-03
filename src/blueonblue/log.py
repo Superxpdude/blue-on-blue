@@ -1,6 +1,8 @@
-import discord
 import logging
 import logging.handlers
+
+import discord
+
 
 class _ColourFormatter(logging.Formatter):
 	"""Logging formatter that injects ANSI colour codes into the logging stream.
@@ -9,11 +11,11 @@ class _ColourFormatter(logging.Formatter):
 	"""
 
 	LEVEL_COLOURS = [
-		(logging.DEBUG, '\x1b[40;1m'),
-		(logging.INFO, '\x1b[34;1m'),
-		(logging.WARNING, '\x1b[33;1m'),
-		(logging.ERROR, '\x1b[31m'),
-		(logging.CRITICAL, '\x1b[41m'),
+		(logging.DEBUG, "\x1b[40;1m"),
+		(logging.INFO, "\x1b[34;1m"),
+		(logging.WARNING, "\x1b[33;1m"),
+		(logging.ERROR, "\x1b[31m"),
+		(logging.CRITICAL, "\x1b[41m"),
 	]
 
 	FORMATS = {
@@ -32,13 +34,14 @@ class _ColourFormatter(logging.Formatter):
 		# Override the traceback to always print in red
 		if record.exc_info:
 			text = formatter.formatException(record.exc_info)
-			record.exc_text = f'\x1b[31m{text}\x1b[0m'
+			record.exc_text = f"\x1b[31m{text}\x1b[0m"
 
 		output = formatter.format(record)
 
 		# Remove the cache layer
 		record.exc_text = None
 		return output
+
 
 def setup_logging(
 	*,
@@ -54,12 +57,21 @@ def setup_logging(
 		Logging level to use, by default logging.INFO
 	"""
 
-	logHandler = logging.handlers.TimedRotatingFileHandler("logs/blueonblue.log",when="midnight",backupCount=30)
+	logHandler = logging.handlers.TimedRotatingFileHandler(
+		"data/logs/blueonblue.log", when="midnight", backupCount=30
+	)
 	consoleHandler = logging.StreamHandler()
 
-	logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S")
-	consoleFormatter = _ColourFormatter() if discord.utils.stream_supports_colour(consoleHandler) \
-		else logging.Formatter("%(asctime)s [%(levelname)-8s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S")
+	logFormatter = logging.Formatter(
+		"%(asctime)s [%(levelname)s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S"
+	)
+	consoleFormatter = (
+		_ColourFormatter()
+		if discord.utils.stream_supports_colour(consoleHandler.stream)
+		else logging.Formatter(
+			"%(asctime)s [%(levelname)-8s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S"
+		)
+	)
 
 	logHandler.setFormatter(logFormatter)
 	consoleHandler.setFormatter(consoleFormatter)

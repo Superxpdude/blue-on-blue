@@ -6,26 +6,23 @@
 	"configurations": [
 		{
 			"name": "Start Bot",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
 			"cwd": "${workspaceFolder}",
 			"console": "integratedTerminal",
 			"module": "blueonblue",
 			"subProcess": true,
-			"args": [
-				"--start"
-			]
+			"args": []
 		},
 		{
-			"name": "Debug Bot",
-			"type": "python",
+			"name": "Start Bot: Debug",
+			"type": "debugpy",
 			"request": "launch",
 			"cwd": "${workspaceFolder}",
 			"console": "integratedTerminal",
 			"module": "blueonblue",
 			"subProcess": true,
 			"args": [
-				"--start",
 				"--debug"
 			]
 		}

@@ -1,0 +1,33 @@
+name: Build Containers
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: false
+        type: string
+  push:
+    branches-ignore:
+      - "main"
+      - "dev"
+  pull_request:
+    types: [ opened, reopened, synchronize ]
+
+jobs:
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: blueonblue
+
+    steps:
+      - name: Clone the repository
+        uses: actions/checkout@v4
+
+      - name: Build container
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.IMAGE_NAME}}
+          tags: ${{ inputs.tag }} ${{ github.sha }}
+          containerfiles: |
+            ./Containerfile

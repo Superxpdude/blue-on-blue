@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=70.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+version = "0.1.0"
+authors = [{ name = "Superxpdude" }]
+name = "blueonblue"
+description = "Discord Bot for TMTM"
+requires-python = ">=3.11"
+
+dependencies = [
+	"discord.py>=2.4.0",
+	"asqlite>=2.0.0",
+	"gspread_asyncio>=2.0.0",
+	"aiohttp>=3.8.3",
+	"parsedatetime>=2.6",
+	"pbokit>=0.2.0",
+	"tzdata>=2024.1",
+]
+
+[project.urls]
+Repository = "https://github.com/Superxpdude/blue-on-blue"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"blueonblue.sql" = ["*.sql", "database.json"]
+
+[tool.ruff]
+line-length = 125
+
+[tool.ruff.format]
+indent-style = "tab"
