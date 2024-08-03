@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Clone the repository
-      - uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Build container
         uses: actions/buildah-build@v2
