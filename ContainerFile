@@ -1,5 +1,6 @@
 FROM docker.io/library/python:3.11.9-slim as debian
-LABEL source = "https://github.com/Superxpdude/blue-on-blue"
+LABEL org.opencontainers.image.source = "https://github.com/Superxpdude/blue-on-blue"
+LABEL org.opencontainers.image.description = "A Discord bot for TMTM"
 
 # Update installed packages and install tools for backups
 RUN apt-get update && \

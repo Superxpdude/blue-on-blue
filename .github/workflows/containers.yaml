@@ -1,0 +1,25 @@
+name: Build Containers
+
+on:
+  push:
+  pull_request:
+    types: [ opened, reopened, synchronize ]
+
+jobs:
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: blueonblue
+
+    steps:
+      - name: Clone the repository
+      - uses: actions/checkout@v4
+
+      - name: Build container
+        uses: actions/buildah-build@v2
+        with:
+          image: ${{ env.IMAGE_NAME }}
+          tags: dev ${{ github.sha }}
+          containerfiles: |
+            ./Containerfile
