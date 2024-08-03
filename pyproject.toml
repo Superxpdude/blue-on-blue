@@ -22,6 +22,9 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/Superxpdude/blue-on-blue"
 
+[tool.pyright]
+typeCheckingMode = "basic"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
