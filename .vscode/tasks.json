@@ -6,7 +6,7 @@
 		{
 			"label": "Build Container (Podman)",
 			"type": "shell",
-			"command": "podman build -f .\\ContainerFile -t blueonblue .\\",
+			"command": "podman build -t blueonblue .\\",
 			"group": {
 				"kind": "build",
 				"isDefault": true
