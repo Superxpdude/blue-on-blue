@@ -19,7 +19,7 @@ jobs:
       - name: Build container
         uses: actions/buildah-build@v2
         with:
-          image: ${{ env.IMAGE_NAME }}
+          image: ghcr.io/superxpdude/blueonblue
           tags: dev ${{ github.sha }}
           containerfiles: |
             ./Containerfile
