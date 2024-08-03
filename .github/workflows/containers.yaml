@@ -22,4 +22,4 @@ jobs:
           image: ghcr.io/superxpdude/blueonblue
           tags: dev ${{ github.sha }}
           containerfiles: |
-            ./Containerfile
+            Containerfile
