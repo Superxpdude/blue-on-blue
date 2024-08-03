@@ -10,6 +10,7 @@ jobs:
   build:
     name: Build container
     uses: ./.github/workflows/build_containers.yaml
+    id: build-image
     with:
       tag: ${{ github.ref == 'refs/heads/main' && 'latest' || 'dev'}}
 
@@ -31,8 +32,8 @@ jobs:
         id: push-to-ghcr
         uses: redhat-actions/push-to-registry@v2
         with:
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}
+          image: ${{ jobs.build-image.outputs.image }}
+          tags: ${{ jobs.build-image.outputs.tags }}
           registry: ${{ env.REGISTRY }}
 
       - name: Print image URL
