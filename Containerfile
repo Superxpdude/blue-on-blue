@@ -1,4 +1,4 @@
-FROM docker.io/library/python:3.11.9-slim as debian
+FROM docker.io/library/python:3.12-slim as debian
 LABEL org.opencontainers.image.source = "https://github.com/Superxpdude/blue-on-blue"
 LABEL org.opencontainers.image.description = "A Discord bot for TMTM"
 
