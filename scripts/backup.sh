@@ -10,7 +10,7 @@ sqlite3 /app/data/blueonblue.sqlite3 ".backup /tmp/blueonblue.sqlite3"
 
 # Create the zip file
 echo "Creating zip file"
-zip -r "/app/data/backups/blueonblue-$(date +"%Y-%m-%d-%H-%M").zip" /tmp/blueonblue.sqlite3
+zip -j -r "/app/data/backups/blueonblue-$(date +"%Y-%m-%d-%H-%M").zip" /tmp/blueonblue.sqlite3
 
 # Remove the temporary file
 echo "Cleaning temporary files"
