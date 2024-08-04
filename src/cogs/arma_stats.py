@@ -38,16 +38,10 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		"""
 		assert interaction.guild is not None
 
-		mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(
+		mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
+		mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
+		mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(
 			interaction.guild
-		)
-		mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(
-			interaction.guild
-		)
-		mission_participation_threshold = (
-			await self.bot.serverConfig.arma_stats_participation_threshold.get(
-				interaction.guild
-			)
 		)
 
 		async with self.bot.db.connect() as db:
@@ -58,9 +52,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 					"SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL",
 					{"id": interaction.user.id},
 				)
-				userData = (
-					await cursor.fetchone()
-				)  # This will only return users that are verified
+				userData = await cursor.fetchone()  # This will only return users that are verified
 				if userData is None:
 					await interaction.response.send_message(
 						"It doesn't look like you have a Steam account verified with the bot.\n\
@@ -147,9 +139,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 			app_commands.Choice(name="All-Time", value=0),
 		]
 	)
-	async def leaderboard(
-		self, interaction: discord.Interaction, board: app_commands.Choice[int]
-	):
+	async def leaderboard(self, interaction: discord.Interaction, board: app_commands.Choice[int]):
 		"""Displays the Arma stats leaderboard
 
 		Parameters
@@ -160,22 +150,12 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		assert interaction.guild is not None
 		leaderboard_count = 5
 
-		mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(
+		mission_min_duration = await self.bot.serverConfig.arma_stats_min_duration.get(interaction.guild)
+		mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(interaction.guild)
+		mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(
 			interaction.guild
 		)
-		mission_min_players = await self.bot.serverConfig.arma_stats_min_players.get(
-			interaction.guild
-		)
-		mission_participation_threshold = (
-			await self.bot.serverConfig.arma_stats_participation_threshold.get(
-				interaction.guild
-			)
-		)
-		leaderboard_recent_days = (
-			await self.bot.serverConfig.arma_stats_leaderboard_recent_days.get(
-				interaction.guild
-			)
-		)
+		leaderboard_recent_days = await self.bot.serverConfig.arma_stats_leaderboard_recent_days.get(interaction.guild)
 
 		embedType: str
 
@@ -191,7 +171,6 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 						"SELECT\
 							discord_id,\
 							steam64_id,\
-							display_name,\
 							COUNT(steam64_id) as mission_count\
 						FROM\
 							mission_attendance_view\
@@ -218,7 +197,6 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 						"SELECT\
 							discord_id,\
 							steam64_id,\
-							display_name,\
 							COUNT(steam64_id) as mission_count\
 						FROM\
 							mission_attendance_view\
@@ -239,26 +217,23 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 							"min_time": mission_min_duration,
 							"min_players": mission_min_players,
 							"start_time": (
-								discord.utils.utcnow()
-								- datetime.timedelta(days=leaderboard_recent_days)
+								discord.utils.utcnow() - datetime.timedelta(days=leaderboard_recent_days)
 							).isoformat(),
 						},
 					)
 				data = await cursor.fetchmany(leaderboard_count)
 
 		# We no longer need the database connection, so we can close the context manager
-		embed = discord.Embed(
-			title=f"Mission Leaderboard - {embedType}", color=ARMASTATS_EMBED_COLOUR
-		)
+		embed = discord.Embed(title=f"Mission Leaderboard - {embedType}", color=ARMASTATS_EMBED_COLOUR)
 
 		# Create our message text
 		for count, row in enumerate(data):
 			# If the user is not in the guild, return their stored display name instead of using a mention
-			user = interaction.guild.get_member(row["discord_id"])
+			user = interaction.client.get_user(row["discord_id"]) or (await interaction.client.fetch_user(row["discord_id"]))
 			if user is not None:
 				userText: str = user.mention
 			else:
-				userText: str = row["display_name"]
+				userText: str = "Unknown"
 			embed.add_field(
 				name=f"Rank {count + 1}",
 				value=f"{userText} - {row['mission_count']} missions",
@@ -290,18 +265,12 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 					mission_participation_threshold = await self.bot.serverConfig.arma_stats_participation_threshold.get(
 						guild.id
 					)
-					raffleweight_increase = (
-						await self.bot.serverConfig.raffleweight_increase.get(guild.id)
-					)
-					raffleweight_max = await self.bot.serverConfig.raffleweight_max.get(
-						guild.id
-					)
+					raffleweight_increase = await self.bot.serverConfig.raffleweight_increase.get(guild.id)
+					raffleweight_max = await self.bot.serverConfig.raffleweight_max.get(guild.id)
 
 					# Only proceed if we have a valid URL and key for the API
 					if api_url is not None and api_key is not None:
-						_log.info(
-							f"Updating Arma stats for guild: [{guild.name}|{guild.id}]"
-						)
+						_log.info(f"Updating Arma stats for guild: [{guild.name}|{guild.id}]")
 						# Get the latest mission ID from this guild
 						await cursor.execute(
 							"SELECT max(api_id) as max_id \
@@ -314,9 +283,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 							start_id = 0
 						else:
 							start_id = max_id_row["max_id"] + 1
-						_log.debug(
-							f"Requesting information on missions starting at ID: {start_id}"
-						)
+						_log.debug(f"Requesting information on missions starting at ID: {start_id}")
 
 						# Now that we have the ID that we want to start from, we can make our web request
 						try:
@@ -340,22 +307,14 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 							name: str = mission["file_name"]
 							mission_id: int = mission["id"]
 							# API should provide dates in UTC format
-							start_time = datetime.datetime.fromisoformat(
-								mission["start_time"]
-							)
-							end_time = datetime.datetime.fromisoformat(
-								mission["end_time"]
-							)
+							start_time = datetime.datetime.fromisoformat(mission["start_time"])
+							end_time = datetime.datetime.fromisoformat(mission["end_time"])
 							mission_pings: int = mission["pings"]
 							players: list = mission["players"]
 
 							# Check to make sure that our end time was at least 15 minutes ago
-							if (
-								discord.utils.utcnow() - datetime.timedelta(minutes=15)
-							) < end_time:
-								_log.debug(
-									f"Mission {name} is still in progress. Skipping"
-								)
+							if (discord.utils.utcnow() - datetime.timedelta(minutes=15)) < end_time:
+								_log.debug(f"Mission {name} is still in progress. Skipping")
 								continue
 
 							# Check to see if our mission is a main op
@@ -366,10 +325,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 							)
 
 							if (
-								(
-									start_time.astimezone(ZoneInfo(TIMEZONE)).weekday()
-									in [3, 5, 6]
-								)
+								(start_time.astimezone(ZoneInfo(TIMEZONE)).weekday() in [3, 5, 6])
 								and (start_time < main_op_time)
 								and (end_time > main_op_time)
 							):
@@ -418,10 +374,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 									)
 
 									# Update the user's mission raffle weight if they played for long enough on a main op
-									if (
-										player_duration
-										>= mission_participation_threshold
-									) and main_op:
+									if (player_duration >= mission_participation_threshold) and main_op:
 										# Get the player's discord ID from the verify DB
 										await cursor.execute(
 											"SELECT discord_id FROM verify WHERE steam64_id = :id",
@@ -430,9 +383,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 										data = await cursor.fetchone()
 										if data is not None:
 											discord_id: int = data["discord_id"]
-											_log.debug(
-												f"Increasing raffle weight for user: ({discord_id})"
-											)
+											_log.debug(f"Increasing raffle weight for user: ({discord_id})")
 											await db.raffleWeight.increaseWeight(
 												guild.id,
 												discord_id,
@@ -440,14 +391,10 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 												raffleweight_max,
 											)
 
-						_log.info(
-							f"Finished updating Arma stats for guild: [{guild.name}|{guild.id}]"
-						)
+						_log.info(f"Finished updating Arma stats for guild: [{guild.name}|{guild.id}]")
 
 					else:
-						_log.debug(
-							f"Missing Arma stats API information for guild: [{guild.name}|{guild.id}]. Skipping."
-						)
+						_log.debug(f"Missing Arma stats API information for guild: [{guild.name}|{guild.id}]. Skipping.")
 
 				# Commit db changes
 				await db.commit()
