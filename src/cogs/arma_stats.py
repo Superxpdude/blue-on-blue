@@ -240,7 +240,7 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 				inline=False,
 			)
 
-		if embed.fields is None:
+		if len(embed.fields) == 0:
 			embed.description = "No users on leaderboard yet"
 
 		await interaction.response.send_message(embed=embed)
