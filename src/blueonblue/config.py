@@ -3,6 +3,7 @@ import logging
 import os
 import pathlib
 from typing import TYPE_CHECKING, overload
+from abc import abstractmethod, ABCMeta
 
 import discord
 
@@ -81,14 +82,12 @@ class BotConfig:
 	def __init__(self):
 		# Read config values from environment variables
 		debugServerValue = get_config_value("DEBUG_SERVER")
-		self.debug_server = (
-			int(debugServerValue) if debugServerValue is not None else None
-		)
+		self.debug_server = int(debugServerValue) if debugServerValue is not None else None
 		self.prefix = get_config_value("COMMAND_PREFIX", "$$")
 		self.steam_api_token: str = get_config_value("STEAM_TOKEN", "")
 
 
-class ServerConfigOption:
+class ServerConfigOption(metaclass=ABCMeta):
 	def __init__(
 		self,
 		bot: "BlueOnBlueBot",
@@ -101,7 +100,7 @@ class ServerConfigOption:
 		self.name = name
 		self.default = default
 		self.protected = protected
-		self._cache: dict[int, str] = {}
+		self._cache = {}
 
 	async def _getValue(self, serverID: int) -> str | None:
 		"""Retrieves a raw value from the serverconfig table
@@ -179,7 +178,8 @@ class ServerConfigOption:
 		"""
 		self._cache = {}
 
-	def _getTransform(self, value: str) -> str:
+	@abstractmethod
+	def _getTransform(self, value: str) -> str | int | float:
 		"""Applies a transformation on retrieved values for the setting to store them in the cache
 
 		Does nothing by default (input is string, output is string)
@@ -195,7 +195,7 @@ class ServerConfigOption:
 		"""
 		return value
 
-	def _displayTransform(self, value: str) -> str:
+	def _displayTransform(self, value) -> str:
 		"""Applies a transformation on retrieved values to be displayed in discord text
 
 		Parameters
@@ -208,7 +208,7 @@ class ServerConfigOption:
 		str
 			Transformed value, suitable for placing in discord text
 		"""
-		return value
+		return str(value)
 
 	def _getServerID(self, server: discord.Guild | int) -> int | None:
 		"""Returns the server ID only if the provided server exists
@@ -275,21 +275,11 @@ class ServerConfigOption:
 		self._cache[serverID] = value
 		return True
 
-	async def get(self, server: int | discord.Guild) -> str | None:
-		"""Retrieves the value of the serverconfig option
+	@abstractmethod
+	async def get(self, server: int | discord.Guild) -> object: ...
 
-		Parameters
-		----------
-		server : int | discord.Guild
-			Server to search in the config
-
-		Returns
-		-------
-		None
-			Default config option type will always return none
-		"""
-		# For the default type, always return none
-		return None
+	@abstractmethod
+	async def set(self, server: discord.Guild, value) -> None: ...
 
 	async def getDisplayValue(self, server: int | discord.Guild) -> str:
 		"""Retrieves the config value, and formats it for display in discord text
@@ -306,7 +296,7 @@ class ServerConfigOption:
 		"""
 		value = await self.get(server)
 		if value is not None:
-			return self._displayTransform(value)
+			return str(self._displayTransform(value))
 		else:
 			return "None"
 
@@ -314,6 +304,9 @@ class ServerConfigOption:
 class ServerConfigString(ServerConfigOption):
 	def _displayTransform(self, value: str) -> str:
 		return value
+
+	def _getTransform(self, value: str) -> str:
+		return str(super()._getTransform(value))
 
 	async def get(self, server: int | discord.Guild) -> str | None:
 		"""Gets a string for the provided server from the serverconfig
@@ -545,18 +538,18 @@ class ServerConfigRole(ServerConfigOption):
 			self._cache[serverID] = roleID
 		return guild.get_role(roleID)
 
-	async def set(self, server: discord.Guild, role: discord.Role) -> None:
+	async def set(self, server: discord.Guild, value: discord.Role) -> None:
 		"""Sets the provided role in the server config for this guild
 
 		Parameters
 		----------
 		server : discord.Guild
 			Discord guild
-		role : discord.Role
+		value : discord.Role
 			Role to set in serverconfig
 		"""
-		self._cache[server.id] = role.id
-		await self._setValue(server.id, str(role.id))
+		self._cache[server.id] = value.id
+		await self._setValue(server.id, str(value.id))
 
 	def _getTransform(self, value: str) -> int:
 		return int(value)
@@ -603,9 +596,7 @@ class ServerConfigChannel(ServerConfigOption):
 			self._cache[serverID] = channelID
 		return guild.get_channel(channelID)
 
-	async def set(
-		self, server: discord.Guild, channel: discord.abc.GuildChannel
-	) -> None:
+	async def set(self, server: discord.Guild, value: discord.abc.GuildChannel) -> None:
 		"""Sets the provided role in the server config for this guild
 
 		Parameters
@@ -615,8 +606,8 @@ class ServerConfigChannel(ServerConfigOption):
 		role : discord.Role
 			Role to set in serverconfig
 		"""
-		self._cache[server.id] = channel.id
-		await self._setValue(server.id, str(channel.id))
+		self._cache[server.id] = value.id
+		await self._setValue(server.id, str(value.id))
 
 	def _getTransform(self, value: str) -> int:
 		return int(value)
@@ -646,12 +637,8 @@ class ServerConfig:
 		# Server channels
 		self.channel_bot = ServerConfigTextChannel(bot, SCONF_CHANNEL_BOT)
 		self.channel_check_in = ServerConfigTextChannel(bot, SCONF_CHANNEL_CHECK_IN)
-		self.channel_mission_audit = ServerConfigTextChannel(
-			bot, SCONF_CHANNEL_MISSION_AUDIT
-		)
-		self.channel_mod_activity = ServerConfigTextChannel(
-			bot, SCONF_CHANNEL_MOD_ACTIVITY
-		)
+		self.channel_mission_audit = ServerConfigTextChannel(bot, SCONF_CHANNEL_MISSION_AUDIT)
+		self.channel_mod_activity = ServerConfigTextChannel(bot, SCONF_CHANNEL_MOD_ACTIVITY)
 
 		# Server roles
 		self.role_gold = ServerConfigRole(bot, SCONF_ROLE_GOLD)
@@ -664,30 +651,18 @@ class ServerConfig:
 
 		# Missions config
 		self.mission_sheet_key = ServerConfigString(bot, SCONF_MISSION_SHEET_KEY)
-		self.mission_worksheet = ServerConfigStringDefault(
-			bot, SCONF_MISSION_WORKSHEET, default="Schedule"
-		)
+		self.mission_worksheet = ServerConfigStringDefault(bot, SCONF_MISSION_WORKSHEET, default="Schedule")
 		self.mission_wiki_url = ServerConfigString(bot, SCONF_MISSION_WIKI_URL)
 
 		# Raffle Weights
-		self.raffleweight_max = ServerConfigFloatDefault(
-			bot, SCONF_RAFFLEWEIGHT_MAX, default="3.0"
-		)
-		self.raffleweight_increase = ServerConfigFloatDefault(
-			bot, SCONF_RAFFLEWEIGHT_INCREASE, default="0.2"
-		)
+		self.raffleweight_max = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_MAX, default="3.0")
+		self.raffleweight_increase = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_INCREASE, default="0.2")
 
 		# Arma stats config
-		self.arma_stats_key = ServerConfigString(
-			bot, SCONF_ARMA_STATS_KEY, protected=True
-		)
+		self.arma_stats_key = ServerConfigString(bot, SCONF_ARMA_STATS_KEY, protected=True)
 		self.arma_stats_url = ServerConfigString(bot, SCONF_ARMA_STATS_URL)
-		self.arma_stats_min_duration = ServerConfigIntegerDefault(
-			bot, SCONF_ARMA_STATS_MIN_DURATION, default="90"
-		)
-		self.arma_stats_min_players = ServerConfigIntegerDefault(
-			bot, SCONF_ARMA_STATS_MIN_PLAYERS, default="10"
-		)
+		self.arma_stats_min_duration = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_DURATION, default="90")
+		self.arma_stats_min_players = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_PLAYERS, default="10")
 		self.arma_stats_participation_threshold = ServerConfigFloatDefault(
 			bot, SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD, default="0.5"
 		)
