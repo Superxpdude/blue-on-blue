@@ -44,8 +44,8 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 			interaction.guild
 		)
 
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
+		async with self.bot.pool.acquire() as conn:
+			async with conn.cursor() as cursor:
 				# First, we need to check if we have a linked steam account
 				# Get the user's data from the DB
 				await cursor.execute(
@@ -160,8 +160,8 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 		embedType: str
 
 		# Start the DB block
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
+		async with self.bot.pool.acquire() as conn:
+			async with conn.cursor() as cursor:
 				# Read config values
 
 				# Query the database to get our leaderboard

@@ -95,23 +95,20 @@ class Gold(commands.GroupCog, group_name="gold"):
 
 	async def get_active_timer(self) -> Timer | None:
 		# Retrieve the next active timer from the database
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				await cursor.execute("SELECT * FROM gold ORDER BY expiry_time ASC LIMIT 1")
-				data = await cursor.fetchone()
+		async with self.bot.pool.acquire() as conn:
+			data = await conn.fetchone("SELECT * FROM gold ORDER BY expiry_time ASC LIMIT 1")
 
 		return Timer(data) if data is not None else None
 
 	async def call_timer(self, timer: Timer) -> None:
 		# Delete the record from the database
 		_log.info(f"Calling gold timer: {timer}")
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				await cursor.execute(
-					"DELETE FROM gold WHERE server_id = :server_id AND user_id = :user_id",
-					{"server_id": timer.guildID, "user_id": timer.userID},
-				)
-				await db.commit()
+		async with self.bot.pool.acquire() as conn:
+			await conn.execute(
+				"DELETE FROM gold WHERE server_id = :server_id AND user_id = :user_id",
+				{"server_id": timer.guildID, "user_id": timer.userID},
+			)
+			await conn.commit()
 
 		# Fire the timer event
 		self.bot.dispatch("gold_timer_complete", timer)
@@ -226,47 +223,47 @@ class Gold(commands.GroupCog, group_name="gold"):
 		goldRole = await self.bot.serverConfig.role_gold.get(interaction.guild)
 		assert goldRole is not None
 
-		# Start our DB block
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Get our timedelta
-				if time_unit == "minutes":
-					timeDelta = timedelta(minutes=time)
-				elif time_unit == "hours":
-					timeDelta = timedelta(hours=time)
-				elif time_unit == "weeks":
-					timeDelta = timedelta(weeks=time)
-				else:  # Days
-					timeDelta = timedelta(days=time)
+		# Get our timedelta
+		if time_unit == "minutes":
+			timeDelta = timedelta(minutes=time)
+		elif time_unit == "hours":
+			timeDelta = timedelta(hours=time)
+		elif time_unit == "weeks":
+			timeDelta = timedelta(weeks=time)
+		else:  # Days
+			timeDelta = timedelta(days=time)
 
-				# Now that we have our timedelta, find the expiry time
-				expiryTimeStamp = round((discord.utils.utcnow() + timeDelta).timestamp())
+		# Now that we have our timedelta, find the expiry time
+		expiryTimeStamp = round((discord.utils.utcnow() + timeDelta).timestamp())
 
-				# Create a "time text"
-				timeText = int(time) if time == int(time) else time
+		# Create a "time text"
+		timeText = int(time) if time == int(time) else time
 
-				# Build our embed and view
-				view = blueonblue.views.ConfirmView(interaction.user)
-				goldEmbed = discord.Embed(
-					title=f"Gold to be given for `{timeText} {time_unit}` until",
-					description=f"<t:{expiryTimeStamp}:F>",
-					colour=GOLD_EMBED_COLOUR,
-				)
-				goldEmbed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-				await interaction.response.send_message(
-					f"{interaction.user.mention}, you are about to give TMTM Gold to the following user.",
-					view=view,
-					embed=goldEmbed,
-				)
-				view.message = await interaction.original_response()
-				# Wait for the view to finish
-				await view.wait()
+		# Build our embed and view
+		view = blueonblue.views.ConfirmView(interaction.user)
+		goldEmbed = discord.Embed(
+			title=f"Gold to be given for `{timeText} {time_unit}` until",
+			description=f"<t:{expiryTimeStamp}:F>",
+			colour=GOLD_EMBED_COLOUR,
+		)
+		goldEmbed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+		await interaction.response.send_message(
+			f"{interaction.user.mention}, you are about to give TMTM Gold to the following user.",
+			view=view,
+			embed=goldEmbed,
+		)
+		view.message = await interaction.original_response()
+		# Wait for the view to finish
+		await view.wait()
 
-				# Once we have a response, continue
-				if view.response:
-					# Action confirmed. Give gold to the user
-					# Get the mod activity channel
+		# Once we have a response, continue
+		if view.response:
+			# Action confirmed. Give gold to the user
+			# Get the mod activity channel
 
+			# Start our DB block
+			async with self.bot.pool.acquire() as conn:
+				async with conn.cursor() as cursor:
 					# We need to check if the user is already present in the gold DB
 					await cursor.execute(
 						"SELECT * FROM gold WHERE server_id = :serverID AND user_id = :userID",
@@ -322,20 +319,20 @@ class Gold(commands.GroupCog, group_name="gold"):
 						)
 
 					# Commit changes to the DB
-					await db.commit()
+					await conn.commit()
 
-					# With the DB changes committed, we need to refresh the active timer
-					await self.refresh_timer()
-					# We also need to set the "has data" event
-					self._has_timer.set()
+			# With the DB changes committed, we need to refresh the active timer
+			await self.refresh_timer()
+			# We also need to set the "has data" event
+			self._has_timer.set()
 
-				elif view.response is None:
-					# Notify the user that the action timed out
-					await interaction.followup.send("Pending TMTM Gold action has timed out", ephemeral=True)
+		elif view.response is None:
+			# Notify the user that the action timed out
+			await interaction.followup.send("Pending TMTM Gold action has timed out", ephemeral=True)
 
-				else:
-					# Action cancelled
-					await interaction.followup.send("TMTM Gold action cancelled")
+		else:
+			# Action cancelled
+			await interaction.followup.send("TMTM Gold action cancelled")
 
 	@app_commands.command(name="remove")
 	@app_commands.describe(user="User to have TMTM Gold removed")
@@ -350,8 +347,8 @@ class Gold(commands.GroupCog, group_name="gold"):
 		assert goldRole is not None
 
 		# Start our DB block
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
+		async with self.bot.pool.acquire() as conn:
+			async with conn.cursor() as cursor:
 				# Check if the user is already jailed
 				await cursor.execute(
 					"SELECT user_id, expiry_time FROM gold WHERE server_id = :serverID AND user_id = :userID",
@@ -417,7 +414,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 						},
 					)
 					# Write to the DB
-					await db.commit()
+					await conn.commit()
 
 					# With the DB changes committed, we need to refresh the active timer
 					await self.refresh_timer()
@@ -436,8 +433,8 @@ class Gold(commands.GroupCog, group_name="gold"):
 		assert interaction.guild is not None
 
 		# Start our DB block
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
+		async with self.bot.pool.acquire() as conn:
+			async with conn.cursor() as cursor:
 				# Get a list of gold users in this server
 				await cursor.execute(
 					"SELECT user_id, expiry_time FROM gold WHERE server_id = :serverID",
@@ -478,8 +475,8 @@ class Gold(commands.GroupCog, group_name="gold"):
 		role = await self.bot.serverConfig.role_gold.get(member.guild)
 		if role is not None:
 			# Check if the user has gold in the database
-			async with self.bot.db.connect() as db:
-				async with db.connection.cursor() as cursor:
+			async with self.bot.pool.acquire() as conn:
+				async with conn.cursor() as cursor:
 					# Get the user data from the DB
 					await cursor.execute(
 						"SELECT user_id FROM gold WHERE server_id = :server_id AND user_id = :user_id LIMIT 1",

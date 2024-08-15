@@ -70,13 +70,9 @@ class VerifyButton(discord.ui.Button):
 		await interaction.response.defer(ephemeral=True)
 		# Check the steam profile to see if it has the token set
 		try:
-			verified = await steam.check_guild_token(
-				self.view.bot, self.view.steamID, str(interaction.user.id)
-			)
+			verified = await steam.check_guild_token(self.view.bot, self.view.steamID, str(interaction.user.id))
 		except aiohttp.ClientResponseError as error:
-			_log.warning(
-				f"Received response code [{error.status}] from the Steam API when checking steam URL"
-			)
+			_log.warning(f"Received response code [{error.status}] from the Steam API when checking steam URL")
 			await interaction.followup.send(steam_return_error_text(error.status))
 			return
 		except Exception:
@@ -96,19 +92,18 @@ class VerifyButton(discord.ui.Button):
 			return
 
 		# User is now confirmed to be verified, set the data in the DB
-		async with self.view.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Clean up any other matching steamID entries
-				await cursor.execute(
-					"UPDATE verify SET steam64_id = NULL WHERE steam64_id = :steamID",
-					{"steamID": int(self.view.steamID)},
-				)
-				await cursor.execute(
-					"INSERT OR REPLACE INTO verify (discord_id, steam64_id) VALUES\
-					(:userID, :steamID)",
-					{"userID": interaction.user.id, "steamID": int(self.view.steamID)},
-				)
-				await db.commit()  # Commit changes
+		async with self.view.bot.pool.acquire() as conn:
+			# Clean up any other matching steamID entries
+			await conn.execute(
+				"UPDATE verify SET steam64_id = NULL WHERE steam64_id = :steamID",
+				{"steamID": int(self.view.steamID)},
+			)
+			await conn.execute(
+				"INSERT OR REPLACE INTO verify (discord_id, steam64_id) VALUES\
+				(:userID, :steamID)",
+				{"userID": interaction.user.id, "steamID": int(self.view.steamID)},
+			)
+			await conn.commit()  # Commit changes
 
 		# Disable the buttons in the view, and clean up the view since we won't need it anymore
 		await self.view.terminate()
@@ -118,23 +113,17 @@ class VerifyButton(discord.ui.Button):
 			# If we're in a guild, the user *must* be a member
 			assert isinstance(interaction.user, discord.Member)
 			try:
-				groupMembership = await steam.in_guild_group(
-					self.view.bot, interaction.guild.id, self.view.steamID
-				)
+				groupMembership = await steam.in_guild_group(self.view.bot, interaction.guild.id, self.view.steamID)
 				if not groupMembership:
 					# User not in group
-					applyUrl = await self.view.bot.serverConfig.group_apply_url.get(
-						interaction.guild
-					)
+					applyUrl = await self.view.bot.serverConfig.group_apply_url.get(interaction.guild)
 					msg = "Your account has been verified, but it doesn't look like you're a part of this group."
 					if applyUrl is not None:
 						msg += f" You're free to apply at {applyUrl}."
 					await interaction.followup.send(msg, ephemeral=True)
 					return
 			except aiohttp.ClientResponseError as error:
-				_log.warning(
-					f"Received response code [{error.status}] from the Steam API when checking steam URL"
-				)
+				_log.warning(f"Received response code [{error.status}] from the Steam API when checking steam URL")
 				await interaction.followup.send(steam_return_error_text(error.status))
 				return
 			except Exception:
@@ -145,21 +134,15 @@ class VerifyButton(discord.ui.Button):
 				return
 
 			# User is in the steam group, only proceed if they don't have the member role already
-			memberRole = await self.view.bot.serverConfig.role_verify.get(
-				interaction.guild
-			)
+			memberRole = await self.view.bot.serverConfig.role_verify.get(interaction.guild)
 			if (memberRole in interaction.user.roles) or memberRole is None:
 				await interaction.followup.send(
 					"Verification complete, your Steam ID has been successfully linked",
 					ephemeral=True,
 				)
 			else:
-				if await assign_roles(
-					self.view.bot, interaction.guild, interaction.user
-				):
-					await interaction.user.send(
-						f"Verification complete, welcome to {interaction.guild.name}."
-					)
+				if await assign_roles(self.view.bot, interaction.guild, interaction.user):
+					await interaction.user.send(f"Verification complete, welcome to {interaction.guild.name}.")
 
 				else:
 					await interaction.followup.send(
@@ -167,9 +150,7 @@ class VerifyButton(discord.ui.Button):
 						"when assigning your roles. Please ping an admin for your roles."
 					)
 				# Send a verification message to the check in channel
-				checkInChannel = await self.view.bot.serverConfig.channel_check_in.get(
-					interaction.guild
-				)
+				checkInChannel = await self.view.bot.serverConfig.channel_check_in.get(interaction.guild)
 				if isinstance(checkInChannel, discord.TextChannel):
 					await checkInChannel.send(
 						f"Member {interaction.user.mention} verified with steam account: http://steamcommunity.com/profiles/{self.view.steamID}"
@@ -178,9 +159,7 @@ class VerifyButton(discord.ui.Button):
 		else:
 			# Not in a guild, don't check group membership
 			# Let the user know that they're verified now
-			await interaction.followup.send(
-				"Verification complete, your Steam ID has been successfully linked"
-			)
+			await interaction.followup.send("Verification complete, your Steam ID has been successfully linked")
 
 
 class CheckInButton(discord.ui.Button):
@@ -206,23 +185,17 @@ class CheckInButton(discord.ui.Button):
 		await interaction.response.defer()
 
 		try:
-			groupMembership = await steam.in_guild_group(
-				self.view.bot, interaction.guild.id, self.view.steamID
-			)
+			groupMembership = await steam.in_guild_group(self.view.bot, interaction.guild.id, self.view.steamID)
 			if not groupMembership:
 				# User not in group
-				applyUrl = await self.view.bot.serverConfig.group_apply_url.get(
-					interaction.guild
-				)
+				applyUrl = await self.view.bot.serverConfig.group_apply_url.get(interaction.guild)
 				msg = "Your account has been verified, but it doesn't look like you're a part of this group."
 				if applyUrl is not None:
 					msg += f" You're free to apply at {applyUrl}."
 				await interaction.followup.send(msg, ephemeral=True)
 				return
 		except aiohttp.ClientResponseError as error:
-			_log.warning(
-				f"Received response code [{error.status}] from the Steam API when checking steam URL"
-			)
+			_log.warning(f"Received response code [{error.status}] from the Steam API when checking steam URL")
 			await interaction.followup.send(steam_return_error_text(error.status))
 			return
 		except Exception:
@@ -238,9 +211,7 @@ class CheckInButton(discord.ui.Button):
 			await interaction.followup.send("Verification complete.", ephemeral=True)
 		else:
 			if await assign_roles(self.view.bot, interaction.guild, interaction.user):
-				await interaction.user.send(
-					f"Verification complete, welcome to {interaction.guild.name}."
-				)
+				await interaction.user.send(f"Verification complete, welcome to {interaction.guild.name}.")
 
 			else:
 				await interaction.followup.send(
@@ -248,18 +219,14 @@ class CheckInButton(discord.ui.Button):
 					"when assigning your roles. Please ping an admin for your roles."
 				)
 			# Send a verification message to the check in channel
-			checkInChannel = await self.view.bot.serverConfig.channel_check_in.get(
-				interaction.guild
-			)
+			checkInChannel = await self.view.bot.serverConfig.channel_check_in.get(interaction.guild)
 			if isinstance(checkInChannel, discord.TextChannel):
 				await checkInChannel.send(
 					f"Member {interaction.user.mention} verified with steam account: http://steamcommunity.com/profiles/{self.view.steamID}"
 				)
 
 
-async def assign_roles(
-	bot: blueonblue.BlueOnBlueBot, guild: discord.Guild, user: discord.Member
-) -> bool:
+async def assign_roles(bot: blueonblue.BlueOnBlueBot, guild: discord.Guild, user: discord.Member) -> bool:
 	"""|coro|
 
 	Assigns Discord roles to a member upon being verified.
@@ -279,13 +246,11 @@ async def assign_roles(
 		True/False if the roles were assigned successfully.
 	"""
 	# Start by querying the database to see if the user has any roles stored.
-	async with bot.db.connect() as db:
-		async with db.connection.cursor() as cursor:
-			await cursor.execute(
-				"SELECT server_id, user_id, role_id FROM user_roles WHERE server_id = :server_id AND user_id = :user_id",
-				{"server_id": guild.id, "user_id": user.id},
-			)
-			roleData = await cursor.fetchall()
+	async with bot.pool.acquire() as conn:
+		roleData = await conn.fetchall(
+			"SELECT server_id, user_id, role_id FROM user_roles WHERE server_id = :server_id AND user_id = :user_id",
+			{"server_id": guild.id, "user_id": user.id},
+		)
 
 	# This needs a check if the user is jailed.
 	userRoles: list[discord.Role] = []
@@ -377,15 +342,11 @@ class Verify(commands.GroupCog, group_name="verify"):
 			steamID = await steam.getID64(self.bot, steam_url)
 		except aiohttp.ClientResponseError as error:
 			if error.status not in [400, 403]:
-				_log.warning(
-					f"Received response code [{error.status}] from the Steam API when checking steam URL"
-				)
+				_log.warning(f"Received response code [{error.status}] from the Steam API when checking steam URL")
 			await interaction.followup.send(steam_return_error_text(error.status))
 			return
 		except steam.InvalidSteamURL:
-			await interaction.followup.send(
-				"Invalid Steam URL format. Please use the *full* URL to your Steam profile."
-			)
+			await interaction.followup.send("Invalid Steam URL format. Please use the *full* URL to your Steam profile.")
 			return
 		except Exception:
 			_log.exception("Error getting Steam64ID")
@@ -397,23 +358,17 @@ class Verify(commands.GroupCog, group_name="verify"):
 		# If the command is used in a guild, check that the user is in the provided steam group
 		if interaction.guild is not None:
 			try:
-				groupMembership = await steam.in_guild_group(
-					self.bot, interaction.guild.id, steamID
-				)
+				groupMembership = await steam.in_guild_group(self.bot, interaction.guild.id, steamID)
 				if not groupMembership:
 					# User not in group
-					applyUrl = await self.bot.serverConfig.group_apply_url.get(
-						interaction.guild
-					)
+					applyUrl = await self.bot.serverConfig.group_apply_url.get(interaction.guild)
 					msg = "Sorry, it doesn't look like you're a part of this group."
 					if applyUrl is not None:
 						msg += f" You're free to apply at {applyUrl}."
 					await interaction.followup.send(msg)
 					return
 			except aiohttp.ClientResponseError as error:
-				_log.warning(
-					f"Received response code [{error.status}] from the Steam API when checking steam URL"
-				)
+				_log.warning(f"Received response code [{error.status}] from the Steam API when checking steam URL")
 				await interaction.followup.send(steam_return_error_text(error.status))
 				return
 			except Exception:
@@ -450,27 +405,23 @@ class Verify(commands.GroupCog, group_name="verify"):
 		steamInfo: tuple[str, int] | None = None
 
 		# Check to see if we can get the user's Steam64ID from the database
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				# Get the user's data from the DB
-				await cursor.execute(
-					"SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL",
-					{"id": interaction.user.id},
-				)
-				userData = (
-					await cursor.fetchone()
-				)  # This will only return users that are verified
-				if userData is not None:
-					steamID: int = userData["steam64_id"]
-					# Get the user's steam display name
-					try:
-						steamInfo = (
-							await steam.get_display_name(self.bot, str(steamID)),
-							steamID,
-						)
-					except Exception:
-						_log.exception("Error retrieving profile name from steam")
-						pass
+		async with self.bot.pool.acquire() as conn:
+			# Get the user's data from the DB
+			userData = await conn.fetchone(
+				"SELECT steam64_id FROM verify WHERE discord_id = :id AND steam64_id NOT NULL",
+				{"id": interaction.user.id},
+			)  # This will only return users that are verified
+			if userData is not None:
+				steamID: int = userData["steam64_id"]
+				# Get the user's steam display name
+				try:
+					steamInfo = (
+						await steam.get_display_name(self.bot, str(steamID)),
+						steamID,
+					)
+				except Exception:
+					_log.exception("Error retrieving profile name from steam")
+					pass
 
 		# Start generating our embed
 		embed = discord.Embed(title="Accounts", color=VERIFY_EMBED_COLOUR)

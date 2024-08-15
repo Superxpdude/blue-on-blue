@@ -6,6 +6,7 @@ from datetime import datetime
 from signal import SIGTERM
 
 import aiohttp
+import asqlite
 import discord
 from discord.ext import commands
 
@@ -49,6 +50,7 @@ class BlueOnBlueBot(commands.Bot):
 	httpSession: aiohttp.ClientSession
 	startTime: datetime
 	firstStart: bool
+	pool: asqlite.Pool
 
 	def __init__(self):
 		# Set up our core config
@@ -105,6 +107,7 @@ class BlueOnBlueBot(commands.Bot):
 
 		Overwritten start function to run the bot.
 		Sets up the HTTP client, then starts the bot."""
+		self.pool = await asqlite.create_pool("data/blueonblue.sqlite3")
 		self.httpSession = aiohttp.ClientSession(raise_for_status=True)
 		self.startTime = discord.utils.utcnow()
 		await super().start(*args, **kwargs)
@@ -113,7 +116,8 @@ class BlueOnBlueBot(commands.Bot):
 		"""|coro|
 
 		Overwritten close function to stop the bot.
-		Closes down the HTTP session when the bot is stopped."""
+		Closes down the asqlite pool and HTTP session when the bot is stopped."""
+		await self.pool.close()
 		await self.httpSession.close()
 		await super().close()
 		_log.info("Bot stopped gracefully")

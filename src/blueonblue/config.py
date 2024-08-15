@@ -117,18 +117,16 @@ class ServerConfigOption(metaclass=ABCMeta):
 		str | None
 			Setting value if found
 		"""
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				await cursor.execute(
-					"SELECT value FROM serverconfig WHERE server_id = :server_id AND setting = :setting AND value IS NOT NULL",
-					{"server_id": serverID, "setting": self.name},
-				)
-				row = await cursor.fetchone()
-				if row is not None:
-					return row["value"]
-				else:
-					# If we could not find a value in the database, return the default
-					return self.default
+		async with self.bot.pool.acquire() as conn:
+			row = await conn.fetchone(
+				"SELECT value FROM serverconfig WHERE server_id = :server_id AND setting = :setting AND value IS NOT NULL",
+				{"server_id": serverID, "setting": self.name},
+			)
+			if row is not None:
+				return row["value"]
+			else:
+				# If we could not find a value in the database, return the default
+				return self.default
 
 	async def _setValue(self, serverID: int, value: str) -> None:
 		"""Sets a raw value on the serverconfig table
@@ -144,13 +142,13 @@ class ServerConfigOption(metaclass=ABCMeta):
 		value : str
 			Value to set
 		"""
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				await cursor.execute(
-					"INSERT INTO serverconfig (server_id, setting, value) VALUES (:server_id, :setting, :value) \
-					ON CONFLICT(server_id, setting) DO UPDATE SET value = :value",
-					{"server_id": serverID, "setting": self.name, "value": value},
-				)
+		async with self.bot.pool.acquire() as conn:
+			await conn.execute(
+				"INSERT INTO serverconfig (server_id, setting, value) VALUES (:server_id, :setting, :value) \
+				ON CONFLICT(server_id, setting) DO UPDATE SET value = :value",
+				{"server_id": serverID, "setting": self.name, "value": value},
+			)
+			await conn.commit()
 
 	async def _clearValue(self, serverID: int) -> None:
 		"""Clears a valie from the serverconfig table
@@ -162,12 +160,12 @@ class ServerConfigOption(metaclass=ABCMeta):
 		setting : str
 			Setting to clear
 		"""
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				await cursor.execute(
-					"DELETE FROM pings WHERE (server_id = :server_id AND setting = :setting)",
-					{"server_id": serverID, "setting": self.name},
-				)
+		async with self.bot.pool.acquire() as conn:
+			await conn.execute(
+				"DELETE FROM pings WHERE (server_id = :server_id AND setting = :setting)",
+				{"server_id": serverID, "setting": self.name},
+			)
+			await conn.commit()
 
 	def _clearCache(self) -> None:
 		"""Clears the cache for the config object
