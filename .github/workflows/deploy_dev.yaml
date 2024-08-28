@@ -9,8 +9,6 @@ jobs:
   build:
     name: Build container
     uses: ./.github/workflows/build_container.yaml
-    with:
-      tag: "dev"
 
   deploy:
     name: Deploy image
@@ -32,6 +30,10 @@ jobs:
         run: |
           buildah pull oci-archive:/tmp/blueonblue.tar
 
+      - name: Apply container tags
+        run: |
+          buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ env.TAG }}
+
       - name: Display buildah containers
         run: |
           buildah images -a
@@ -48,7 +50,7 @@ jobs:
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ needs.build.outputs.image }}
-          tags: ${{ needs.build.outputs.tags }}
+          tags: ${{ needs.build.outputs.tags }} ${{ env.TAG }}
           registry: ${{ env.REGISTRY }}
 
       - name: Print image URL

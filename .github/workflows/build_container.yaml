@@ -2,10 +2,6 @@ name: Build Container
 
 on:
   workflow_call:
-    inputs:
-      tag:
-        required: false
-        type: string
     outputs:
       image:
         description: "Container image"
@@ -38,7 +34,7 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           image: ${{ env.IMAGE_NAME }}
-          tags: ${{ inputs.tag }} ${{ github.sha }}
+          tags: ${{ github.sha }}
           containerfiles: |
             ./Containerfile
 
