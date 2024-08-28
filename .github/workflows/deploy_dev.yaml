@@ -50,7 +50,7 @@ jobs:
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ needs.build.outputs.image }}
-          tags: ${{ needs.build.outputs.tags }} ${{ env.TAG }}
+          tags: ${{ env.TAG }} ${{ needs.build.outputs.tags }}
           registry: ${{ env.REGISTRY }}
 
       - name: Print image URL

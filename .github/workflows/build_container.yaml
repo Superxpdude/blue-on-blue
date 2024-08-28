@@ -26,6 +26,13 @@ jobs:
       tags: ${{ steps.build-image.outputs.tags }}
 
     steps:
+      - name: Get short commit SHA
+        id: get-sha
+        run: |
+          sha=$(echo ${{ github.sha }} | cut -c 1-7)
+          echo "sha=$sha" >> $GITHUB_OUTPUT
+          echo $sha
+
       - name: Clone the repository
         uses: actions/checkout@v4
 
@@ -34,7 +41,8 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           image: ${{ env.IMAGE_NAME }}
-          tags: ${{ github.sha }}
+          # tags: ${{ github.sha }}
+          tags: ${{ steps.get-sha.outputs.sha }}
           containerfiles: |
             ./Containerfile
 
