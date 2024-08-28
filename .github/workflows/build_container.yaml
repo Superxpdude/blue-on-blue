@@ -2,6 +2,17 @@ name: Build Container
 
 on:
   workflow_call:
+    inputs:
+      tag:
+        required: false
+        type: string
+    outputs:
+      image:
+        description: "Container image"
+        value: ${{ jobs.build.outputs.image }}
+      tags:
+        description: "Container tags"
+        value: ${{ jobs.build.outputs.tags }}
   push:
     branches-ignore:
       - "main"
@@ -14,6 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: blueonblue
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+      tags: ${{ steps.build-image.outputs.tags }}
 
     steps:
       - name: Clone the repository
@@ -24,15 +38,16 @@ jobs:
         uses: redhat-actions/buildah-build@v2
         with:
           image: ${{ env.IMAGE_NAME }}
-          tags: ${{ github.sha }}
+          tags: ${{ inputs.tag }} ${{ github.sha }}
           containerfiles: |
             ./Containerfile
 
       - name: Export image
         run: |
-          buildah push ${{ steps.build-image.outputs.image }} oci-archive:/tmp/blueonblue.tar:${{ env.IMAGE_NAME }}:${{ github.sha }}
+          buildah push ${{ steps.build-image.outputs.image }} oci-archive:/tmp/blueonblue.tar:${{ env.IMAGE_NAME }}:${{ steps.build-image.outputs.tags }}
 
       - name: Upload artifact
+        id: upload-artifact
         uses: actions/upload-artifact@v4
         with:
           name: blueonblue.tar

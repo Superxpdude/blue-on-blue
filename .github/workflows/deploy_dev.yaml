@@ -9,6 +9,8 @@ jobs:
   build:
     name: Build container
     uses: ./.github/workflows/build_container.yaml
+    with:
+      tag: "dev"
 
   deploy:
     name: Deploy image
@@ -30,13 +32,9 @@ jobs:
         run: |
           buildah pull oci-archive:/tmp/blueonblue.tar
 
-      - name: DEBUG Display buildah containers
+      - name: Display buildah containers
         run: |
           buildah images -a
-
-      - name: Add development tag
-        run: |
-          buildah tag ${{ env.IMAGE_NAME }} ${{ env.TAG }}
 
       - name: Log in to the GitHub Container registry
         uses: redhat-actions/podman-login@v1
@@ -49,8 +47,8 @@ jobs:
         id: push-to-ghcr
         uses: redhat-actions/push-to-registry@v2
         with:
-          image: ${{ env.IMAGE_NAME }}
-          tags: ${{ env.TAG }}
+          image: ${{ needs.build.outputs.image }}
+          tags: ${{ needs.build.outputs.tags }}
           registry: ${{ env.REGISTRY }}
 
       - name: Print image URL
