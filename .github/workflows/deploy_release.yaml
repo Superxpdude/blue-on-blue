@@ -1,9 +1,8 @@
-name: Deploy Dev Container
+name: Deploy Release Container
 
 on:
-  push:
-    branches:
-      - "main"
+  release:
+    types: ["published"]
 
 jobs:
   build:
@@ -16,10 +15,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: blueonblue
-      TAG: 'dev'
+      TAG: "latest"
       REGISTRY: ghcr.io/superxpdude
 
     steps:
+      - name: Get version
+        id: get-version
+        run: |
+          version=$(echo ${{ github.ref_name }} | cut -c 2-)
+          echo "version=$version" >> $GITHUB_OUTPUT
+
       - name: Download container image
         uses: actions/download-artifact@v4
         with:
@@ -33,6 +38,7 @@ jobs:
       - name: Apply container tags
         run: |
           buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ env.TAG }}
+          buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ steps.get-version.outputs.version }}
 
       - name: Display buildah containers
         run: |
@@ -52,6 +58,13 @@ jobs:
           image: ${{ needs.build.outputs.image }}
           tags: ${{ env.TAG }} ${{ needs.build.outputs.tags }}
           registry: ${{ env.REGISTRY }}
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-digest: ${{ steps.push-to-ghcr.outputs.digest }}
+          push-to-registry: true
 
       - name: Print image URL
         run: echo "Image pushed to ${{ steps.push-to-ghcr.outputs.registry-paths }}"
