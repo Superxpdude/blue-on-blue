@@ -1,39 +1,42 @@
-name: Deploy Containers
+name: Deploy Dev Container
 
 on:
   push:
     branches:
       - "main"
-      - "dev"
 
 jobs:
-#   build:
-#     name: Build container
-#     uses: ./.github/workflows/build_containers.yaml
-#     with:
-#       tag: ${{ github.ref == 'refs/heads/main' && 'latest' || 'dev'}}
+  build:
+    name: Build container
+    uses: ./.github/workflows/build_container.yaml
 
   deploy:
     name: Deploy image
-    # needs: build
+    needs: build
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: blueonblue
-      TAG: ${{ github.ref == 'refs/heads/main' && 'latest' || 'dev'}}
+      TAG: 'dev'
       REGISTRY: ghcr.io/superxpdude
 
     steps:
-      - name: Clone the repository
-        uses: actions/checkout@v4
-
-      - name: Build container
-        id: build-image
-        uses: redhat-actions/buildah-build@v2
+      - name: Download container image
+        uses: actions/download-artifact@v4
         with:
-          image: ${{ env.IMAGE_NAME }}
-          tags: ${{ env.TAG }} ${{ github.sha }}
-          containerfiles: |
-            ./Containerfile
+          name: blueonblue.tar
+          path: /tmp
+
+      - name: Import container image
+        run: |
+          buildah pull oci-archive:/tmp/blueonblue.tar
+
+      - name: Apply container tags
+        run: |
+          buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ env.TAG }}
+
+      - name: Display buildah containers
+        run: |
+          buildah images -a
 
       - name: Log in to the GitHub Container registry
         uses: redhat-actions/podman-login@v1
@@ -46,8 +49,8 @@ jobs:
         id: push-to-ghcr
         uses: redhat-actions/push-to-registry@v2
         with:
-          image: ${{ steps.build-image.outputs.image }}
-          tags: ${{ steps.build-image.outputs.tags }}
+          image: ${{ needs.build.outputs.image }}
+          tags: ${{ env.TAG }} ${{ needs.build.outputs.tags }}
           registry: ${{ env.REGISTRY }}
 
       - name: Print image URL

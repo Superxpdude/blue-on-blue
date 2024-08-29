@@ -1,11 +1,7 @@
-name: Build Containers
+name: Build Container
 
 on:
   workflow_call:
-    inputs:
-      tag:
-        required: false
-        type: string
     outputs:
       image:
         description: "Container image"
@@ -16,7 +12,6 @@ on:
   push:
     branches-ignore:
       - "main"
-      - "dev"
   pull_request:
     types: [ opened, reopened, synchronize ]
 
@@ -31,6 +26,13 @@ jobs:
       tags: ${{ steps.build-image.outputs.tags }}
 
     steps:
+      - name: Get short commit SHA
+        id: get-sha
+        run: |
+          sha=$(echo ${{ github.sha }} | cut -c 1-7)
+          echo "sha=$sha" >> $GITHUB_OUTPUT
+          echo $sha
+
       - name: Clone the repository
         uses: actions/checkout@v4
 
@@ -38,17 +40,19 @@ jobs:
         id: build-image
         uses: redhat-actions/buildah-build@v2
         with:
-          image: ${{ env.IMAGE_NAME}}
-          tags: ${{ inputs.tag }} ${{ github.sha }}
+          image: ${{ env.IMAGE_NAME }}
+          # tags: ${{ github.sha }}
+          tags: ${{ steps.get-sha.outputs.sha }}
           containerfiles: |
             ./Containerfile
 
-      # - name: Export image
-      #   run: |
+      - name: Export image
+        run: |
+          buildah push ${{ steps.build-image.outputs.image }} oci-archive:/tmp/blueonblue.tar:${{ steps.build-image.outputs.image-with-tag }}
 
-
-      # - name: Upload artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: blueonblue
-      #     path: /
+      - name: Upload artifact
+        id: upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blueonblue.tar
+          path: /tmp/blueonblue.tar
