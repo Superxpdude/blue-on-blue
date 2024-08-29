@@ -5,19 +5,11 @@ on:
     types: ["published"]
 
 jobs:
-  build:
-    name: Build container
-    uses: ./.github/workflows/build_container.yaml
-
-  deploy:
-    name: Deploy image
-    needs: build
+  get-version:
+    name: Get release version
     runs-on: ubuntu-latest
-    env:
-      IMAGE_NAME: blueonblue
-      TAG: "latest"
-      REGISTRY: ghcr.io/superxpdude
-
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
     steps:
       - name: Get version
         id: get-version
@@ -25,6 +17,24 @@ jobs:
           version=$(echo ${{ github.ref_name }} | cut -c 2-)
           echo "version=$version" >> $GITHUB_OUTPUT
 
+
+  build:
+    name: Build container
+    needs: get-version
+    uses: ./.github/workflows/build_container.yaml
+    with:
+      version: ${{ needs.get-version.outputs.version }}
+
+  deploy:
+    name: Deploy image
+    needs: [get-version, build]
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: blueonblue
+      TAG: "latest"
+      REGISTRY: ghcr.io/superxpdude
+
+    steps:
       - name: Download container image
         uses: actions/download-artifact@v4
         with:
@@ -38,7 +48,7 @@ jobs:
       - name: Apply container tags
         run: |
           buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ env.TAG }}
-          buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ steps.get-version.outputs.version }}
+          buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ needs.get-version.outputs.version }}
 
       - name: Display buildah containers
         run: |

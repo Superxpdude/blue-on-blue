@@ -2,6 +2,10 @@ name: Build Container
 
 on:
   workflow_call:
+    inputs:
+      version:
+        type: string
+        required: false
     outputs:
       image:
         description: "Container image"
@@ -45,6 +49,10 @@ jobs:
           tags: ${{ steps.get-sha.outputs.sha }}
           containerfiles: |
             ./Containerfile
+          labels: |
+            "org.opencontainers.image.revision=${{ github.sha }}"
+            "org.opencontainers.image.version=${{ inputs.version }}"
+
 
       - name: Export image
         run: |
