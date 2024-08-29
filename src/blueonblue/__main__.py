@@ -63,7 +63,7 @@ def main():
 	discord.VoiceClient.warn_nacl = False
 
 	# Set up logging
-	logLevel = logging.DEBUG if args.debug else logging.INFO
+	logLevel = logging.DEBUG if (args.debug or get_config_value("DEBUG_LOGGING") is not None) else logging.INFO
 	setup_logging(level=logLevel)
 	_log.info("Initializing Blue on Blue")
 
