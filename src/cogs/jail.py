@@ -10,7 +10,7 @@ from blueonblue.defines import (
 	TIMEOUT_EMBED_COLOUR,
 )
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 _log = logging.getLogger(__name__)
 
@@ -23,6 +23,12 @@ class Jail(commands.Cog, name="Jail"):
 	def __init__(self, bot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
+
+	async def cog_load(self):
+		self.timeout_role_loop.start()
+
+	async def cog_unload(self):
+		self.timeout_role_loop.stop()
 
 	@app_commands.command(name="jail")
 	@app_commands.describe(
@@ -92,6 +98,9 @@ class Jail(commands.Cog, name="Jail"):
 			# Action confirmed. Jail the user
 			try:
 				await user.timeout(timeDelta, reason=f"User timed out by {interaction.user.display_name}")
+				timeoutRole = await self.bot.serverConfig.role_timeout.get(interaction.guild)
+				if timeoutRole is not None:
+					await user.add_roles(timeoutRole, reason=f"User timed out by {interaction.user.display_name}")
 				await modChannel.send(
 					f"User {user.mention} has been jailed by {interaction.user.mention} for {timeText} {time_unit}.",
 					allowed_mentions=discord.AllowedMentions.none(),
@@ -104,6 +113,32 @@ class Jail(commands.Cog, name="Jail"):
 		else:
 			# Notify the user that the action timed out
 			await interaction.followup.send("Pending jail action has timed out", ephemeral=True)
+
+	@tasks.loop(minutes=1)
+	async def timeout_role_loop(self):
+		"""Loop to periodically clear the timeout role from users who are no longer timed out."""
+		# Iterate through all guilds
+		for guild in self.bot.guilds:
+			timeoutRole = await self.bot.serverConfig.role_timeout.get(guild)
+			# If the timeout role is defined. Check for all members with the role.
+			if timeoutRole is not None:
+				modChannel = await self.bot.serverConfig.channel_mod_activity.get(guild)
+				for member in timeoutRole.members:
+					# If the member is not timed out. Remove the role from them.
+					if not member.is_timed_out():
+						try:
+							await member.remove_roles(timeoutRole, reason="Timeout expired")
+							if modChannel is not None:
+								await modChannel.send(
+									f"Timeout expired for user {member.mention}.",
+									allowed_mentions=discord.AllowedMentions.none(),
+								)
+						except discord.Forbidden:
+							if modChannel is not None:
+								await modChannel.send(
+									f"Error removing role {timeoutRole.mention} from user {member.mention} on timeout expiry.",
+									allowed_mentions=discord.AllowedMentions.none(),
+								)
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
