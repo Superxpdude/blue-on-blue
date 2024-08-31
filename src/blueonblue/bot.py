@@ -18,14 +18,15 @@ __all__ = ["BlueOnBlueBot", "BlueOnBlueTree"]
 
 initial_extensions = [
 	"botcontrol",
-	"users",
 	"arma_stats",
 	"config",
 	"gold",
+	"info",
 	"jail",
 	"missions",
 	"pings",
 	"raffle",
+	"users",
 	"utils",
 	"verify",
 ]
