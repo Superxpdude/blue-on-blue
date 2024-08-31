@@ -119,6 +119,11 @@ class BlueOnBlueBot(commands.Bot):
 		Closes down the asqlite pool and HTTP session when the bot is stopped."""
 		await self.pool.close()
 		await self.httpSession.close()
+		# Clean up the SQLite Write-Ahead Log before closing the bot
+		async with self.db.connect():
+			# This opens a standard asqlite connection, which
+			# seems to clean up much more consistently.
+			pass
 		await super().close()
 		_log.info("Bot stopped gracefully")
 
