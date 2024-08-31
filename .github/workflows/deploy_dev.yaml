@@ -1,0 +1,57 @@
+name: Deploy Dev Container
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  build:
+    name: Build container
+    uses: ./.github/workflows/build_container.yaml
+
+  deploy:
+    name: Deploy image
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: blueonblue
+      TAG: 'dev'
+      REGISTRY: ghcr.io/superxpdude
+
+    steps:
+      - name: Download container image
+        uses: actions/download-artifact@v4
+        with:
+          name: blueonblue.tar
+          path: /tmp
+
+      - name: Import container image
+        run: |
+          buildah pull oci-archive:/tmp/blueonblue.tar
+
+      - name: Apply container tags
+        run: |
+          buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ env.TAG }}
+
+      - name: Display buildah containers
+        run: |
+          buildah images -a
+
+      - name: Log in to the GitHub Container registry
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to the GitHub Container Repository
+        id: push-to-ghcr
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ needs.build.outputs.image }}
+          tags: ${{ env.TAG }} ${{ needs.build.outputs.tags }}
+          registry: ${{ env.REGISTRY }}
+
+      - name: Print image URL
+        run: echo "Image pushed to ${{ steps.push-to-ghcr.outputs.registry-paths }}"

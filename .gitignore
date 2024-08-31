@@ -1,10 +1,23 @@
-/venv
-__pycache__
-*.pyc
-*.pyo
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution and packaging
+*.egg-info/
+*.egg
+
+# Environment files
+.env
+.venv
+venv/
+
+# Unit test / coverage reports
+.coverage
+
+# Project-specific folders
 /logs
 /data
 /config
-/cogs/test
+/src/cogs/test
 /temp
-.coverage

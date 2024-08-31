@@ -4,10 +4,21 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Install test requirements",
+			"label": "Build Container (Podman)",
 			"type": "shell",
-			"command": "${command:python.interpreterPath} -m pip install -r requirements-tests.txt",
-			"problemMatcher": []
+			"command": "podman build -t blueonblue .\\",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "Run Container (Podman)",
+			"type": "shell",
+			"command": "podman run --rm --env-file=.\\.env -v=data:/app/data --user=1000:1000 --name blueonblue localhost/blueonblue",
+			"dependsOn": [
+				"Build Container (Podman)"
+			]
 		}
 	]
 }

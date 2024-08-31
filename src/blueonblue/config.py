@@ -1,98 +1,106 @@
-import discord
-import tomlkit
-from tomlkit import items
 import inspect
+import logging
+import os
+import pathlib
+from typing import TYPE_CHECKING, overload
+from abc import abstractmethod, ABCMeta
 
-from .defines import (
+import discord
+
+if TYPE_CHECKING:
+	from blueonblue.bot import BlueOnBlueBot
+
+from blueonblue.defines import (
+	SCONF_ARMA_STATS_KEY,
+	SCONF_ARMA_STATS_LEADERBOARD_DAYS,
+	SCONF_ARMA_STATS_MIN_DURATION,
+	SCONF_ARMA_STATS_MIN_PLAYERS,
+	SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD,
+	SCONF_ARMA_STATS_URL,
 	SCONF_CHANNEL_BOT,
 	SCONF_CHANNEL_CHECK_IN,
 	SCONF_CHANNEL_MISSION_AUDIT,
 	SCONF_CHANNEL_MOD_ACTIVITY,
-	SCONF_ROLE_GOLD,
-	SCONF_ROLE_JAIL,
-	SCONF_ROLE_MEMBER,
-	SCONF_STEAM_GROUP_ID,
 	SCONF_GROUP_APPLY_URL,
 	SCONF_MISSION_SHEET_KEY,
-	SCONF_MISSION_WORKSHEET,
 	SCONF_MISSION_WIKI_URL,
-	SCONF_RAFFLEWEIGHT_MAX,
+	SCONF_MISSION_WORKSHEET,
 	SCONF_RAFFLEWEIGHT_INCREASE,
-	SCONF_ARMA_STATS_KEY,
-	SCONF_ARMA_STATS_URL,
-	SCONF_ARMA_STATS_MIN_DURATION,
-	SCONF_ARMA_STATS_MIN_PLAYERS,
-	SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD,
-	SCONF_ARMA_STATS_LEADERBOARD_DAYS,
+	SCONF_RAFFLEWEIGHT_MAX,
+	SCONF_ROLE_GOLD,
+	SCONF_ROLE_TIMEOUT,
+	SCONF_ROLE_VERIFY,
+	SCONF_STEAM_GROUP_ID,
 )
 
-import logging
 _log = logging.getLogger(__name__)
 
-from typing import (
-	TYPE_CHECKING
-)
-if TYPE_CHECKING:
-	from blueonblue.bot import BlueOnBlueBot
 
-__all__ = [
-	"BotConfig",
-	"ServerConfig"
-]
+__all__ = ["BotConfig", "ServerConfig"]
+
+
+@overload
+def get_config_value(name: str) -> str | None: ...
+
+
+@overload
+def get_config_value(name: str, defaultValue: str) -> str: ...
+
+
+def get_config_value(name: str, defaultValue: str | None = None) -> str | None:
+	"""Retrieves a config value from a secret file or environment variable.
+
+	Returns
+	-------
+	str | None
+		Config value if found, otherwise None
+	"""
+	token: str | None = None
+	filepath = pathlib.Path(f"/run/secrets/{name}")
+	if filepath.is_file():
+		# File exists. Read the file to get the token.
+		with open(filepath) as file:
+			token = file.read()
+	else:
+		# File does not exist. Read the environment variable.
+		# Only try to read the environment variable if it actually exists.
+		if name in os.environ:
+			token = os.environ[name]
+
+	# If we couldn't find the token, return a default value if one was provided.
+	if token is None and defaultValue is not None:
+		token = defaultValue
+
+	return token
+
 
 class BotConfig:
 	"""Config abstraction class
 
-	Abstracts the base config storage away from other modules.
-	Handles converting toml-compatible types to the types required for actual execution."""
-	def __init__(self, configFile: str):
-		# Read our existing config file
-		with open(configFile, "r") as file:
-			_log.debug(f"Reading config file: {configFile}")
-			self.toml = tomlkit.parse(file.read())
+	Provides a place to store bot configuration values."""
 
-		# Set default values for our parameters
-		self.toml.setdefault("prefix", "$$")
-		self.toml.setdefault("bot_token", "")
-		self.toml.setdefault("debug_server", -1)
-		self.toml.setdefault("steam_api_token", "")
-		self.toml.setdefault("google_api_file", "config/google_api.json")
-
-		# Write any missing values back to the config file
-		with open(configFile, "w") as file:
-			file.write(tomlkit.dumps(self.toml))
-
-	@property
-	def prefix(self) -> str:
-		return str(self.toml["prefix"])
-
-	@property
-	def bot_token(self) -> str:
-		return str(self.toml["bot_token"])
-
-	@property
-	def debug_server(self) -> int:
-		value = self.toml["debug_server"]
-		assert isinstance(value, items.Integer)
-		return int(value)
-
-	@property
-	def steam_api_token(self) -> str:
-		return str(self.toml["steam_api_token"])
-
-	@property
-	def google_api_file(self) -> str:
-		return str(self.toml["google_api_file"])
+	def __init__(self):
+		# Read config values from environment variables
+		debugServerValue = get_config_value("DEBUG_SERVER")
+		self.debug_server = int(debugServerValue) if debugServerValue is not None else None
+		self.prefix = get_config_value("COMMAND_PREFIX", "$$")
+		self.steam_api_token: str = get_config_value("STEAM_TOKEN", "")
 
 
-class ServerConfigOption:
-	def __init__(self, bot: "BlueOnBlueBot", name: str, *, default: str | None = None, protected: bool = False):
+class ServerConfigOption(metaclass=ABCMeta):
+	def __init__(
+		self,
+		bot: "BlueOnBlueBot",
+		name: str,
+		*,
+		default: str | None = None,
+		protected: bool = False,
+	):
 		self.bot = bot
 		self.name = name
 		self.default = default
 		self.protected = protected
-		self._cache: dict[int, str] = {}
-
+		self._cache = {}
 
 	async def _getValue(self, serverID: int) -> str | None:
 		"""Retrieves a raw value from the serverconfig table
@@ -109,19 +117,16 @@ class ServerConfigOption:
 		str | None
 			Setting value if found
 		"""
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				await cursor.execute(
-					"SELECT value FROM serverconfig WHERE server_id = :server_id AND setting = :setting AND value IS NOT NULL",
-					{"server_id": serverID, "setting": self.name}
-				)
-				row = await cursor.fetchone()
-				if row is not None:
-					return row["value"]
-				else:
-					# If we could not find a value in the database, return the default
-					return self.default
-
+		async with self.bot.pool.acquire() as conn:
+			row = await conn.fetchone(
+				"SELECT value FROM serverconfig WHERE server_id = :server_id AND setting = :setting AND value IS NOT NULL",
+				{"server_id": serverID, "setting": self.name},
+			)
+			if row is not None:
+				return row["value"]
+			else:
+				# If we could not find a value in the database, return the default
+				return self.default
 
 	async def _setValue(self, serverID: int, value: str) -> None:
 		"""Sets a raw value on the serverconfig table
@@ -137,14 +142,13 @@ class ServerConfigOption:
 		value : str
 			Value to set
 		"""
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				await cursor.execute(
-					"INSERT INTO serverconfig (server_id, setting, value) VALUES (:server_id, :setting, :value) \
-					ON CONFLICT(server_id, setting) DO UPDATE SET value = :value",
-					{"server_id": serverID, "setting": self.name, "value": value}
-				)
-
+		async with self.bot.pool.acquire() as conn:
+			await conn.execute(
+				"INSERT INTO serverconfig (server_id, setting, value) VALUES (:server_id, :setting, :value) \
+				ON CONFLICT(server_id, setting) DO UPDATE SET value = :value",
+				{"server_id": serverID, "setting": self.name, "value": value},
+			)
+			await conn.commit()
 
 	async def _clearValue(self, serverID: int) -> None:
 		"""Clears a valie from the serverconfig table
@@ -156,13 +160,12 @@ class ServerConfigOption:
 		setting : str
 			Setting to clear
 		"""
-		async with self.bot.db.connect() as db:
-			async with db.connection.cursor() as cursor:
-				await cursor.execute(
-					"DELETE FROM pings WHERE (server_id = :server_id AND setting = :setting)",
-					{"server_id": serverID, "setting": self.name}
-				)
-
+		async with self.bot.pool.acquire() as conn:
+			await conn.execute(
+				"DELETE FROM pings WHERE (server_id = :server_id AND setting = :setting)",
+				{"server_id": serverID, "setting": self.name},
+			)
+			await conn.commit()
 
 	def _clearCache(self) -> None:
 		"""Clears the cache for the config object
@@ -173,8 +176,8 @@ class ServerConfigOption:
 		"""
 		self._cache = {}
 
-
-	def _getTransform(self, value: str) -> str:
+	@abstractmethod
+	def _getTransform(self, value: str) -> str | int | float:
 		"""Applies a transformation on retrieved values for the setting to store them in the cache
 
 		Does nothing by default (input is string, output is string)
@@ -190,8 +193,7 @@ class ServerConfigOption:
 		"""
 		return value
 
-
-	def _displayTransform(self, value: str) -> str:
+	def _displayTransform(self, value) -> str:
 		"""Applies a transformation on retrieved values to be displayed in discord text
 
 		Parameters
@@ -204,8 +206,7 @@ class ServerConfigOption:
 		str
 			Transformed value, suitable for placing in discord text
 		"""
-		return value
-
+		return str(value)
 
 	def _getServerID(self, server: discord.Guild | int) -> int | None:
 		"""Returns the server ID only if the provided server exists
@@ -228,7 +229,6 @@ class ServerConfigOption:
 			guild = self.bot.get_guild(server)
 			return guild.id if guild is not None else None
 
-
 	async def delete(self, server: int | discord.Guild) -> None:
 		if isinstance(server, discord.Guild):
 			serverID = server.id
@@ -244,7 +244,6 @@ class ServerConfigOption:
 		# Clear the value from the cache if it exists
 		if serverID in self._cache.keys():
 			del self._cache[serverID]
-
 
 	async def exists(self, serverID: int) -> bool:
 		"""Checks if a value exists in the serverconfig
@@ -274,23 +273,11 @@ class ServerConfigOption:
 		self._cache[serverID] = value
 		return True
 
+	@abstractmethod
+	async def get(self, server: int | discord.Guild) -> object: ...
 
-	async def get(self, server: int | discord.Guild) -> str | None:
-		"""Retrieves the value of the serverconfig option
-
-		Parameters
-		----------
-		server : int | discord.Guild
-			Server to search in the config
-
-		Returns
-		-------
-		None
-			Default config option type will always return none
-		"""
-		# For the default type, always return none
-		return None
-
+	@abstractmethod
+	async def set(self, server: discord.Guild, value) -> None: ...
 
 	async def getDisplayValue(self, server: int | discord.Guild) -> str:
 		"""Retrieves the config value, and formats it for display in discord text
@@ -307,7 +294,7 @@ class ServerConfigOption:
 		"""
 		value = await self.get(server)
 		if value is not None:
-			return self._displayTransform(value)
+			return str(self._displayTransform(value))
 		else:
 			return "None"
 
@@ -316,6 +303,8 @@ class ServerConfigString(ServerConfigOption):
 	def _displayTransform(self, value: str) -> str:
 		return value
 
+	def _getTransform(self, value: str) -> str:
+		return str(super()._getTransform(value))
 
 	async def get(self, server: int | discord.Guild) -> str | None:
 		"""Gets a string for the provided server from the serverconfig
@@ -348,7 +337,6 @@ class ServerConfigString(ServerConfigOption):
 				self._cache[serverID] = self._getTransform(value)
 		return value
 
-
 	async def set(self, server: discord.Guild, value: str) -> None:
 		"""Sets the provided string in the server config for this guild
 
@@ -376,7 +364,6 @@ class ServerConfigInteger(ServerConfigOption):
 
 	def _displayTransform(self, value: int) -> str:
 		return str(value)
-
 
 	async def get(self, server: int | discord.Guild) -> int | None:
 		"""Gets an integer for the provided server from the serverconfig
@@ -412,7 +399,6 @@ class ServerConfigInteger(ServerConfigOption):
 			self._cache[serverID] = valueInt
 		return valueInt
 
-
 	async def set(self, server: discord.Guild, value: int) -> None:
 		"""Sets the provided integer in the server config for this guild
 
@@ -425,7 +411,6 @@ class ServerConfigInteger(ServerConfigOption):
 		"""
 		self._cache[server.id] = value
 		await self._setValue(server.id, str(value))
-
 
 	def _getTransform(self, value: str) -> int:
 		return int(value)
@@ -444,7 +429,6 @@ class ServerConfigFloat(ServerConfigOption):
 
 	def _displayTransform(self, value: float) -> str:
 		return str(value)
-
 
 	async def get(self, server: int | discord.Guild) -> float | None:
 		"""Gets a float for the provided server from the serverconfig
@@ -487,7 +471,6 @@ class ServerConfigFloat(ServerConfigOption):
 
 		return valueFloat
 
-
 	async def set(self, server: discord.Guild, value: float) -> None:
 		"""Sets the provided integer in the server config for this guild
 
@@ -500,7 +483,6 @@ class ServerConfigFloat(ServerConfigOption):
 		"""
 		self._cache[server.id] = value
 		await self._setValue(server.id, str(value))
-
 
 	def _getTransform(self, value: str) -> float:
 		return float(value)
@@ -519,7 +501,6 @@ class ServerConfigRole(ServerConfigOption):
 
 	def _displayTransform(self, value: discord.Role) -> str:
 		return value.mention
-
 
 	async def get(self, server: int | discord.Guild) -> discord.Role | None:
 		"""Gets a role for the provided server from the serverconfig
@@ -555,20 +536,18 @@ class ServerConfigRole(ServerConfigOption):
 			self._cache[serverID] = roleID
 		return guild.get_role(roleID)
 
-
-	async def set(self, server: discord.Guild, role: discord.Role) -> None:
+	async def set(self, server: discord.Guild, value: discord.Role) -> None:
 		"""Sets the provided role in the server config for this guild
 
 		Parameters
 		----------
 		server : discord.Guild
 			Discord guild
-		role : discord.Role
+		value : discord.Role
 			Role to set in serverconfig
 		"""
-		self._cache[server.id] = role.id
-		await self._setValue(server.id, str(role.id))
-
+		self._cache[server.id] = value.id
+		await self._setValue(server.id, str(value.id))
 
 	def _getTransform(self, value: str) -> int:
 		return int(value)
@@ -580,7 +559,6 @@ class ServerConfigChannel(ServerConfigOption):
 
 	def _displayTransform(self, value: discord.abc.GuildChannel) -> str:
 		return value.mention
-
 
 	async def get(self, server: int | discord.Guild) -> discord.abc.GuildChannel | None:
 		"""Gets a channel for the provided server from the serverconfig
@@ -616,8 +594,7 @@ class ServerConfigChannel(ServerConfigOption):
 			self._cache[serverID] = channelID
 		return guild.get_channel(channelID)
 
-
-	async def set(self, server: discord.Guild, channel: discord.abc.GuildChannel) -> None:
+	async def set(self, server: discord.Guild, value: discord.abc.GuildChannel) -> None:
 		"""Sets the provided role in the server config for this guild
 
 		Parameters
@@ -627,9 +604,8 @@ class ServerConfigChannel(ServerConfigOption):
 		role : discord.Role
 			Role to set in serverconfig
 		"""
-		self._cache[server.id] = channel.id
-		await self._setValue(server.id, str(channel.id))
-
+		self._cache[server.id] = value.id
+		await self._setValue(server.id, str(value.id))
 
 	def _getTransform(self, value: str) -> int:
 		return int(value)
@@ -651,6 +627,7 @@ class ServerConfig:
 	Uses helper functions and properties to automatically convert SQLite database types
 	to discord.py or other python types when retrieving values.
 	"""
+
 	def __init__(self, bot: "BlueOnBlueBot"):
 		self.bot = bot
 
@@ -663,8 +640,8 @@ class ServerConfig:
 
 		# Server roles
 		self.role_gold = ServerConfigRole(bot, SCONF_ROLE_GOLD)
-		self.role_jail = ServerConfigRole(bot, SCONF_ROLE_JAIL)
-		self.role_member = ServerConfigRole(bot, SCONF_ROLE_MEMBER)
+		self.role_timeout = ServerConfigRole(bot, SCONF_ROLE_TIMEOUT)
+		self.role_verify = ServerConfigRole(bot, SCONF_ROLE_VERIFY)
 
 		# Steam Group and verify URL
 		self.steam_group_id = ServerConfigInteger(bot, SCONF_STEAM_GROUP_ID)
@@ -672,20 +649,24 @@ class ServerConfig:
 
 		# Missions config
 		self.mission_sheet_key = ServerConfigString(bot, SCONF_MISSION_SHEET_KEY)
-		self.mission_worksheet = ServerConfigStringDefault(bot, SCONF_MISSION_WORKSHEET, default = "Schedule")
+		self.mission_worksheet = ServerConfigStringDefault(bot, SCONF_MISSION_WORKSHEET, default="Schedule")
 		self.mission_wiki_url = ServerConfigString(bot, SCONF_MISSION_WIKI_URL)
 
 		# Raffle Weights
-		self.raffleweight_max = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_MAX, default = "3.0")
-		self.raffleweight_increase = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_INCREASE, default = "0.2")
+		self.raffleweight_max = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_MAX, default="3.0")
+		self.raffleweight_increase = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_INCREASE, default="0.2")
 
 		# Arma stats config
-		self.arma_stats_key = ServerConfigString(bot, SCONF_ARMA_STATS_KEY, protected = True)
+		self.arma_stats_key = ServerConfigString(bot, SCONF_ARMA_STATS_KEY, protected=True)
 		self.arma_stats_url = ServerConfigString(bot, SCONF_ARMA_STATS_URL)
-		self.arma_stats_min_duration = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_DURATION, default = "90")
-		self.arma_stats_min_players = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_PLAYERS, default = "10")
-		self.arma_stats_participation_threshold = ServerConfigFloatDefault(bot, SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD, default = "0.5")
-		self.arma_stats_leaderboard_recent_days = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_LEADERBOARD_DAYS, default = "90")
+		self.arma_stats_min_duration = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_DURATION, default="90")
+		self.arma_stats_min_players = ServerConfigIntegerDefault(bot, SCONF_ARMA_STATS_MIN_PLAYERS, default="10")
+		self.arma_stats_participation_threshold = ServerConfigFloatDefault(
+			bot, SCONF_ARMA_STATS_PARTICIPATION_THRESHOLD, default="0.5"
+		)
+		self.arma_stats_leaderboard_recent_days = ServerConfigIntegerDefault(
+			bot, SCONF_ARMA_STATS_LEADERBOARD_DAYS, default="90"
+		)
 
 		# Initialize our options dict
 		self.options: dict[str, ServerConfigOption] = {}

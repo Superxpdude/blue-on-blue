@@ -1,45 +1,66 @@
+import asyncio
+import logging
+import sys
+import traceback
+from datetime import datetime
+from signal import SIGTERM
+
 import aiohttp
+import asqlite
 import discord
 from discord.ext import commands
 
-from datetime import datetime
+from . import checks, config, db
 
-from typing import Optional
-
-import sys, traceback
-
-from . import checks
-from . import config
-from . import db
-
-import logging
 _log = logging.getLogger(__name__)
 
-__all__ = ["BlueOnBlueBot"]
+__all__ = ["BlueOnBlueBot", "BlueOnBlueTree"]
+
+initial_extensions = [
+	"botcontrol",
+	"users",
+	"arma_stats",
+	"config",
+	"gold",
+	"jail",
+	"missions",
+	"pings",
+	"raffle",
+	"utils",
+	"verify",
+]
+
+
+class KeyboardInterruptHandler:
+	def __init__(self, bot: "BlueOnBlueBot"):
+		self.bot = bot
+		self._task = None
+
+	def __call__(self):
+		if self._task:
+			raise KeyboardInterrupt
+		self._task = asyncio.create_task(self.bot.close())
+
 
 class BlueOnBlueBot(commands.Bot):
 	"""Blue on Blue bot class.
 	Subclass of discord.ext.commands.Bot"""
+
 	# Class variable type hinting
 	httpSession: aiohttp.ClientSession
 	startTime: datetime
 	firstStart: bool
+	pool: asqlite.Pool
 
 	def __init__(self):
 		# Set up our core config
-		self.config = config.BotConfig("config/config.toml")
+		self.config = config.BotConfig()
 
 		# Set up our DB
 		self.db = db.DB("data/blueonblue.sqlite3")
 
-		# Temp new server config
+		# Initialize the server config
 		self.serverConfig = config.ServerConfig(self)
-
-		# Store our "debug server" value for slash command testing
-		self.slashDebugID: Optional[int] = None
-		debugServerID = self.config.debug_server
-		if debugServerID > 0: # If we have an ID present
-			self.slashDebugID = debugServerID
 
 		# Set up variables for type hinting
 		self.firstStart = True
@@ -49,30 +70,19 @@ class BlueOnBlueBot(commands.Bot):
 		intents.members = True
 		intents.message_content = True
 
+		if self.config.prefix is not None:
+			prefix = commands.when_mentioned_or(self.config.prefix)
+		else:
+			prefix = commands.when_mentioned
+
 		# Call the commands.Bot init
 		super().__init__(
-			command_prefix = commands.when_mentioned_or(self.config.prefix),
-			description = "Blue on Blue",
-			case_insensitive = True,
-			intents = intents,
-			tree_cls=BlueOnBlueTree
+			command_prefix=prefix,
+			description="Blue on Blue",
+			case_insensitive=True,
+			intents=intents,
+			tree_cls=BlueOnBlueTree,
 		)
-
-		# Define our list of initial extensions
-		# Botcontrol and users must be first and second respectively
-		self.initialExtensions = [
-			"botcontrol",
-			"users",
-			"arma_stats",
-			"config",
-			"gold",
-			"jail",
-			"missions",
-			"pings",
-			"raffle",
-			"utils",
-			"verify"
-		]
 
 	async def syncAppCommands(self):
 		"""|coro|
@@ -80,13 +90,13 @@ class BlueOnBlueBot(commands.Bot):
 		Synchronizes app commands to discord.
 		If a debug server is specified in config, commands will be synchronized to the specified guild instead of globally."""
 		# Synchronize our app command tree
-		if self.slashDebugID is not None:
+		if self.config.debug_server is not None:
 			# Debug ID present, synchronize commands to guild
-			guild = discord.Object(self.slashDebugID)
+			guild = discord.Object(self.config.debug_server)
 			# Remove existing commands from the guild list
-			self.tree.clear_commands(guild = guild)
-			self.tree.copy_global_to(guild = guild)
-			await self.tree.sync(guild = guild)
+			self.tree.clear_commands(guild=guild)
+			self.tree.copy_global_to(guild=guild)
+			await self.tree.sync(guild=guild)
 		else:
 			# Debug ID not present. Synchronize commands globally.
 			await self.tree.sync()
@@ -96,10 +106,8 @@ class BlueOnBlueBot(commands.Bot):
 		"""|coro|
 
 		Overwritten start function to run the bot.
-		Sets up the HTTP client and DB connections, then starts the bot."""
-		# Validate our DB version
-		await self.db.migrate_version()
-
+		Sets up the HTTP client, then starts the bot."""
+		self.pool = await asqlite.create_pool("data/blueonblue.sqlite3")
 		self.httpSession = aiohttp.ClientSession(raise_for_status=True)
 		self.startTime = discord.utils.utcnow()
 		await super().start(*args, **kwargs)
@@ -108,27 +116,41 @@ class BlueOnBlueBot(commands.Bot):
 		"""|coro|
 
 		Overwritten close function to stop the bot.
-		Closes down the HTTP session when the bot is stopped."""
+		Closes down the asqlite pool and HTTP session when the bot is stopped."""
+		await self.pool.close()
 		await self.httpSession.close()
+		# Clean up the SQLite Write-Ahead Log before closing the bot
+		async with self.db.connect():
+			# This opens a standard asqlite connection, which
+			# seems to clean up much more consistently.
+			pass
 		await super().close()
+		_log.info("Bot stopped gracefully")
 
 	# Setup hook function to load extensions
 	async def setup_hook(self):
+		# Add a SIGTERM handler to stop the bot
+		# Ignore NotImplementedErrors on Windows systems
+		try:
+			self.loop.add_signal_handler(SIGTERM, KeyboardInterruptHandler(self))
+		except NotImplementedError:
+			pass
+
 		# Load our extensions
-		for ext in self.initialExtensions:
+		for ext in initial_extensions:
 			try:
 				await self.load_extension("cogs." + ext)
-			except Exception as e:
+			except Exception:
 				_log.exception(f"Failed to load extension: {ext}")
 			else:
 				_log.info(f"Loaded extension: {ext}")
 		_log.info("Extensions loaded")
 
 		# If we have a debug ID set, copy global commands to a guild
-		if self.slashDebugID is not None:
+		if self.config.debug_server is not None:
 			# Debug ID present, synchronize commands to guild
-			guild = discord.Object(self.slashDebugID)
-			self.tree.copy_global_to(guild = guild)
+			guild = discord.Object(self.config.debug_server)
+			self.tree.copy_global_to(guild=guild)
 
 	# On connect. Runs immediately upon connecting to Discord
 	async def on_connect(self):
@@ -140,7 +162,7 @@ class BlueOnBlueBot(commands.Bot):
 	# Can run multiple times if the bot is disconnected at any point
 	async def on_ready(self):
 		# Make some log messages
-		_log.info(f"Connected to servers: {self.guilds}")
+		_log.info(f"Connected to {len(self.guilds)} servers")
 		_log.info("Blue on Blue ready.")
 
 		# Set our "first start" variable to False
@@ -167,12 +189,15 @@ class BlueOnBlueBot(commands.Bot):
 
 		# Command not found
 		elif isinstance(error, commands.CommandNotFound):
-			await ctx.send(f"{ctx.author.mention} Unknown command. This bot has migrated to slash commands. Try typing a `/` to see the list of commands.")
+			await ctx.send(
+				f"{ctx.author.mention} Unknown command. This bot has migrated to slash commands. Try typing a `/` to see the list of commands."
+			)
 
 		# If we don't have a handler for that error type, execute default error code.
 		else:
 			_log.exception(f"Ignoring exception in command {ctx.command}:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
 
 class BlueOnBlueTree(discord.app_commands.CommandTree):
 	"""BlueOnBlue app commands tree
@@ -181,7 +206,7 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 	async def on_error(
 		self,
 		interaction: discord.Interaction,
-		error: discord.app_commands.AppCommandError
+		error: discord.app_commands.AppCommandError,
 	):
 		"""|coro|
 
@@ -195,17 +220,19 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 			await interaction.response.send_message("This command cannot be used in private messages", ephemeral=True)
 
 		elif (
-			isinstance(error, discord.app_commands.errors.MissingRole) or
-			isinstance(error, discord.app_commands.errors.MissingAnyRole) or
-			isinstance(error, discord.app_commands.errors.MissingPermissions) or
-			isinstance(error, checks.UserUnauthorized)
+			isinstance(error, discord.app_commands.errors.MissingRole)
+			or isinstance(error, discord.app_commands.errors.MissingAnyRole)
+			or isinstance(error, discord.app_commands.errors.MissingPermissions)
+			or isinstance(error, checks.UserUnauthorized)
 		):
 			# User not authorized to use command
 			await interaction.response.send_message("You are not authorized to use this command", ephemeral=True)
 
 		elif isinstance(error, discord.app_commands.errors.BotMissingPermissions):
 			# Bot is missing permissions for the command
-			await interaction.response.send_message(f"The bot is missing the following permissions to use this command: `{error.missing_permissions}`")
+			await interaction.response.send_message(
+				f"The bot is missing the following permissions to use this command: `{error.missing_permissions}`"
+			)
 
 		elif isinstance(error, checks.ChannelUnauthorized):
 			# Command can only be used in specified channels
@@ -240,7 +267,7 @@ class BlueOnBlueTree(discord.app_commands.CommandTree):
 				_log.exception(f"Ignoring exception in app command {interaction.command.name}:")
 			else:
 				# Command is none
-				_log.exception(f"Ignoring exception in command tree:")
+				_log.exception("Ignoring exception in command tree:")
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-		#await super().on_error(interaction, command, error)
+		# await super().on_error(interaction, command, error)

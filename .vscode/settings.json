@@ -1,9 +1,8 @@
 {
 	"editor.insertSpaces": false,
 	"editor.detectIndentation": false,
-	"python.formatting.provider": "yapf",
 	"python.analysis.typeCheckingMode": "basic",
-	"editor.formatOnSave": false,
+	"editor.formatOnSave": true,
 	"python.testing.pytestArgs": [
 		"tests"
 	],

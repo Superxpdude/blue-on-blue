@@ -12,3 +12,8 @@ trim_trailing_whitespace = true
 # Tab indentation for Python
 [*.py]
 indent_style = tab
+
+# Space indentation as required for yaml
+[*.yaml]
+indent_size = 2
+indent_style = space
