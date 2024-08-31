@@ -29,6 +29,9 @@ jobs:
     name: Deploy image
     needs: [get-version, build]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      attestations: write
     env:
       IMAGE_NAME: blueonblue
       TAG: "latest"
