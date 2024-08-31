@@ -69,7 +69,7 @@ jobs:
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ needs.build.outputs.image }}
-          tags: ${{ env.TAG }} ${{ needs.build.outputs.tags }}
+          tags: ${{ env.TAG }} ${{ needs.get-version.outputs.version }} ${{ needs.build.outputs.tags }}
           registry: ${{ env.REGISTRY }}
 
       - name: Generate artifact attestation
