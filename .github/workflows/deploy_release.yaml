@@ -30,8 +30,9 @@ jobs:
     needs: [get-version, build]
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       attestations: write
+      id-token: write
+      packages: write
     env:
       IMAGE_NAME: blueonblue
       TAG: "latest"
