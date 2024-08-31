@@ -1,5 +1,6 @@
 import logging
 import importlib.metadata
+import os
 
 import discord
 from discord import app_commands
@@ -36,6 +37,13 @@ class Info(commands.Cog, name="Info"):
 		except importlib.metadata.PackageNotFoundError:
 			_log.warning("Unable to locate version for BlueonBlue package in info command.")
 			pass
+
+		# Add the revision if present
+		if "COMMIT" in os.environ:
+			revision = os.environ["COMMIT"]
+			embed.add_field(
+				name="Revision", value=f"[{revision:7.7}](https://github.com/Superxpdude/blue-on-blue/commit/{revision})"
+			)
 
 		await interaction.response.send_message(embed=embed)
 

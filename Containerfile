@@ -1,4 +1,10 @@
 FROM docker.io/library/python:3.12-slim as debian
+
+# Set the revision as an environment variable when building
+ARG commit
+ENV COMMIT=$commit
+
+# Add opencontainers labels
 LABEL org.opencontainers.image.source = "https://github.com/Superxpdude/blue-on-blue"
 LABEL org.opencontainers.image.description = "A Discord bot for TMTM"
 
