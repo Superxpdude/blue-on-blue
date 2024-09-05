@@ -3,7 +3,7 @@ requires = ["setuptools>=70.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-version = "1.0.1"
+version = "1.0.2"
 authors = [{ name = "Superxpdude" }]
 name = "blueonblue"
 description = "Discord Bot for TMTM"

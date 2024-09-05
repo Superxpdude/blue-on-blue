@@ -482,7 +482,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 						"SELECT user_id FROM gold WHERE server_id = :server_id AND user_id = :user_id LIMIT 1",
 						{"server_id": member.guild.id, "user_id": member.id},
 					)
-					if cursor.fetchone() is not None:
+					if (await cursor.fetchone()) is not None:
 						try:
 							await member.add_roles(role, reason="Re-adding TMTM gold to joining user")
 						except (discord.Forbidden, discord.HTTPException):
