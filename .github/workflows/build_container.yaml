@@ -27,6 +27,7 @@ jobs:
       IMAGE_NAME: blueonblue
     outputs:
       image: ${{ steps.build-image.outputs.image }}
+      image-with-tag: ${{ steps.build-image.outputs.image-with-tag }}
       tags: ${{ steps.build-image.outputs.tags }}
 
     steps:
@@ -59,7 +60,7 @@ jobs:
 
       - name: Export image
         run: |
-          buildah push ${{ steps.build-image.outputs.image-with-tag }} oci-archive:/tmp/blueonblue.tar:${{ steps.build-image.outputs.image }}
+          buildah push ${{ steps.build-image.outputs.image-with-tag }} oci-archive:/tmp/blueonblue.tar:${{ steps.build-image.outputs.image-with-tag }}
 
       - name: Upload artifact
         id: upload-artifact

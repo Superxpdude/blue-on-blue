@@ -32,7 +32,7 @@ jobs:
 
       - name: Apply container tags
         run: |
-          buildah tag ${{ needs.build.outputs.image }} ${{ needs.build.outputs.image }}:${{ env.TAG }}
+          buildah tag ${{ needs.build.outputs.image-with-tag }} ${{ needs.build.outputs.image }}:${{ env.TAG }}
 
       - name: Display buildah containers
         run: |
