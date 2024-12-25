@@ -13,6 +13,9 @@ on:
       tags:
         description: "Container tags"
         value: ${{ jobs.build.outputs.tags }}
+      image-with-tag:
+        description: "Container image with tag"
+        value: ${{ jobs.build.outputs.image-with-tag }}
   push:
     branches-ignore:
       - "main"
