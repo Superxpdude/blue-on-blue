@@ -43,6 +43,12 @@ class _ColourFormatter(logging.Formatter):
 		return output
 
 
+class _stdoutFilter(logging.Filter):
+	def filter(self, record: logging.LogRecord):
+		"""Only allow log messages with log level below error."""
+		return record.levelno < logging.ERROR
+
+
 def setup_logging(
 	*,
 	level: int = logging.INFO,
@@ -57,29 +63,30 @@ def setup_logging(
 		Logging level to use, by default logging.INFO
 	"""
 
-	logHandler = logging.handlers.TimedRotatingFileHandler(
-		"data/logs/blueonblue.log", when="midnight", backupCount=30
-	)
-	consoleHandler = logging.StreamHandler()
+	logHandler = logging.handlers.TimedRotatingFileHandler("data/logs/blueonblue.log", when="midnight", backupCount=30)
+	consoleStdout = logging.StreamHandler()
+	consoleStderr = logging.StreamHandler()
 
-	logFormatter = logging.Formatter(
-		"%(asctime)s [%(levelname)s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S"
-	)
+	logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S")
 	consoleFormatter = (
 		_ColourFormatter()
-		if discord.utils.stream_supports_colour(consoleHandler.stream)
-		else logging.Formatter(
-			"%(asctime)s [%(levelname)-8s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S"
-		)
+		if discord.utils.stream_supports_colour(consoleStdout.stream)
+		else logging.Formatter("%(asctime)s [%(levelname)-8s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S")
 	)
 
 	logHandler.setFormatter(logFormatter)
-	consoleHandler.setFormatter(consoleFormatter)
+	consoleStdout.setFormatter(consoleFormatter)
+	consoleStderr.setFormatter(consoleFormatter)
+
+	stdoutFilter = _stdoutFilter()
+	consoleStdout.addFilter(stdoutFilter)
+	consoleStderr.setLevel(logging.ERROR)
 
 	log = logging.getLogger()
 
 	log.addHandler(logHandler)
-	log.addHandler(consoleHandler)
+	log.addHandler(consoleStdout)
+	log.addHandler(consoleStderr)
 
 	log.setLevel(level)
 

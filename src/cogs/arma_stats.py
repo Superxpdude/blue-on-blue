@@ -296,9 +296,9 @@ class ArmaStats(commands.GroupCog, group_name="armastats"):
 								missionData: list = await response.json()
 						except aiohttp.ClientResponseError as error:
 							_log.warning(
-								f"Received HTTP error {error.status} when \
-								connecting to Arma stats API for guild: \
-								[{guild.name}|{guild.id}]"
+								f"Received HTTP error {error.status} when "
+								"connecting to Arma stats API for guild: "
+								f"[{guild.name}|{guild.id}]"
 							)
 							continue
 
