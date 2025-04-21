@@ -1,4 +1,4 @@
-FROM docker.io/library/python:3.12-slim as debian
+FROM docker.io/library/python:3.13-slim as debian
 
 # Set the revision as an environment variable when building
 ARG commit
