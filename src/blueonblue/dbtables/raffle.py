@@ -1,8 +1,8 @@
 from .base import BaseTable
 
+
 class RaffleWeights(BaseTable):
 	"""Raffle Weights table class"""
-
 
 	async def getWeight(self, guildID: int, userID: int) -> float:
 		"""Returns the raffle weight of a user from the database
@@ -20,13 +20,15 @@ class RaffleWeights(BaseTable):
 			Raffle weight. Defaults to 1 if not found
 		"""
 		async with self.db.connection.cursor() as cursor:
-			await cursor.execute("SELECT weight FROM raffle_weights WHERE server_id = :server_id AND user_id = :user_id", {"server_id": guildID, "user_id": userID})
+			await cursor.execute(
+				"SELECT weight FROM raffle_weights WHERE server_id = :server_id AND user_id = :user_id",
+				{"server_id": guildID, "user_id": userID},
+			)
 			data = await cursor.fetchone()
 			if data is None:
 				return 1.0
 			else:
 				return float(data["weight"])
-
 
 	async def setWeight(self, guildID: int, userID: int, weight: float) -> None:
 		"""Sets the raffle weight for a participant
@@ -41,13 +43,13 @@ class RaffleWeights(BaseTable):
 			New weight to set
 		"""
 		async with self.db.connection.cursor() as cursor:
-			await cursor.execute("INSERT INTO raffle_weights (server_id, user_id, weight)\
+			await cursor.execute(
+				"INSERT INTO raffle_weights (server_id, user_id, weight)\
 				VALUES (:server_id, :user_id, :weight)\
 				ON CONFLICT (server_id, user_id) DO UPDATE\
 				SET weight == :weight",
-				{"server_id": guildID, "user_id": userID, "weight": weight}
+				{"server_id": guildID, "user_id": userID, "weight": weight},
 			)
-
 
 	async def increaseWeight(self, guildID: int, userID: int, increase: float, maxWeight: float = 3.0) -> None:
 		"""Increase the raffle weight for a user.
@@ -71,5 +73,5 @@ class RaffleWeights(BaseTable):
 				UPDATE SET weight = MIN(:max, \
 					(SELECT weight FROM raffle_weights WHERE user_id = :user_id) + :increase\
 				)",
-				{"server_id": guildID, "user_id": userID, "increase": increase, "max": maxWeight}
+				{"server_id": guildID, "user_id": userID, "increase": increase, "max": maxWeight},
 			)
