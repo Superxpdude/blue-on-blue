@@ -44,7 +44,7 @@ class Timer:
 class Gold(commands.GroupCog, group_name="gold"):
 	"""Gold user functions"""
 
-	def __init__(self, bot, *args, **kwargs):
+	def __init__(self, bot: blueonblue.BlueOnBlueBot, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.bot: blueonblue.BlueOnBlueBot = bot
 		self._current_timer: Timer | None = None
@@ -205,7 +205,7 @@ class Gold(commands.GroupCog, group_name="gold"):
 	@app_commands.describe(
 		user="User to be given TMTM gold.",
 		time="Time duration for TMTM Gold. Default unit is days.",
-		time_unit="Unit of measurement for " "time" " parameter.",
+		time_unit="Unit of measurement for time parameter.",
 	)
 	@blueonblue.checks.has_configs(SCONF_CHANNEL_MOD_ACTIVITY, SCONF_ROLE_GOLD)
 	async def add(
@@ -349,14 +349,14 @@ class Gold(commands.GroupCog, group_name="gold"):
 		# Start our DB block
 		async with self.bot.pool.acquire() as conn:
 			async with conn.cursor() as cursor:
-				# Check if the user is already jailed
+				# Check if the user already has gold
 				await cursor.execute(
 					"SELECT user_id, expiry_time FROM gold WHERE server_id = :serverID AND user_id = :userID",
 					{"serverID": interaction.guild.id, "userID": user.id},
 				)
 				userData = await cursor.fetchone()
 				if userData is None:
-					# User not jailed
+					# User does not have gold
 					await interaction.response.send_message(
 						f"I could not find {user.mention} in the gold list.",
 						ephemeral=True,
@@ -404,15 +404,6 @@ class Gold(commands.GroupCog, group_name="gold"):
 						"DELETE FROM gold WHERE server_id = :serverID AND user_id = :userID",
 						{"serverID": interaction.guild.id, "userID": user.id},
 					)
-					# Make sure that we remove the role reference from the users DB (if present)
-					await cursor.execute(
-						"DELETE FROM user_roles WHERE server_id = :serverID AND user_id = :userID AND role_id = :roleID",
-						{
-							"serverID": interaction.guild.id,
-							"userID": user.id,
-							"roleID": goldRole.id,
-						},
-					)
 					# Write to the DB
 					await conn.commit()
 
@@ -446,26 +437,14 @@ class Gold(commands.GroupCog, group_name="gold"):
 				goldEmbed = discord.Embed(title="Gold Users", colour=GOLD_EMBED_COLOUR)
 
 				for userData in usersData:
-					user = interaction.guild.get_member(userData["user_id"])
+					user = self.bot.get_user(userData["user_id"])
 					if user is not None:
-						userName = user.display_name
-					else:
-						await cursor.execute(
-							"SELECT display_name FROM users WHERE server_id = :serverID AND user_id = :userID",
-							{
-								"serverID": interaction.guild.id,
-								"userID": userData["user_id"],
-							},
+						# Add the user information to the embed
+						goldEmbed.add_field(
+							name=user.display_name,
+							value=f"{user.mention}: <t:{userData['expiry_time']}:F>",
+							inline=False,
 						)
-						data = await cursor.fetchone()
-						userName = data["display_name"]
-
-					# Add the user information to the embed
-					goldEmbed.add_field(
-						name=userName,
-						value=f"<t:{userData['expiry_time']}:F>",
-						inline=False,
-					)
 
 				# Send the embed information
 				await interaction.response.send_message(embed=goldEmbed)
