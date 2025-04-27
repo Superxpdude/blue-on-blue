@@ -1,6 +1,6 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import blueonblue
 import discord
@@ -202,19 +202,9 @@ class Gold(commands.GroupCog, group_name="gold"):
 					)
 
 	@app_commands.command(name="add")
-	@app_commands.describe(
-		user="User to be given TMTM gold.",
-		time="Time duration for TMTM Gold. Default unit is days.",
-		time_unit="Unit of measurement for time parameter.",
-	)
+	@app_commands.describe(user="User to be given TMTM gold.", value="Amount donated by user.")
 	@blueonblue.checks.has_configs(SCONF_CHANNEL_MOD_ACTIVITY, SCONF_ROLE_GOLD)
-	async def add(
-		self,
-		interaction: discord.Interaction,
-		user: discord.Member,
-		time: float,
-		time_unit: Literal["minutes", "hours", "days", "weeks"] = "days",
-	):
+	async def add(self, interaction: discord.Interaction, user: discord.Member, value: float):
 		"""Gives TMTM Gold to a user"""
 		assert interaction.guild is not None
 
@@ -223,27 +213,13 @@ class Gold(commands.GroupCog, group_name="gold"):
 		goldRole = await self.bot.serverConfig.role_gold.get(interaction.guild)
 		assert goldRole is not None
 
-		# Get our timedelta
-		if time_unit == "minutes":
-			timeDelta = timedelta(minutes=time)
-		elif time_unit == "hours":
-			timeDelta = timedelta(hours=time)
-		elif time_unit == "weeks":
-			timeDelta = timedelta(weeks=time)
-		else:  # Days
-			timeDelta = timedelta(days=time)
-
 		# Now that we have our timedelta, find the expiry time
-		expiryTimeStamp = round((discord.utils.utcnow() + timeDelta).timestamp())
-
-		# Create a "time text"
-		timeText = int(time) if time == int(time) else time
+		# expiryTimeStamp = round((discord.utils.utcnow() + timeDelta).timestamp())
 
 		# Build our embed and view
 		view = blueonblue.views.ConfirmView(interaction.user)
 		goldEmbed = discord.Embed(
-			title=f"Gold to be given for `{timeText} {time_unit}` until",
-			description=f"<t:{expiryTimeStamp}:F>",
+			description=f"Gold to be given for a donation of `${value:.2f}`.",
 			colour=GOLD_EMBED_COLOUR,
 		)
 		goldEmbed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
@@ -259,7 +235,8 @@ class Gold(commands.GroupCog, group_name="gold"):
 		# Once we have a response, continue
 		if view.response:
 			# Action confirmed. Give gold to the user
-			# Get the mod activity channel
+			# Get the monthly rate
+			monthlyRate = await self.bot.serverConfig.gold_month_cost.get(interaction.guild)
 
 			# Start our DB block
 			async with self.bot.pool.acquire() as conn:
@@ -270,38 +247,22 @@ class Gold(commands.GroupCog, group_name="gold"):
 						{"serverID": interaction.guild.id, "userID": user.id},
 					)
 					userData = await cursor.fetchone()
-					if userData is None:
-						# User not in gold DB
-						# Add the "gold" role to the user
+					existingTime = 0 if userData is None else (userData["expiry_time"] - discord.utils.utcnow().timestamp())
+					# User not in gold DB
+					goldReason = f"TMTM Gold given by {interaction.user.display_name}."
 
-						goldReason = f"TMTM Gold given by {interaction.user.display_name} for {timeText} {time_unit}."
-						try:
-							assert goldRole is not None
-							await user.add_roles(goldRole, reason=goldReason)
-							await cursor.execute(
-								"INSERT OR REPLACE INTO gold (server_id, user_id, expiry_time) VALUES \
-							(:serverID, :userID, :expiryTime)",
-								{
-									"serverID": interaction.guild.id,
-									"userID": user.id,
-									"expiryTime": expiryTimeStamp,
-								},
-							)
-							await interaction.followup.send(
-								f"TMTM Gold has been given to {user.mention}.",
-								ephemeral=True,
-								allowed_mentions=discord.AllowedMentions.none(),
-							)
-							await modChannel.send(
-								f"User {user.mention} has been given TMTM Gold by {interaction.user.mention} for {timeText} {time_unit}.",
-								allowed_mentions=discord.AllowedMentions.none(),
-							)
-						except Exception:
-							await interaction.followup.send("Failed to assign roles to gold user.")
-					else:
-						# User in gold DB. Only update expiry time.
+					# Determine the expiry timestamp based on the donated amount
+					expiryTimeStamp = round(
+						(discord.utils.utcnow() + timedelta(days=30 * (value / monthlyRate))).timestamp() + existingTime
+					)
+
+					# Add the "gold" role to the user
+					try:
+						assert goldRole is not None
+						await user.add_roles(goldRole, reason=goldReason)
 						await cursor.execute(
-							"UPDATE gold SET expiry_time = :expiryTime WHERE server_id = :serverID AND user_id = :userID",
+							"INSERT OR REPLACE INTO gold (server_id, user_id, expiry_time) VALUES \
+							(:serverID, :userID, :expiryTime)",
 							{
 								"serverID": interaction.guild.id,
 								"userID": user.id,
@@ -309,14 +270,16 @@ class Gold(commands.GroupCog, group_name="gold"):
 							},
 						)
 						await interaction.followup.send(
-							f"Updated expiry time for user {user.mention}.",
+							f"TMTM Gold has been given to {user.mention}.",
 							ephemeral=True,
 							allowed_mentions=discord.AllowedMentions.none(),
 						)
 						await modChannel.send(
-							f"TMTM Gold for user {user.mention} has been modified by {interaction.user.mention} to {timeText} {time_unit}.",
+							f"User {user.mention} has been given TMTM Gold by {interaction.user.mention} until <t:{expiryTimeStamp}:F>.",
 							allowed_mentions=discord.AllowedMentions.none(),
 						)
+					except Exception:
+						await interaction.followup.send("Failed to assign roles to gold user.")
 
 					# Commit changes to the DB
 					await conn.commit()

@@ -31,6 +31,7 @@ from blueonblue.defines import (
 	SCONF_ROLE_TIMEOUT,
 	SCONF_ROLE_VERIFY,
 	SCONF_STEAM_GROUP_ID,
+	SCONF_GOLD_MONTH_COST,
 )
 
 _log = logging.getLogger(__name__)
@@ -667,6 +668,9 @@ class ServerConfig:
 		self.arma_stats_leaderboard_recent_days = ServerConfigIntegerDefault(
 			bot, SCONF_ARMA_STATS_LEADERBOARD_DAYS, default="90"
 		)
+
+		# Gold config
+		self.gold_month_cost = ServerConfigFloatDefault(bot, SCONF_GOLD_MONTH_COST, default="15.0")
 
 		# Initialize our options dict
 		self.options: dict[str, ServerConfigOption] = {}
