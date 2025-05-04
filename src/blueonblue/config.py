@@ -25,6 +25,9 @@ from blueonblue.defines import (
 	SCONF_MISSION_SHEET_KEY,
 	SCONF_MISSION_WIKI_URL,
 	SCONF_MISSION_WORKSHEET,
+	SCONF_MISSION_UPLOAD_URL,
+	SCONF_MISSION_UPLOAD_USERNAME,
+	SCONF_MISSION_UPLOAD_PASSWORD,
 	SCONF_RAFFLEWEIGHT_INCREASE,
 	SCONF_RAFFLEWEIGHT_MAX,
 	SCONF_ROLE_GOLD,
@@ -652,6 +655,9 @@ class ServerConfig:
 		self.mission_sheet_key = ServerConfigString(bot, SCONF_MISSION_SHEET_KEY)
 		self.mission_worksheet = ServerConfigStringDefault(bot, SCONF_MISSION_WORKSHEET, default="Schedule")
 		self.mission_wiki_url = ServerConfigString(bot, SCONF_MISSION_WIKI_URL)
+		self.mission_upload_url = ServerConfigString(bot, SCONF_MISSION_UPLOAD_URL)
+		self.mission_upload_username = ServerConfigString(bot, SCONF_MISSION_UPLOAD_USERNAME)
+		self.mission_upload_password = ServerConfigString(bot, SCONF_MISSION_UPLOAD_PASSWORD, protected=True)
 
 		# Raffle Weights
 		self.raffleweight_max = ServerConfigFloatDefault(bot, SCONF_RAFFLEWEIGHT_MAX, default="3.0")

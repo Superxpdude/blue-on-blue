@@ -17,6 +17,9 @@ from blueonblue.defines import (
 	SCONF_MISSION_SHEET_KEY,
 	SCONF_MISSION_WIKI_URL,
 	SCONF_MISSION_WORKSHEET,
+	SCONF_MISSION_UPLOAD_URL,
+	SCONF_MISSION_UPLOAD_USERNAME,
+	SCONF_MISSION_UPLOAD_PASSWORD,
 )
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -49,9 +52,7 @@ def _decode_file_name(filename: str) -> MissionFileNameInfo:
 
 	# Check if there are any erroneuous periods in the file name
 	if len(fileList) > 3:
-		raise Exception(
-			"File names can only have periods to denote the map and file extension."
-		)
+		raise Exception("File names can only have periods to denote the map and file extension.")
 	if len(fileList) < 3:
 		raise Exception("File name appears to be missing the map definition.")
 
@@ -126,9 +127,7 @@ class MissionAuditButton(discord.ui.Button):
 
 	async def callback(self, interaction: discord.Interaction):
 		# Send the modal response
-		auditModal = MissionAuditModal(
-			self.view, self.view.auditFile, modpackFile=self.view.modpackFile
-		)
+		auditModal = MissionAuditModal(self.view, self.view.auditFile, modpackFile=self.view.modpackFile)
 		await interaction.response.send_modal(auditModal)
 
 
@@ -159,20 +158,12 @@ class MissionAuditModal(discord.ui.Modal, title="Mission Audit Notes"):
 		# This modal should only ever appear in a guild context
 		assert interaction.guild is not None
 
-		await (
-			self.originalView.terminate()
-		)  # Terminate the original view when the modal is submitted
+		await self.originalView.terminate()  # Terminate the original view when the modal is submitted
 		# We need to respond to the modal so that it doesn't error out
-		await interaction.response.send_message(
-			"Audit received. Beginning upload.", ephemeral=True
-		)
+		await interaction.response.send_message("Audit received. Beginning upload.", ephemeral=True)
 
 		# Old code below
-		auditChannel = (
-			await self.originalView.bot.serverConfig.channel_mission_audit.get(
-				interaction.guild
-			)
-		)
+		auditChannel = await self.originalView.bot.serverConfig.channel_mission_audit.get(interaction.guild)
 
 		if auditChannel is None:
 			# This should never trigger since this check is also done in the originl audit command
@@ -188,14 +179,10 @@ class MissionAuditModal(discord.ui.Modal, title="Mission Audit Notes"):
 		if self.modpackFile is None:
 			auditMessage = f"Mission submitted for audit by {interaction.user.mention}."
 		else:
-			auditMessage = (
-				f"Modnight mission submitted for audit by {interaction.user.mention}."
-			)
+			auditMessage = f"Modnight mission submitted for audit by {interaction.user.mention}."
 
 		# The audit message is required now, so we can append it to the end.
-		auditMessage += (
-			f" Notes from the mission maker below \n```\n{self.audit_notes.value}```"
-		)
+		auditMessage += f" Notes from the mission maker below \n```\n{self.audit_notes.value}```"
 
 		missionFileObject = await self.auditFile.to_file()
 		auditFiles = [missionFileObject]
@@ -213,9 +200,7 @@ class MissionAuditModal(discord.ui.Modal, title="Mission Audit Notes"):
 		except discord.NotFound:
 			await auditChannel.send("I ran into an issue pinning an audit message.")
 		except discord.HTTPException:
-			await auditChannel.send(
-				"Pinning the audit message failed. The pin list might be full!"
-			)
+			await auditChannel.send("Pinning the audit message failed. The pin list might be full!")
 
 		# Let the user know that their mission is being submitted for audit.
 		await interaction.followup.send(
@@ -310,13 +295,9 @@ class Missions(commands.Cog, name="Missions"):
 			# Guild has no wiki URL defined
 			self.missionCache[guild.id] = []
 
-	async def mission_autocomplete(
-		self, interaction: discord.Interaction, current: str
-	):
+	async def mission_autocomplete(self, interaction: discord.Interaction, current: str):
 		"""Function to handle autocompletion of missions present on the audit list"""
-		if (interaction.guild is None) or (
-			interaction.guild.id not in self.missionCache
-		):
+		if (interaction.guild is None) or (interaction.guild.id not in self.missionCache):
 			# If the guild doesn't exist, or the cache doesn't exist return nothing
 			return []
 		else:
@@ -329,22 +310,16 @@ class Missions(commands.Cog, name="Missions"):
 
 	@app_commands.command(name="missions")
 	@app_commands.guild_only()
-	@blueonblue.checks.has_configs(
-		SCONF_MISSION_SHEET_KEY, SCONF_MISSION_WORKSHEET, SCONF_MISSION_WIKI_URL
-	)
+	@blueonblue.checks.has_configs(SCONF_MISSION_SHEET_KEY, SCONF_MISSION_WORKSHEET, SCONF_MISSION_WIKI_URL)
 	async def missions(self, interaction: discord.Interaction):
 		"""Displays a list of scheduled missions"""
 
 		# Guild-only command. Guild will always be defined
 		assert interaction.guild is not None
 
-		missionKey = await self.bot.serverConfig.mission_sheet_key.get(
-			interaction.guild
-		)
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
 		assert missionKey is not None
-		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(
-			interaction.guild
-		)
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
 		assert missionWorksheetName is not None
 		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(interaction.guild)
 		assert wikiURL is not None
@@ -375,30 +350,21 @@ class Missions(commands.Cog, name="Missions"):
 			# Only continue if we have all of the required information
 			if (
 				dateVar is not None  # Make sure we have a date object
-				and row["Mission"]
-				is not None  # Make sure that the "mission" value is not none
-				and dateVar.date()
-				> (
-					datetime.now() + timedelta(days=-1)
-				).date()  # Date is today, or in the future
+				and row["Mission"] is not None  # Make sure that the "mission" value is not none
+				and dateVar.date() > (datetime.now() + timedelta(days=-1)).date()  # Date is today, or in the future
 			):
 				# Get our data, and create our embed
 				embedTitle = dateVar.date().strftime(f"%A: {ISO_8601_FORMAT}")
 				missionName: str = row["Mission"]
 				missionMap: str = row["Map"] if row["Map"] is not None else "Unknown"
-				missionAuthor: str = (
-					row["Author(s)"] if row["Author(s)"] is not None else "Unknown"
-				)
+				missionAuthor: str = row["Author(s)"] if row["Author(s)"] is not None else "Unknown"
 				missionNotes: str = row["Notes"]
 
 				missionWS = (
 					True
 					if (
 						("Western Sahara" in row.keys())
-						and (
-							(row["Western Sahara"] == "TRUE")
-							or (missionMap == "Sefrou-Ramal")
-						)
+						and ((row["Western Sahara"] == "TRUE") or (missionMap == "Sefrou-Ramal"))
 					)
 					else False
 				)
@@ -442,13 +408,9 @@ class Missions(commands.Cog, name="Missions"):
 						responsePageData = responsePages[list(responsePages)[0]]
 						if "thumbnail" in responsePageData:
 							# Check to make sure that we don't exceed any height limits
-							if (
-								responsePageData["thumbnail"]["height"] <= 141
-							):  # 2:1 is ideal, but 16:9 is acceptable
+							if responsePageData["thumbnail"]["height"] <= 141:  # 2:1 is ideal, but 16:9 is acceptable
 								# We have a thumbnail to use
-								missionImageURL = responsePageData["thumbnail"][
-									"source"
-								]
+								missionImageURL = responsePageData["thumbnail"]["source"]
 							else:
 								missionImageURL = None
 						else:
@@ -464,9 +426,7 @@ class Missions(commands.Cog, name="Missions"):
 						)
 					pass
 				except aiohttp.ClientConnectorError:
-					_log.warning(
-						f"Unable to connect to mission wiki at {wikiURL} to retrieve mission images"
-					)
+					_log.warning(f"Unable to connect to mission wiki at {wikiURL} to retrieve mission images")
 				except:
 					raise
 
@@ -480,16 +440,12 @@ class Missions(commands.Cog, name="Missions"):
 						inline=True,
 					)
 				else:
-					missionEmbed.add_field(
-						name="Mission", value=missionName, inline=True
-					)
+					missionEmbed.add_field(name="Mission", value=missionName, inline=True)
 				# Map
 				missionEmbed.add_field(name="Map", value=missionMap, inline=True)
 				missionEmbed.add_field(name="Author", value=missionAuthor, inline=True)
 				if missionNotes is not None:
-					missionEmbed.add_field(
-						name="Notes", value=missionNotes, inline=False
-					)
+					missionEmbed.add_field(name="Notes", value=missionNotes, inline=False)
 				# Append our embed to our missionEmbeds array
 				missionEmbeds.append(missionEmbed)
 
@@ -524,9 +480,7 @@ class Missions(commands.Cog, name="Missions"):
 		"""Submits a mission for auditing"""
 		assert interaction.guild is not None
 
-		auditChannel = await self.bot.serverConfig.channel_mission_audit.get(
-			interaction.guild
-		)
+		auditChannel = await self.bot.serverConfig.channel_mission_audit.get(interaction.guild)
 		assert auditChannel is not None
 
 		# Immediately defer the response
@@ -536,16 +490,12 @@ class Missions(commands.Cog, name="Missions"):
 		if modpreset is not None:
 			# Check if the mod preset has an .html extension
 			if modpreset.filename.split(".")[-1].casefold() != "html":
-				await interaction.followup.send(
-					"Mod preset files must have a `.html` extension!"
-				)
+				await interaction.followup.send("Mod preset files must have a `.html` extension!")
 				return
 			else:
 				# Since we have a mod preset, our mission file needs to be prefixed with "MODNIGHT"
 				if missionfile.filename.split("_", 1)[0].casefold() != "modnight":
-					await interaction.followup.send(
-						"Modnight missions must be prefixed with `modnight`!"
-					)
+					await interaction.followup.send("Modnight missions must be prefixed with `modnight`!")
 					return
 				else:
 					# Mission file is prefixed with modnight
@@ -555,9 +505,7 @@ class Missions(commands.Cog, name="Missions"):
 			# No mod preset
 			# Check to make sure that we don't have a modnight mission
 			if missionfile.filename.split("_", 1)[0].casefold() == "modnight":
-				await interaction.followup.send(
-					"Modnight missions must be submitted with a mod preset `.html` file!"
-				)
+				await interaction.followup.send("Modnight missions must be submitted with a mod preset `.html` file!")
 				return
 			else:
 				missionFilename = missionfile.filename
@@ -600,9 +548,7 @@ class Missions(commands.Cog, name="Missions"):
 			return
 
 		# Use a regex search to find the briefingName in the description.ext file
-		briefingMatch = re.search(
-			r"(?<=^briefingName\s=\s[\"\'])[^\"\']*", descriptionFile, re.I | re.M
-		)
+		briefingMatch = re.search(r"(?<=^briefingName\s=\s[\"\'])[^\"\']*", descriptionFile, re.I | re.M)
 
 		if briefingMatch is None:
 			await interaction.followup.send(
@@ -699,15 +645,9 @@ class Missions(commands.Cog, name="Missions"):
 
 		# Mission has passed validation checks
 		# Create our playercount string
-		playerCountString = (
-			str(bPlayerCount)
-			if bExtraCount is None
-			else f"{bPlayerCount} + {bExtraCount}"
-		)
+		playerCountString = str(bPlayerCount) if bExtraCount is None else f"{bPlayerCount} + {bExtraCount}"
 		# Create our view
-		view = MissionAuditView(
-			self.bot, interaction.user, missionfile, modpackFile=modpreset
-		)
+		view = MissionAuditView(self.bot, interaction.user, missionfile, modpackFile=modpreset)
 		# Send the response
 		# Everything else in the audit process is done through callbacks in the view and accompanying modal
 		message = await interaction.followup.send(
@@ -725,6 +665,181 @@ class Missions(commands.Cog, name="Missions"):
 		)
 		view.message = message
 
+	@app_commands.command(name="upload_mission")
+	@app_commands.describe(missionfile="Mission file to upload")
+	@app_commands.default_permissions(manage_messages=True)
+	@app_commands.guild_only()
+	@blueonblue.checks.has_configs(
+		SCONF_MISSION_UPLOAD_URL,
+		SCONF_MISSION_UPLOAD_USERNAME,
+		SCONF_MISSION_UPLOAD_PASSWORD,
+	)
+	async def upload(self, interaction: discord.Interaction, missionfile: discord.Attachment):
+		"""Uploads a mission to the Arma server"""
+		assert interaction.guild is not None
+
+		# Immediately defer the response
+		await interaction.response.defer()
+
+		# Validate the mission name
+		try:
+			_decode_file_name(missionfile.filename)
+		except Exception as exception:
+			await interaction.followup.send(
+				f"{exception.args[0]}"
+				f"\n{interaction.user.mention}, I encountered some errors when uploading your mission `{missionfile.filename}`. "
+				"Please ensure that your mission file name follows the correct naming format."
+				"\nExample: `coop_52_daybreak_v1_6.Altis.pbo`"
+			)
+			return
+
+			# Start doing some validation on the contents of the mission file
+		try:
+			missionFileBytes = await missionfile.read()
+			# missionPBO = pboutil.PBOFile.from_bytes(missionFileBytes)
+			missionPBO = pbokit.PBO.from_bytes(missionFileBytes)
+		except Exception:
+			await interaction.followup.send(
+				"I encountered an error verifying the validity of your mission file."
+				"\nPlease ensure that you are submitting a mission in PBO format, exported from the Arma 3 editor."
+			)
+			return
+
+		# PBO file is good, scan the description.ext
+		try:
+			if missionPBO.has_file("description.ext"):
+				descriptionFile = missionPBO["description.ext"].as_str()
+			else:
+				raise Exception
+		except Exception:
+			await interaction.followup.send(
+				"I encountered an issue reading your mission's `description.ext` file."
+				"\nPlease ensure that your mission contains a description.ext file, with a filename in all-lowercase."
+			)
+			return
+
+		# Use a regex search to find the briefingName in the description.ext file
+		briefingMatch = re.search(r"(?<=^briefingName\s=\s[\"\'])[^\"\']*", descriptionFile, re.I | re.M)
+
+		if briefingMatch is None:
+			await interaction.followup.send(
+				"I could not determine the `briefingName` of your mission from its `description.ext` file."
+				"\nPlease ensure that your mission has a `briefingName` defined."
+			)
+			return
+
+		briefingName = briefingMatch.group()
+
+		# Now that we have the briefingName, we need to validate it.
+		# Correct naming structure: COOP 52+2 - Daybreak v1.8
+		# Start by setting up a regex match for the briefing name
+		briefingRe = re.compile(
+			r"^(?:test )?(?:(?P<gametype>[a-zA-Z]+) )?"
+			r"(?P<playercount>\d+)?(?:\+(?P<extracount>\d*))? ?(?:\- *)?(?P<name>.*?)"
+			r"(?: v?(?P<version>\d+(?:\.\d+)*?))?$",
+			re.MULTILINE + re.IGNORECASE,
+		)
+
+		# Scan the briefing name to extract information
+		briefingNameMatch = briefingRe.fullmatch(briefingName)
+
+		# If the briefingName did not follow the format specified by the regex
+		if briefingNameMatch is None:
+			await interaction.followup.send(
+				"The `briefingName` entry in your `description.ext` file does not appear to follow the mission naming guidelines."
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral=True,
+			)
+			return
+
+		bGametype = briefingNameMatch.group("gametype")
+		bPlayerCount = briefingNameMatch.group("playercount")
+		bName = briefingNameMatch.group("name")
+		bVersion = briefingNameMatch.group("version")
+
+		# briefingName exists, check to make sure that we have detected a gametype, playercont, name, and version
+		if bGametype is None:
+			await interaction.followup.send(
+				"Could not determine your mission's gametype from the `briefingName` entry in your `description.ext` file."
+				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral=True,
+			)
+			return
+
+		if bPlayerCount is None:
+			await interaction.followup.send(
+				"Could not determine your mission's player count from the `briefingName` entry in your `description.ext` file."
+				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral=True,
+			)
+			return
+
+		if bName is None:
+			await interaction.followup.send(
+				"Could not determine your mission's name from the `briefingName` entry in your `description.ext` file."
+				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral=True,
+			)
+			return
+
+		if bVersion is None:
+			await interaction.followup.send(
+				"Could not determine your mission's version from the `briefingName` entry in your `description.ext` file."
+				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral=True,
+			)
+			return
+
+		if bGametype.casefold() not in VALID_GAMETYPES:
+			await interaction.followup.send(
+				f"The gametype `{bGametype}` found in the `briefingName` entry in your `description.ext` file is not a valid gametype."
+				f"\nDetected `briefingName` was: `{briefingNameMatch.group()}`"
+				"\nPlease ensure that your mission is named according to the mission naming guidelines. Example: `COOP 52+1 - Daybreak v1.8`.",
+				ephemeral=True,
+			)
+			return
+
+		# Mission is ready to upload
+		uploadURL = await self.bot.serverConfig.mission_upload_url.get(interaction.guild)
+		uploadUsername = await self.bot.serverConfig.mission_upload_username.get(interaction.guild)
+		uploadPassword = await self.bot.serverConfig.mission_upload_password.get(interaction.guild)
+
+		assert uploadURL is not None
+		assert uploadUsername is not None
+		assert uploadPassword is not None
+
+		# Append a slash to the end of the upload URL if needed
+		if uploadURL[-1] != "/":
+			uploadURL += "/"
+
+		# Create basic authentication object
+		authObj = aiohttp.BasicAuth(login=uploadUsername, password=uploadPassword)
+
+		async with self.bot.httpSession.head(
+			url=f"{uploadURL}{missionfile.filename}", auth=authObj, raise_for_status=False
+		) as response:
+			if response.status != 404:
+				await interaction.followup.send(
+					f"Unable to upload mission `{missionfile.filename}`. File already exists on server."
+				)
+				return
+
+		async with self.bot.httpSession.put(
+			url=f"{uploadURL}{missionfile.filename}", auth=authObj, raise_for_status=False, data=missionFileBytes
+		) as response:
+			if response.status == 201:
+				await interaction.followup.send(
+					f"Mission `{missionfile.filename}` uploaded successfully.", files=[await missionfile.to_file()]
+				)
+				return
+			else:
+				await interaction.followup.send(f"Error `{response.status}` uploading mission `{missionfile.filename}`.")
+				return
+
 	@app_commands.command(name="schedule")
 	@app_commands.describe(
 		date="ISO 8601 formatted date (YYYY-MM-DD)",
@@ -733,9 +848,7 @@ class Missions(commands.Cog, name="Missions"):
 	)
 	@app_commands.autocomplete(missionname=mission_autocomplete)
 	@app_commands.guild_only()
-	@blueonblue.checks.has_configs(
-		SCONF_MISSION_SHEET_KEY, SCONF_MISSION_WORKSHEET, SCONF_MISSION_WIKI_URL
-	)
+	@blueonblue.checks.has_configs(SCONF_MISSION_SHEET_KEY, SCONF_MISSION_WORKSHEET, SCONF_MISSION_WIKI_URL)
 	async def schedule(
 		self,
 		interaction: discord.Interaction,
@@ -746,13 +859,9 @@ class Missions(commands.Cog, name="Missions"):
 		"""Schedules a mission to be played. Missions must be present on the audit list."""
 		assert interaction.guild is not None
 
-		missionKey = await self.bot.serverConfig.mission_sheet_key.get(
-			interaction.guild
-		)
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
 		assert missionKey is not None
-		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(
-			interaction.guild
-		)
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
 		assert missionWorksheetName is not None
 		wikiURL = await self.bot.serverConfig.mission_wiki_url.get(interaction.guild)
 		assert wikiURL is not None
@@ -761,9 +870,7 @@ class Missions(commands.Cog, name="Missions"):
 		try:
 			dateVar = datetime.strptime(date, ISO_8601_FORMAT)
 		except ValueError:
-			await interaction.response.send_message(
-				"Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True
-			)
+			await interaction.response.send_message("Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True)
 			return
 
 		# Check to make sure that the mission isn't being scheduled too far in advance
@@ -796,14 +903,10 @@ class Missions(commands.Cog, name="Missions"):
 			await interaction.followup.send(
 				f"Could not contact the wiki to search for the audit list (Error: {error.status}). Please contact the bot owner."
 			)
-			_log.warning(
-				f"Received HTTP error {error.status} when trying to read the audit list from the wiki."
-			)
+			_log.warning(f"Received HTTP error {error.status} when trying to read the audit list from the wiki.")
 			return
 		except:
-			await interaction.followup.send(
-				"Error reading audit list from wiki. Please contact the bot owner."
-			)
+			await interaction.followup.send("Error reading audit list from wiki. Please contact the bot owner.")
 			raise
 
 		# Now that we have our text, split it up and parse it.
@@ -831,9 +934,7 @@ class Missions(commands.Cog, name="Missions"):
 
 		# If we did not find a matching row, return an error
 		if mission is None:
-			await interaction.followup.send(
-				f"I could not find the mission `{missionname}` on the audit list."
-			)
+			await interaction.followup.send(f"I could not find the mission `{missionname}` on the audit list.")
 			return
 
 		# Put a placeholder if the map name is missing
@@ -899,18 +1000,12 @@ class Missions(commands.Cog, name="Missions"):
 					cellNotes.value = notes
 					cellList.append(cellNotes)
 				# With our data set, write it back to the spreadsheet
-				await missionSheet.update_cells(
-					cellList, value_input_option=ValueInputOption.user_entered
-				)
+				await missionSheet.update_cells(cellList, value_input_option=ValueInputOption.user_entered)
 				# await missionSheet.update(f"{datecell.address}:{secondAddr}", [rowData])
-				await interaction.followup.send(
-					f"The mission `{mission[0]}` has been successfully scheduled for {dateStr}`"
-				)
+				await interaction.followup.send(f"The mission `{mission[0]}` has been successfully scheduled for {dateStr}`")
 			else:
 				# Mission already scheduled
-				await interaction.followup.send(
-					f"A mission has already been scheduled for {dateStr}"
-				)
+				await interaction.followup.send(f"A mission has already been scheduled for {dateStr}")
 		else:
 			# Date not found. Send an error
 			await interaction.followup.send(
@@ -922,29 +1017,21 @@ class Missions(commands.Cog, name="Missions"):
 	@app_commands.describe(date="ISO 8601 formatted date (YYYY-MM-DD)")
 	@app_commands.guild_only()
 	@app_commands.default_permissions(manage_messages=True)
-	@blueonblue.checks.has_configs(
-		SCONF_MISSION_SHEET_KEY, SCONF_MISSION_WORKSHEET, SCONF_MISSION_WIKI_URL
-	)
+	@blueonblue.checks.has_configs(SCONF_MISSION_SHEET_KEY, SCONF_MISSION_WORKSHEET, SCONF_MISSION_WIKI_URL)
 	async def schedule_cancel(self, interaction: discord.Interaction, date: str):
 		"""Removes a previously scheduled mission from the mission schedule"""
 		assert interaction.guild is not None
 
-		missionKey = await self.bot.serverConfig.mission_sheet_key.get(
-			interaction.guild
-		)
+		missionKey = await self.bot.serverConfig.mission_sheet_key.get(interaction.guild)
 		assert missionKey is not None
-		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(
-			interaction.guild
-		)
+		missionWorksheetName = await self.bot.serverConfig.mission_worksheet.get(interaction.guild)
 		assert missionWorksheetName is not None
 
 		# See if we can convert out date string to a datetime object
 		try:
 			dateVar = datetime.strptime(date, ISO_8601_FORMAT)
 		except ValueError:
-			await interaction.response.send_message(
-				"Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True
-			)
+			await interaction.response.send_message("Dates need to be sent in ISO 8601 format! (YYYY-MM-DD)", ephemeral=True)
 			return
 
 		# If we've passed our preliminary checks, defer the response
@@ -1006,22 +1093,16 @@ class Missions(commands.Cog, name="Missions"):
 				cellNotes.value = ""
 				cellList.append(cellNotes)
 				# With our data set, write it back to the spreadsheet
-				await missionSheet.update_cells(
-					cellList, value_input_option=ValueInputOption.user_entered
-				)
+				await missionSheet.update_cells(cellList, value_input_option=ValueInputOption.user_entered)
 				await interaction.followup.send(
 					f"The mission `{missionName}` has been removed as the scheduled mission for {dateStr}."
 				)
 			else:
 				# Mission already scheduled
-				await interaction.followup.send(
-					f"I could not find a mission scheduled for {dateStr}."
-				)
+				await interaction.followup.send(f"I could not find a mission scheduled for {dateStr}.")
 		else:
 			# Date not found. Send an error
-			await interaction.followup.send(
-				f"I could not find a mission scheduled for {dateStr}."
-			)
+			await interaction.followup.send(f"I could not find a mission scheduled for {dateStr}.")
 
 
 async def setup(bot: blueonblue.BlueOnBlueBot):
