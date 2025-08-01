@@ -273,6 +273,7 @@ class Missions(commands.Cog, name="Missions"):
 		SCONF_MISSION_DURATION,
 		SCONF_MISSION_TIME,
 	)
+	@app_commands.checks.bot_has_permissions(manage_events=True)
 	async def schedule(
 		self,
 		interaction: discord.Interaction,
