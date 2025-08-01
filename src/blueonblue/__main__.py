@@ -2,13 +2,11 @@
 import argparse
 import logging
 import os
-import pathlib
 
 import discord
 
 from .bot import BlueOnBlueBot
 from .config import get_config_value
-from .defines import GOOGLE_API_FILE
 from .log import setup_logging
 
 import importlib.resources
@@ -76,10 +74,6 @@ def main():
 
 	if botToken is None:
 		_log.error("Unable to locate a Discord API token. Exiting.")
-		exit()
-
-	if not pathlib.Path(GOOGLE_API_FILE).is_file():
-		_log.error("Unable to locate Google API data file. Exiting.")
 		exit()
 
 	# Start the bot

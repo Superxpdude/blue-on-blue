@@ -19,12 +19,10 @@ from blueonblue.defines import (
 	SCONF_ARMA_STATS_URL,
 	SCONF_CHANNEL_BOT,
 	SCONF_CHANNEL_CHECK_IN,
-	SCONF_CHANNEL_MISSION_AUDIT,
 	SCONF_CHANNEL_MOD_ACTIVITY,
 	SCONF_GROUP_APPLY_URL,
-	SCONF_MISSION_SHEET_KEY,
-	SCONF_MISSION_WIKI_URL,
-	SCONF_MISSION_WORKSHEET,
+	SCONF_MISSION_DURATION,
+	SCONF_MISSION_TIME,
 	SCONF_MISSION_UPLOAD_URL,
 	SCONF_MISSION_UPLOAD_USERNAME,
 	SCONF_MISSION_UPLOAD_PASSWORD,
@@ -639,7 +637,6 @@ class ServerConfig:
 		# Server channels
 		self.channel_bot = ServerConfigTextChannel(bot, SCONF_CHANNEL_BOT)
 		self.channel_check_in = ServerConfigTextChannel(bot, SCONF_CHANNEL_CHECK_IN)
-		self.channel_mission_audit = ServerConfigTextChannel(bot, SCONF_CHANNEL_MISSION_AUDIT)
 		self.channel_mod_activity = ServerConfigTextChannel(bot, SCONF_CHANNEL_MOD_ACTIVITY)
 
 		# Server roles
@@ -652,9 +649,8 @@ class ServerConfig:
 		self.group_apply_url = ServerConfigString(bot, SCONF_GROUP_APPLY_URL)
 
 		# Missions config
-		self.mission_sheet_key = ServerConfigString(bot, SCONF_MISSION_SHEET_KEY)
-		self.mission_worksheet = ServerConfigStringDefault(bot, SCONF_MISSION_WORKSHEET, default="Schedule")
-		self.mission_wiki_url = ServerConfigString(bot, SCONF_MISSION_WIKI_URL)
+		self.mission_duration = ServerConfigInteger(bot, SCONF_MISSION_DURATION)
+		self.mission_time = ServerConfigString(bot, SCONF_MISSION_TIME)
 		self.mission_upload_url = ServerConfigString(bot, SCONF_MISSION_UPLOAD_URL)
 		self.mission_upload_username = ServerConfigString(bot, SCONF_MISSION_UPLOAD_USERNAME)
 		self.mission_upload_password = ServerConfigString(bot, SCONF_MISSION_UPLOAD_PASSWORD, protected=True)
