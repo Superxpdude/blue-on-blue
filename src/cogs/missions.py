@@ -354,7 +354,7 @@ class Missions(commands.Cog, name="Missions"):
 		)
 
 		await interaction.response.send_message(
-			f"The mission `{missionname}` has been successfully scheduled for {dateVar.strftime(ISO_8601_FORMAT)}`"
+			f"The mission `{missionname}` has been successfully scheduled for {discord.utils.format_dt(startTime)}"
 		)
 
 
