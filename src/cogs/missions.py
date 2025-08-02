@@ -1,22 +1,24 @@
 import logging
 import re
-from datetime import datetime, timedelta, time
+from datetime import datetime, time, timedelta
+from importlib.resources import files
 from typing import TypedDict
 from zoneinfo import ZoneInfo
 
 import aiohttp
-import blueonblue
 import discord
 import pbokit
+from discord import app_commands
+from discord.ext import commands
+
+import blueonblue
 from blueonblue.defines import (
 	SCONF_MISSION_DURATION,
 	SCONF_MISSION_TIME,
+	SCONF_MISSION_UPLOAD_PASSWORD,
 	SCONF_MISSION_UPLOAD_URL,
 	SCONF_MISSION_UPLOAD_USERNAME,
-	SCONF_MISSION_UPLOAD_PASSWORD,
 )
-from discord import app_commands
-from discord.ext import commands
 
 _log = logging.getLogger(__name__)
 
@@ -312,11 +314,31 @@ class Missions(commands.Cog, name="Missions"):
 		startTime = datetime.combine(dateVar.date(), time.fromisoformat(startTimeStr), tzinfo=tz)
 		endTime = startTime + timedelta(hours=durationInt)
 
+		# Double-check that the start time is not in the past
+		if startTime < discord.utils.utcnow():
+			await interaction.response.send_message(
+				"Missions cannot be scheduled in the past!\n"
+				f"Scheduled time: {discord.utils.format_dt(startTime)}\n"
+				f"Current time: {discord.utils.format_dt(discord.utils.utcnow())}",
+				ephemeral=True,
+			)
+			return
+
 		description = (
 			f"{notes}\n\nScheduled by {interaction.user.mention}"
 			if notes is not None
 			else f"Scheduled by {interaction.user.mention}"
 		)
+
+		# Load the banner image
+		banner = b""
+		try:
+			bannerPath = files("blueonblue.images").joinpath("arma3_banner.png")
+			banner = bannerPath.read_bytes()
+		except ModuleNotFoundError:
+			_log.warning("Unable to load Arma 3 event banner image. Cannot find package blueonblue.images")
+		except FileNotFoundError:
+			_log.warning("Unable to load Arma 3 event banner image. Unable to find banner file in package.")
 
 		# Create the scheduled event
 		await interaction.guild.create_scheduled_event(
@@ -326,6 +348,7 @@ class Missions(commands.Cog, name="Missions"):
 			end_time=endTime,
 			privacy_level=discord.PrivacyLevel.guild_only,
 			entity_type=discord.EntityType.external,
+			image=banner,
 			location="Teamspeak",
 			reason=f"Mission scheduled by {interaction.user.name}",
 		)
