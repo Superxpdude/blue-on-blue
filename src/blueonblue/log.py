@@ -1,8 +1,6 @@
 import logging
 import logging.handlers
 
-import discord
-
 
 class _ColourFormatter(logging.Formatter):
 	"""Logging formatter that injects ANSI colour codes into the logging stream.
@@ -68,11 +66,7 @@ def setup_logging(
 	consoleStderr = logging.StreamHandler()
 
 	logFormatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S")
-	consoleFormatter = (
-		_ColourFormatter()
-		if discord.utils.stream_supports_colour(consoleStdout.stream)
-		else logging.Formatter("%(asctime)s [%(levelname)-8s] %(name)s: %(message)s", "%Y-%m-%d %H:%M:%S")
-	)
+	consoleFormatter = _ColourFormatter()
 
 	logHandler.setFormatter(logFormatter)
 	consoleStdout.setFormatter(consoleFormatter)
