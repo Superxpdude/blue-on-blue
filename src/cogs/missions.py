@@ -314,6 +314,22 @@ class Missions(commands.Cog, name="Missions"):
 		startTime = datetime.combine(dateVar.date(), time.fromisoformat(startTimeStr), tzinfo=tz)
 		endTime = startTime + timedelta(hours=durationInt)
 
+		# Check for conflicting events
+		for i in interaction.guild.scheduled_events:
+			if (
+				# For existing events without end times, check if the start time falls within the scheduled mission time.
+				(i.end_time is None and i.start_time >= startTime and i.start_time <= endTime)
+				# For existing events with end times, check if the the end time of the scheduled event falls after
+				# the start time of the mission (and vice versa).
+				or (i.end_time is not None and i.end_time >= startTime and endTime >= i.start_time)
+			):
+				await interaction.response.send_message(
+					f"Scheduled mission would conflict with an existing scheduled event: {i.url}\n"
+					"Please select a different date or contact a staff member for assistance.",
+					ephemeral=True,
+				)
+				return
+
 		# Double-check that the start time is not in the past
 		if startTime < discord.utils.utcnow():
 			await interaction.response.send_message(
@@ -321,6 +337,7 @@ class Missions(commands.Cog, name="Missions"):
 				f"Scheduled time: {discord.utils.format_dt(startTime)}\n"
 				f"Current time: {discord.utils.format_dt(discord.utils.utcnow())}",
 				ephemeral=True,
+				delete_after=300,
 			)
 			return
 
