@@ -6,8 +6,6 @@ The name of the container image is `ghcr.io/superxpdude/blueonblue`
 
 Volume mount the data directory on the host to `/app/data` inside the container.
 
-The data directory must contain a file named `google_api.json` which contains a Google API token for the mission schedule.
-
 The bot will run as the root user in the container by default. Changing the user can be done via the `--user` flag on container creation.
 
 ## Backups
